@@ -8,6 +8,8 @@ import tkinter as tk
 import tkinter.font as tkfont
 from pathlib import Path
 
+from dialogue import DialogueBox, DialogueLine
+
 TILE = 16
 VIEW_W, VIEW_H = 320, 180
 SCALE = 3
@@ -20,6 +22,7 @@ CHUNK_SCREEN = CHUNK_PIXELS * SCALE
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
+RETRI_PORTRAIT = ASSETS / "portraits" / "retri.png"
 INK = "#101722"
 PANEL = "#202b3c"
 GOLD = "#f0d28c"
@@ -83,6 +86,7 @@ class CaldronaLite:
         self._font_handles: list[str] = []
         self._load_font()
         self._init_controller()
+        self.dialogue = DialogueBox(self.canvas, self.root, self._font)
 
         self.screen = "menu"
         self.selection = 0
@@ -297,6 +301,10 @@ class CaldronaLite:
                                 fill=GOLD, font=self._font(26))
 
     def _activate(self) -> None:
+        if self.screen == "game":
+            if self.dialogue.active:
+                self.dialogue.advance()
+            return
         if self.screen == "menu":
             if self.selection == 0:
                 self._start_cavern()
@@ -304,8 +312,6 @@ class CaldronaLite:
                 self._draw_notice("NO SAVED CAVERN JOURNEY YET.")
             else:
                 self._draw_settings()
-        elif self.screen == "game":
-            self._leave_cavern()
         else:
             self._draw_menu()
 
@@ -316,6 +322,7 @@ class CaldronaLite:
             self._draw_menu()
 
     def _leave_cavern(self) -> None:
+        self.dialogue.clear()
         self._stop_cavern_music()
         self.keys.clear()
         self.pad_keys.clear()
@@ -338,6 +345,9 @@ class CaldronaLite:
             self.pygame.mixer.music.fadeout(350)
 
     def _click(self, event: tk.Event) -> None:
+        if self.screen == "game" and self.dialogue.active:
+            self.dialogue.advance()
+            return
         if self.screen != "menu":
             return
         x, y = event.x / SCALE, event.y / SCALE
@@ -374,6 +384,13 @@ class CaldronaLite:
         self.last_tick = time.monotonic()
         self._update_world(force=True)
         self._start_cavern_music()
+        self.dialogue.show([
+            DialogueLine("Retri", "That sound again. It came from inside this cave.",
+                         RETRI_PORTRAIT, thought=True),
+            DialogueLine("Retri", "I'm a skirter. I can go where the village guards won't.",
+                         RETRI_PORTRAIT, thought=True),
+            DialogueLine("Retri", "I'll find its source. Carefully.", RETRI_PORTRAIT),
+        ])
 
     def _load_player(self) -> dict[str, list[tk.PhotoImage]]:
         atlas = tk.PhotoImage(master=self.root, file=str(ASSETS / "retri-overworld.png"))
@@ -474,7 +491,7 @@ class CaldronaLite:
                 self.selection = new_selection
                 self._draw_menu()
             self.menu_nav_after = now + 0.18
-        elif self.screen == "game":
+        elif self.screen == "game" and not self.dialogue.active:
             # D-pad input resolves to one axis; diagonals are discarded by priority.
             active = direction
             moved = False
