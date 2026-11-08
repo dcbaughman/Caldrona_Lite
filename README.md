@@ -39,12 +39,17 @@ Battles are strictly turn-based: arrows/WASD or the PS4 D-pad select Attack,
 Guard, Potion, or Flee; Enter/Cross confirms. Escape/Circle highlights Flee
 without executing it. Mouse command selection also works. An enemy replies
 once after your action, and never attacks while you are choosing a command.
-Guard halves the next hit, potions restore up to 25 HP, and fleeing has a 75%
+Choose Items, then Potion to restore up to 25 HP; Back or Circle returns to the commands without using a turn. Guard halves the next hit, and fleeing has a 75%
 success chance. Retri starts with 60 HP and three potions. Victory awards gold,
 restores up to 8 HP, and replenishes one potion (maximum three). Defeat returns
 Retri to the entrance with full health and potions. Confirm the result screen
 to resume exploring. These stats and rewards last for the current journey;
 saving and equipment remain future features.
+
+Victories also award experience equal to twice the enemy's gold reward. The
+next level requires 30 times the current level in XP; excess carries over.
+Each level adds 5 maximum HP and 1 attack damage. Level and XP persist during
+the current journey, including through defeat; saving remains a future feature.
 
 `battle.py` holds the encounter logic, combat model, battle UI, and transition.
 Sprites load once and are reused; turns and transitions use the existing tick,

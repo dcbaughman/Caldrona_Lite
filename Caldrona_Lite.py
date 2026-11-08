@@ -13,7 +13,7 @@ from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
                               load_display, pixel_scale, save_display)
 from game_menu import GameMenu
 from battle import (BattleModel, BattleScene, BattleTransition, EncounterMeter,
-                    ENEMIES, MAX_HP, MAX_POTIONS)
+                    ENEMIES, MAX_HP, MAX_POTIONS, gain_xp)
 
 TILE = 16
 VIEW_W, VIEW_H = 320, 180
@@ -541,6 +541,7 @@ class CaldronaLite:
         self.player_frames = self._load_player()
         self.encounters = EncounterMeter()
         self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
+        self.level, self.xp = 1, 0
         if not hasattr(self, "battle"):
             self.battle = BattleScene(self.canvas, self._font, ASSETS)
             self.battle_transition = BattleTransition(self.canvas)
@@ -582,11 +583,12 @@ class CaldronaLite:
         model = self.battle.model
         if outcome == "victory":
             self.gold += model.enemy.gold
-            self.hp = min(MAX_HP, model.hp + 8)
+            self.level, self.xp = gain_xp(self.level, self.xp, model.xp_reward)
+            self.hp = min(MAX_HP + (self.level - 1) * 5, model.hp + 8 + (self.level - model.level) * 5)
             self.potions = min(MAX_POTIONS, model.potions + 1)
         elif outcome == "defeat":
             self.x, self.y = self.cave.spawn
-            self.hp, self.potions = MAX_HP, MAX_POTIONS
+            self.hp, self.potions = MAX_HP + (self.level - 1) * 5, MAX_POTIONS
         else:
             self.hp, self.potions = model.hp, model.potions
         self.encounters.reset()
@@ -602,7 +604,7 @@ class CaldronaLite:
             return
         if self.screen == "battle_in":
             enemy = self.encounters.rng.choice(ENEMIES)
-            self.battle.start(BattleModel(enemy, self.hp, self.potions), now)
+            self.battle.start(BattleModel(enemy, self.hp, self.potions, level=self.level, xp=self.xp), now)
             self.screen = "battle"
             self._play_music(BATTLE_MUSIC)
         else:

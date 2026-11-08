@@ -14,6 +14,18 @@ MAX_POTIONS = 3
 TRANSITION_SECONDS = 0.45
 
 
+def xp_threshold(level):
+    return 30 * level
+
+
+def gain_xp(level, xp, amount):
+    xp += amount
+    while xp >= xp_threshold(level):
+        xp -= xp_threshold(level)
+        level += 1
+    return level, xp
+
+
 class EncounterMeter:
     def __init__(self, rng=None, chance=ENCOUNTER_CHANCE, safe_steps=SAFE_STEPS):
         self.rng = rng if rng is not None else random.Random()
@@ -54,11 +66,14 @@ ENEMIES = (
 
 class BattleModel:
     """No clock advances a turn: a command, then one enemy reply."""
-    def __init__(self, enemy, hp=MAX_HP, potions=MAX_POTIONS, rng=None):
+    def __init__(self, enemy, hp=MAX_HP, potions=MAX_POTIONS, rng=None, level=1, xp=0):
         self.enemy = enemy
         self.enemy_hp = enemy.hp
         self.hp = hp
         self.potions = potions
+        self.level, self.xp = level, xp
+        self.max_hp = MAX_HP + (level - 1) * 5
+        self.xp_reward = enemy.gold * 2
         self.rng = rng if rng is not None else random.Random()
         self.outcome = None
         self.pending_reply = False
@@ -71,7 +86,7 @@ class BattleModel:
             return False
         self.effect = action
         if action == "Attack":
-            damage = max(1, self.rng.randint(10, 14) - self.enemy.armor)
+            damage = max(1, self.rng.randint(10, 14) + self.level - 1 - self.enemy.armor)
             self.enemy_hp = max(0, self.enemy_hp - damage)
             self.message = f"Retri strikes for {damage}!"
             if not self.enemy_hp:
@@ -83,10 +98,10 @@ class BattleModel:
             if not self.potions:
                 self.message = "No potions left. Choose another action."
                 return False
-            if self.hp == MAX_HP:
+            if self.hp >= self.max_hp:
                 self.message = "Retri is already at full health."
                 return False
-            healed = min(25, MAX_HP - self.hp)
+            healed = min(25, self.max_hp - self.hp)
             self.hp += healed
             self.potions -= 1
             self.message = f"Retri recovers {healed} HP."
@@ -119,7 +134,7 @@ class BattleModel:
 class BattleScene:
     TAG = "battle"
     DYNAMIC = "battle_dynamic"
-    COMMANDS = ("Attack", "Guard", "Potion", "Flee")
+    COMMANDS = ("Attack", "Guard", "Items", "Flee")
 
     def __init__(self, canvas, font, assets: Path):
         self.canvas, self.font = canvas, font
@@ -138,6 +153,7 @@ class BattleScene:
     def start(self, model, now):
         self.model = model
         self.selection = 0
+        self.item_menu = False
         self.phase = "command"
         self.held = None
         self.repeat_at = 0.0
@@ -163,14 +179,15 @@ class BattleScene:
         c.delete(self.DYNAMIC)
         tags = (self.TAG, self.DYNAMIC)
         c.create_text(40, 350, text=m.message, anchor="w", fill="#ffffff", font=self.font(23), tags=tags)
-        for i, command in enumerate(self.COMMANDS):
+        commands = (f"Potion x{m.potions}", "Back") if self.item_menu else self.COMMANDS
+        for i, command in enumerate(commands):
             x, y = 52 + (i % 2) * 126, 435 + (i // 2) * 43
             text = ("> " if i == self.selection and self.phase == "command" else "  ") + command
             c.create_text(x-16, y, text=text, anchor="w", font=self.font(22),
                           fill="#ffe37e" if i == self.selection else "#ffffff", tags=tags)
-        c.create_text(334, 429, text="RETRI", anchor="w", fill="#ffe37e", font=self.font(28, True), tags=tags)
-        c.create_text(505, 429, text=f"HP  {m.hp:2} / {MAX_HP}", anchor="w", fill="#ffffff", font=self.font(26), tags=tags)
-        c.create_text(334, 474, text=f"POTIONS  {m.potions}", anchor="w", fill="#80eaf5", font=self.font(21), tags=tags)
+        c.create_text(334, 429, text=f"RETRI LV {m.level}", anchor="w", fill="#ffe37e", font=self.font(24, True), tags=tags)
+        c.create_text(590, 429, text=f"HP  {m.hp:2} / {m.max_hp}", anchor="w", fill="#ffffff", font=self.font(24), tags=tags)
+        c.create_text(334, 474, text=f"XP {m.xp}/{xp_threshold(m.level)}", anchor="w", fill="#80eaf5", font=self.font(21), tags=tags)
         c.create_text(555, 474, text=f"FOE HP  {m.enemy_hp:2} / {m.enemy.hp}", anchor="w", fill="#ffffff", font=self.font(21), tags=tags)
         hint = "ENTER / CROSS" if self.phase == "result" else "CHOOSE A COMMAND"
         c.create_text(914, 504, text=hint, anchor="e", fill="#bec8e4", font=self.font(15), tags=tags)
@@ -186,7 +203,7 @@ class BattleScene:
             self.repeat_at = now
         if now >= self.repeat_at:
             step = {"up": -2, "down": 2, "left": -1, "right": 1}[direction]
-            self.selection = (self.selection + step) % 4
+            self.selection = (self.selection + (1 if self.item_menu else step)) % (2 if self.item_menu else 4)
             self.repeat_at = now + 0.22
             self.draw_status()
 
@@ -194,7 +211,17 @@ class BattleScene:
         if self.phase == "result":
             return self.model.outcome
         if self.phase == "command":
-            if self.model.command(self.COMMANDS[self.selection]):
+            if not self.item_menu and self.COMMANDS[self.selection] == "Items":
+                self.item_menu, self.selection = True, 0
+                self.draw_status()
+                return None
+            if self.item_menu and self.selection == 1:
+                self.item_menu, self.selection = False, 2
+                self.draw_status()
+                return None
+            action = "Potion" if self.item_menu else self.COMMANDS[self.selection]
+            if self.model.command(action):
+                self.item_menu, self.selection = False, 2 if action == "Potion" else self.selection
                 self.phase = "hero_action"
                 self.phase_at = now
             self.draw_status()
@@ -202,14 +229,17 @@ class BattleScene:
 
     def back(self):
         if self.phase == "command":
-            self.selection = 3
+            if self.item_menu:
+                self.item_menu, self.selection = False, 2
+            else:
+                self.selection = 3
             self.draw_status()
 
     def click(self, x, y, now):
         if self.phase == "result":
             return self.confirm(now)
         if self.phase == "command":
-            for i in range(4):
+            for i in range(2 if self.item_menu else 4):
                 if abs(x - (100 + i % 2 * 126)) < 60 and abs(y - (435 + i // 2 * 43)) < 19:
                     self.selection = i
                     return self.confirm(now)
@@ -237,7 +267,9 @@ class BattleScene:
         if self.model.outcome:
             self.phase = "result"
             self.model.message = {
-                "victory": f"Victory!  {self.model.enemy.gold} gold, +8 HP, +1 potion.",
+                "victory": (f"Victory! {self.model.xp_reward} XP, {self.model.enemy.gold} gold."
+                            + (f" Level {gain_xp(self.model.level, self.model.xp, self.model.xp_reward)[0]}!"
+                               if gain_xp(self.model.level, self.model.xp, self.model.xp_reward)[0] > self.model.level else "")),
                 "defeat": "Retri retreats to the entrance to recover.",
                 "fled": "Escaped safely. Continue exploring.",
             }[self.model.outcome]
