@@ -22,7 +22,8 @@ CHUNK_SCREEN = CHUNK_PIXELS * SCALE
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
-RETRI_PORTRAIT = ASSETS / "portraits" / "retri.png"
+RETRI_PORTRAIT = ASSETS / "portraits" / "allsprites.png"
+RETRI_PORTRAIT_REGION = (110, 24, 238, 152)
 INK = "#101722"
 PANEL = "#202b3c"
 GOLD = "#f0d28c"
@@ -386,10 +387,13 @@ class CaldronaLite:
         self._start_cavern_music()
         self.dialogue.show([
             DialogueLine("Retri", "That sound again. It came from inside this cave.",
-                         RETRI_PORTRAIT, thought=True),
+                         RETRI_PORTRAIT, thought=True,
+                         portrait_region=RETRI_PORTRAIT_REGION),
             DialogueLine("Retri", "I'm a skirter. I can go where the village guards won't.",
-                         RETRI_PORTRAIT, thought=True),
-            DialogueLine("Retri", "I'll find its source. Carefully.", RETRI_PORTRAIT),
+                         RETRI_PORTRAIT, thought=True,
+                         portrait_region=RETRI_PORTRAIT_REGION),
+            DialogueLine("Retri", "I'll find its source. Carefully.", RETRI_PORTRAIT,
+                         portrait_region=RETRI_PORTRAIT_REGION),
         ])
 
     def _load_player(self) -> dict[str, list[tk.PhotoImage]]:

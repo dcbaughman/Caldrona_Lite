@@ -16,6 +16,7 @@ class DialogueLine:
     text: str
     portrait: Path | None = None
     thought: bool = False
+    portrait_region: tuple[int, int, int, int] | None = None
 
 
 class DialogueBox:
@@ -32,7 +33,7 @@ class DialogueBox:
         self.font = font
         self.lines: deque[DialogueLine] = deque()
         self.active = False
-        self.portraits: dict[Path, tk.PhotoImage] = {}
+        self.portraits: dict[tuple[Path, tuple[int, int, int, int] | None], tk.PhotoImage] = {}
 
     def show(self, lines: list[DialogueLine]) -> None:
         self.clear()
@@ -53,24 +54,31 @@ class DialogueBox:
         line = self.lines.popleft()
         self._draw(line)
 
-    def _portrait(self, path: Path) -> tk.PhotoImage | None:
-        if path in self.portraits:
-            return self.portraits[path]
+    def _portrait(
+        self, path: Path, region: tuple[int, int, int, int] | None
+    ) -> tk.PhotoImage | None:
+        key = (path, region)
+        if key in self.portraits:
+            return self.portraits[key]
         try:
             source = tk.PhotoImage(master=self.root, file=str(path))
         except tk.TclError:
             return None
-        side = min(source.width(), source.height())
+        if region is None:
+            side = min(source.width(), source.height())
+            left = (source.width() - side) // 2
+            top = (source.height() - side) // 2
+        else:
+            left, top, right, bottom = region
+            side = min(right - left, bottom - top)
         image = tk.PhotoImage(master=self.root, width=side, height=side)
-        left = (source.width() - side) // 2
-        top = (source.height() - side) // 2
         image.tk.call(image, "copy", source, "-from", left, top,
                       left + side, top + side)
-        if side > 112:
-            image = image.subsample(math.ceil(side / 112))
+        if side > 128:
+            image = image.subsample(math.ceil(side / 128))
         elif side < 56:
-            image = image.zoom(max(1, 112 // side))
-        self.portraits[path] = image
+            image = image.zoom(max(1, 128 // side))
+        self.portraits[key] = image
         return image
 
     def _frame(self, x1: int, y1: int, x2: int, y2: int) -> None:
@@ -94,7 +102,7 @@ class DialogueBox:
         self._frame(box_left, 365, 942, 517)
         if has_portrait:
             self._frame(18, 365, 166, 517)
-            image = self._portrait(line.portrait)
+            image = self._portrait(line.portrait, line.portrait_region)
             if image is not None:
                 c.create_image(92, 441, image=image, anchor="center", tags=tag)
 

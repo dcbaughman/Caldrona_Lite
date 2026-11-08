@@ -19,7 +19,7 @@ The supplied Cavern Travel track plays on a loop in the cavern, fades in on Play
 This project reuses three existing Ipi assets, copied into this project:
 
 - assets/retri-overworld.png — Retri's directional walking atlas
-- assets/portraits/retri.png — Retri's dialogue portrait
+- assets/portraits/allsprites.png — supplied pixel-art portrait atlas; the dialogue panel crops Retri from it
 - assets/cobble_floor.png — cavern floor tile
 - assets/wall_brick.png — cavern wall tile
 - assets/audio/cavern-travel.mp3 — cavern exploration music
