@@ -149,7 +149,7 @@ class GameMenu:
             c.create_line(311, 242, 905, 242, fill="#a9c2d1", width=3, tags=tag)
             c.create_text(315, 274, text="SUNREST EXCAVATION", anchor="w",
                           fill="#f5e29b", font=self.font(32, True), tags=tag)
-            c.create_text(315, 342, text="A strange sound drew Retri into the cavern.",
+            c.create_text(315, 342, text="Following a strange sound...",
                           anchor="w", fill="#ffffff", font=self.font(27), tags=tag)
             c.create_text(315, 401, text="FLOOR  1", anchor="w",
                           fill="#80eaf5", font=self.font(27), tags=tag)

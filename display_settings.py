@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from math import gcd
 import tkinter as tk
 from dataclasses import dataclass
 from pathlib import Path
@@ -77,13 +78,20 @@ class ScaledCanvas(tk.Canvas):
             return source
         key = str(source)
         if key not in self._images:
+            divisor = gcd(self.scale_units, 12)
+            numerator, denominator = self.scale_units // divisor, 12 // divisor
+            # Tk combines -subsample and -zoom by sampling FIRST, which loses
+            # detail even for a 2x enlargement. Enlarge before sampling, using
+            # the reduced fraction so integer fullscreen scales need no sampling.
+            enlarged = source.zoom(numerator, numerator) if numerator != 1 else source
+            resized = enlarged.subsample(denominator, denominator) if denominator != 1 else enlarged
             image = tk.PhotoImage(
                 master=self.master,
                 width=self._value(source.width()),
                 height=self._value(source.height()),
             )
-            image.tk.call(image, "copy", source, "-zoom", self.scale_units,
-                          self.scale_units, "-subsample", 12, 12)
+            image.tk.call(image, "copy", resized, "-from", 0, 0,
+                          image.width(), image.height())
             self._images[key] = image
         return self._images[key]
 

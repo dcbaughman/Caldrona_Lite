@@ -523,13 +523,13 @@ class CaldronaLite:
         self.drawn_player_frame = None
         self.held_direction: str | None = None
         self.next_step_at = 0.0
-        self.canvas.create_rectangle(18, VIEW_H*SCALE-68, 570, VIEW_H*SCALE-24,
+        self.canvas.create_rectangle(18, VIEW_H*SCALE-98, 570, VIEW_H*SCALE-18,
                                      fill="#101625", outline="#ad8c54", width=3, tags=("hud",))
-        self.canvas.create_text(36, VIEW_H*SCALE-52, anchor="w", fill=GOLD,
-                                font=self._font(25, True), text="SUNREST EXCAVATION · FLOOR 1",
+        self.canvas.create_text(36, VIEW_H*SCALE-76, anchor="w", fill=GOLD,
+                                font=self._font(22, True), text="SUNREST EXCAVATION · FLOOR 1",
                                 tags=("hud",))
-        self.canvas.create_text(36, VIEW_H*SCALE-31, anchor="w", fill="#d1d5dc",
-                                font=self._font(19), text="D-PAD / WASD TO WALK · ESC / OPTIONS FOR MENU",
+        self.canvas.create_text(36, VIEW_H*SCALE-39, anchor="w", fill="#d1d5dc",
+                                font=self._font(17), text="D-PAD / WASD TO WALK · ESC / OPTIONS FOR MENU",
                                 tags=("hud",))
         self._update_world(force=True)
         self._start_cavern_music()
