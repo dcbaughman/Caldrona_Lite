@@ -13,7 +13,7 @@ class GameMenu:
         ("Equip", "Equipment management is coming later."),
         ("Status", "Retri is a skirter exploring Sunrest's cavern."),
         ("Formation", "Retri is the only party member right now."),
-        ("Configuration", "Game options will live here."),
+        ("Configuration", "Display settings can be changed at the title screen."),
         ("Save", "Saving will be added in a later pass."),
         ("Load", "No saved cavern journey exists yet."),
         ("Title Screen", "Leave the cavern and return to the title screen."),

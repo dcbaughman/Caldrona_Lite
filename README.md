@@ -2,6 +2,8 @@
 
 A separate, lightweight retro experiment for Caldrona. It opens at a main menu with Play, Load Game, and Settings. Play enters the first cavern instance; Load Game currently reports that no save exists yet.
 
+Display settings are available only from the title screen. Choose fullscreen or a 4:3 window size that fits the desktop, then select Apply. The choice is saved to `display_settings.json` and takes effect only after closing and restarting the game. The 16:9 game picture stays proportional inside a 4:3 window, with dark letterboxing; fullscreen scales the pixel art to fit the desktop.
+
 Run Caldrona_Lite.py from PyCharm. Install the one optional controller dependency with:
 
     python -m pip install -r requirements.txt

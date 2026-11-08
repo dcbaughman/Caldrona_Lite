@@ -9,6 +9,8 @@ import tkinter.font as tkfont
 from pathlib import Path
 
 from dialogue import DialogueBox, DialogueLine
+from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
+                              load_display, pixel_scale, save_display)
 from game_menu import GameMenu
 
 TILE = 16
@@ -21,6 +23,7 @@ CHUNK_PIXELS = TILE * CHUNK_TILES
 CHUNK_SCREEN = CHUNK_PIXELS * SCALE
 
 ROOT = Path(__file__).resolve().parent
+DISPLAY_FILE = ROOT / "display_settings.json"
 ASSETS = ROOT / "assets"
 CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
 RETRI_PORTRAIT = ASSETS / "portraits" / "allsprites.png"
@@ -80,11 +83,26 @@ class CaldronaLite:
         self.root = tk.Tk()
         self.root.title("Caldrona Lite")
         self.root.resizable(False, False)
-        self.canvas = tk.Canvas(
-            self.root, width=VIEW_W * SCALE, height=VIEW_H * SCALE,
-            background="#09090c", highlightthickness=0,
+        self.root.configure(background="#08090c")
+        self.available_window_sizes = available_sizes(
+            self.root.winfo_screenwidth(), self.root.winfo_screenheight(),
         )
-        self.canvas.pack()
+        self.active_display = load_display(DISPLAY_FILE, self.available_window_sizes)
+        self.saved_display = self.active_display
+        self.pending_display = self.saved_display
+        outer_width, outer_height = (
+            (self.root.winfo_screenwidth(), self.root.winfo_screenheight())
+            if self.active_display.mode == "fullscreen"
+            else (self.active_display.width, self.active_display.height)
+        )
+        self.root.geometry(f"{outer_width}x{outer_height}")
+        if self.active_display.mode == "fullscreen":
+            self.root.attributes("-fullscreen", True)
+        self.canvas = ScaledCanvas(
+            self.root, pixel_scale(outer_width, outer_height),
+            background="#09090c", highlightthickness=0, borderwidth=0,
+        )
+        self.canvas.pack(expand=True)
         self._font_handles: list[str] = []
         self._load_font()
         self._init_controller()
@@ -102,6 +120,11 @@ class CaldronaLite:
         self.pad_keys: set[str] = set()
         self.pad_buttons: set[str] = set()
         self.menu_nav_after = 0.0
+        self.settings_selection = 0
+        self.settings_notice = ""
+        self.settings_direction: str | None = None
+        self.settings_repeat_at = 0.0
+        self.settings_repeating = False
         self.scan_controller_at = 0.0
         self.pad = None
         self.joystick = None
@@ -113,7 +136,7 @@ class CaldronaLite:
         self.root.bind("<Button-1>", self._click)
         self.root.protocol("WM_DELETE_WINDOW", self._close)
         self._draw_menu()
-        self.root.after(FRAME_MS, self._tick)
+        self.tick_after = self.root.after(FRAME_MS, self._tick)
         self.root.mainloop()
 
     def _load_font(self) -> None:
@@ -246,7 +269,7 @@ class CaldronaLite:
         pressed |= self.pad_keys
         return pressed
 
-    def _draw_frame(self) -> None:
+    def _draw_frame(self, show_title: bool = True) -> None:
         self.canvas.delete("all")
         self.canvas.configure(background=INK)
         self.canvas.create_rectangle(18, 18, 942, 522, outline="#586982", width=3)
@@ -254,11 +277,13 @@ class CaldronaLite:
         for x in (54, 906):
             for y in (54, 486):
                 self.canvas.create_rectangle(x-4, y-4, x+4, y+4, fill=GOLD, outline="")
-        self.canvas.create_text(480, 145, text="CALDRONA", fill=GOLD,
-                               font=("Press Start 2P", 36, "bold"))
-        self.canvas.create_text(480, 190, text="A JOURNEY BEGINS", fill=MUTED,
-                               font=self._font(30))
-        self.canvas.create_rectangle(258, 202, 702, 207, fill="#65748b", outline="")
+        if show_title:
+            self.canvas.create_text(480, 145, text="CALDRONA", fill=GOLD,
+                                   font=("Press Start 2P", 36, "bold"))
+            self.canvas.create_text(480, 190, text="A JOURNEY BEGINS", fill=MUTED,
+                                   font=self._font(30))
+            self.canvas.create_rectangle(258, 202, 702, 207,
+                                         fill="#65748b", outline="")
 
     def _draw_menu(self) -> None:
         self.screen = "menu"
@@ -283,20 +308,53 @@ class CaldronaLite:
                                 fill=MUTED, font=self._font(25))
         self.canvas.create_text(480, 488, text="ESC / CIRCLE BACK",
                                 fill=MUTED, font=self._font(22))
+        if self.saved_display != self.active_display:
+            self.canvas.create_text(480, 224, text="RESTART TO APPLY DISPLAY CHANGE",
+                                    fill=GOLD, font=self._font(21))
+
+    def _open_settings(self) -> None:
+        self.pending_display = self.saved_display
+        self.settings_selection = 0
+        self.settings_notice = ""
+        self.settings_direction = None
+        self._draw_settings()
 
     def _draw_settings(self) -> None:
         self.screen = "settings"
-        self._draw_frame()
-        self.canvas.create_text(480, 264, text="SETTINGS", fill=GOLD,
+        self._draw_frame(show_title=False)
+        self.canvas.create_text(480, 150, text="DISPLAY SETTINGS", fill=GOLD,
                                 font=self._font(38, True))
-        self.canvas.create_text(480, 322, text="MOVE: D-PAD OR ARROWS", fill=CREAM,
-                                font=self._font(30))
-        self.canvas.create_text(480, 360, text="CARDINAL MOVEMENT ONLY", fill=CREAM,
-                                font=self._font(30))
-        self.canvas.create_text(480, 412, text=f"CONTROLLER: {self.controller_status}",
-                                fill=MUTED, font=self._font(24))
-        self.canvas.create_text(480, 472, text="ESC / CIRCLE TO RETURN",
-                                fill=MUTED, font=self._font(24))
+        self.canvas.create_rectangle(258, 195, 702, 200, fill="#65748b", outline="")
+        rows = (
+            ("MODE", self.pending_display.mode.upper()),
+            ("WINDOW SIZE", f"{self.pending_display.width} x {self.pending_display.height}"
+             if self.pending_display.mode == "windowed" else "DESKTOP"),
+            ("APPLY", "PENDING" if self.pending_display != self.saved_display
+             else "RESTART REQUIRED" if self.saved_display != self.active_display
+             else "NO CHANGE"),
+        )
+        for index, (label, value) in enumerate(rows):
+            y = 273 + index * 64
+            active = index == self.settings_selection
+            self.canvas.create_rectangle(178, y - 25, 782, y + 25,
+                                         fill="#33435a" if active else PANEL,
+                                         outline="#edc873" if active else "#364357",
+                                         width=3)
+            if active:
+                self.canvas.create_text(204, y, text="▶", anchor="w", fill=GOLD,
+                                        font=self._font(27, True))
+            self.canvas.create_text(250, y, text=label, anchor="w", fill=CREAM,
+                                    font=self._font(27, active))
+            self.canvas.create_text(746, y, text=value, anchor="e",
+                                    fill=GOLD if active else MUTED,
+                                    font=self._font(27, active))
+        self.canvas.create_text(480, 451,
+                                text="UP / DOWN SELECT · LEFT / RIGHT CHANGE · ENTER APPLY",
+                                fill=MUTED, font=self._font(21))
+        self.canvas.create_text(480, 490,
+                                text=self.settings_notice or "WINDOWED SIZES ARE 4:3 · ESC TO RETURN",
+                                fill=GOLD if self.settings_notice else MUTED,
+                                font=self._font(21))
 
     def _draw_notice(self, message: str) -> None:
         self.screen = "notice"
@@ -319,9 +377,67 @@ class CaldronaLite:
             elif self.selection == 1:
                 self._draw_notice("NO SAVED CAVERN JOURNEY YET.")
             else:
-                self._draw_settings()
+                self._open_settings()
+        elif self.screen == "settings":
+            if self.settings_selection == 0:
+                mode = "fullscreen" if self.pending_display.mode == "windowed" else "windowed"
+                self.pending_display = DisplayConfig(
+                    mode, self.pending_display.width, self.pending_display.height,
+                )
+                self.settings_notice = ""
+            elif self.settings_selection == 1:
+                self._cycle_window_size(1)
+            else:
+                try:
+                    save_display(DISPLAY_FILE, self.pending_display)
+                    self.saved_display = self.pending_display
+                    self.settings_notice = (
+                        "SAVED · RESTART GAME TO APPLY"
+                        if self.saved_display != self.active_display else "DISPLAY SETTINGS SAVED"
+                    )
+                except OSError:
+                    self.settings_notice = "COULD NOT SAVE DISPLAY SETTINGS"
+            self._draw_settings()
         else:
             self._draw_menu()
+
+    def _cycle_window_size(self, step: int) -> None:
+        if self.pending_display.mode != "windowed":
+            return
+        sizes = self.available_window_sizes
+        current = (self.pending_display.width, self.pending_display.height)
+        index = (sizes.index(current) + step) % len(sizes)
+        self.pending_display = DisplayConfig("windowed", *sizes[index])
+        self.settings_notice = ""
+
+    def _navigate_settings(self, direction: str | None, now: float) -> None:
+        if direction not in ("up", "down", "left", "right"):
+            self.settings_direction = None
+            self.settings_repeating = False
+            return
+        if direction != self.settings_direction:
+            self.settings_direction = direction
+            self.settings_repeat_at = now
+            self.settings_repeating = False
+        if now < self.settings_repeat_at:
+            return
+        if (direction in ("left", "right") and self.settings_selection == 0
+                and self.settings_repeating):
+            return
+        if direction in ("up", "down"):
+            step = -1 if direction == "up" else 1
+            self.settings_selection = (self.settings_selection + step) % 3
+        elif self.settings_selection == 0:
+            self.pending_display = DisplayConfig(
+                "fullscreen" if self.pending_display.mode == "windowed" else "windowed",
+                self.pending_display.width, self.pending_display.height,
+            )
+        elif self.settings_selection == 1:
+            self._cycle_window_size(-1 if direction == "left" else 1)
+        self.settings_notice = ""
+        self._draw_settings()
+        self.settings_repeat_at = now + (0.09 if self.settings_repeating else 0.24)
+        self.settings_repeating = True
 
     def _back(self) -> None:
         if self.screen == "game":
@@ -367,18 +483,25 @@ class CaldronaLite:
             self.pygame.mixer.music.fadeout(350)
 
     def _click(self, event: tk.Event) -> None:
+        x, y = self.canvas.logical_x(event.x), self.canvas.logical_y(event.y)
         if self.screen == "game" and self.dialogue.active:
             self.dialogue.advance()
             return
         if self.screen == "game" and self.game_menu.active:
-            if self.game_menu.click(event.x, event.y) == "title":
+            if self.game_menu.click(int(x), int(y)) == "title":
                 self._leave_cavern()
             return
+        if self.screen == "settings":
+            for index in range(3):
+                if 178 <= x <= 782 and abs(y - (273 + index * 64)) <= 25:
+                    self.settings_selection = index
+                    self._activate()
+                    return
         if self.screen != "menu":
             return
-        x, y = event.x / SCALE, event.y / SCALE
-        index = int((y - 260) // 64)
-        if 0 <= index < len(self.menu_items) and 99 <= x <= 221:
+        index = round((y - 260) / 64)
+        if (0 <= index < len(self.menu_items) and 297 <= x <= 663
+                and abs(y - (260 + index * 64)) <= 25):
             self.selection = index
             self._activate()
 
@@ -513,6 +636,8 @@ class CaldronaLite:
                 self.selection = new_selection
                 self._draw_menu()
             self.menu_nav_after = now + 0.18
+        elif self.screen == "settings":
+            self._navigate_settings(direction, now)
         elif self.screen == "game" and self.game_menu.active:
             self.game_menu.navigate(direction, now)
         elif self.screen == "game" and not self.dialogue.active:
@@ -543,9 +668,11 @@ class CaldronaLite:
                 if self.walk_frame != 1:
                     self.walk_frame = 1
                     self._update_world()
-        self.root.after(FRAME_MS, self._tick)
+        self.tick_after = self.root.after(FRAME_MS, self._tick)
 
     def _close(self) -> None:
+        if hasattr(self, "tick_after"):
+            self.root.after_cancel(self.tick_after)
         if self.pygame is not None:
             try:
                 self._stop_cavern_music()
