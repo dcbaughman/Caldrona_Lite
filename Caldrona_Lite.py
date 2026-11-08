@@ -15,7 +15,7 @@ TILE = 16
 VIEW_W, VIEW_H = 320, 180
 SCALE = 3
 FRAME_MS = 16
-MOVE_SPEED = 68.0
+STEP_INTERVAL = 0.135
 CHUNK_TILES = 8
 CHUNK_PIXELS = TILE * CHUNK_TILES
 CHUNK_SCREEN = CHUNK_PIXELS * SCALE
@@ -102,7 +102,6 @@ class CaldronaLite:
         self.pad_keys: set[str] = set()
         self.pad_buttons: set[str] = set()
         self.menu_nav_after = 0.0
-        self.last_tick = time.monotonic()
         self.scan_controller_at = 0.0
         self.pad = None
         self.joystick = None
@@ -399,7 +398,8 @@ class CaldronaLite:
         self.world_camera = (0.0, 0.0)
         self.player_item = self.canvas.create_image(0, 0, anchor="center", tags=("player",))
         self.drawn_player_frame = None
-        self.was_moving = False
+        self.held_direction: str | None = None
+        self.next_step_at = 0.0
         self.canvas.create_rectangle(18, VIEW_H*SCALE-68, 570, VIEW_H*SCALE-24,
                                      fill="#101625", outline="#ad8c54", width=3, tags=("hud",))
         self.canvas.create_text(36, VIEW_H*SCALE-52, anchor="w", fill=GOLD,
@@ -408,7 +408,6 @@ class CaldronaLite:
         self.canvas.create_text(36, VIEW_H*SCALE-31, anchor="w", fill="#d1d5dc",
                                 font=self._font(19), text="D-PAD / WASD TO WALK · ESC / OPTIONS FOR MENU",
                                 tags=("hud",))
-        self.last_tick = time.monotonic()
         self._update_world(force=True)
         self._start_cavern_music()
         self.dialogue.show([
@@ -484,38 +483,10 @@ class CaldronaLite:
                 self.canvas.move("world", shift_x, shift_y)
         self.world_camera = camera
         self._place_player(camera)
-        self._place_near_wall(camera)
-
-    def _place_near_wall(self, camera: tuple[float, float]) -> None:
-        """Let the south wall face cover Retri when he walks behind its lip."""
-        self.canvas.delete("near_wall")
-        cx, cy = camera
-        # Only tiles intersecting the sprite can affect its depth. The wall
-        # itself is already in the cached background; these few copies sit
-        # between the player and HUD without redrawing the cave.
-        left = int((self.x - TILE / 2) // TILE)
-        right = int((self.x + TILE / 2 - 0.001) // TILE)
-        top = int((self.y - TILE / 2) // TILE)
-        bottom = int((self.y + TILE / 2 - 0.001) // TILE)
-        for ty in range(top, bottom + 1):
-            for tx in range(left, right + 1):
-                if (tx, ty) not in self.cave.floor and (tx, ty - 1) in self.cave.floor:
-                    self.canvas.create_image(
-                        (tx * TILE - cx) * SCALE, (ty * TILE - cy) * SCALE,
-                        image=self.wall_tile, anchor="nw", tags=("near_wall",),
-                    )
-        self.canvas.tag_raise("near_wall", "player")
 
     def _place_player(self, camera: tuple[float, float]) -> None:
         cx, cy = camera
         screen_x, screen_y = (self.x-cx)*SCALE, (self.y-cy)*SCALE
-        pressed = self._directions()
-        direction = next((name for name in ("up","down","left","right") if name in pressed), None)
-        if direction:
-            self.direction = direction
-            self.walk_frame = 0 if int(time.monotonic()*8)%2 else 2
-        else:
-            self.walk_frame = 1
         frame = self.player_frames[self.direction][self.walk_frame]
         if frame is not self.drawn_player_frame:
             self.canvas.itemconfigure(self.player_item, image=frame)
@@ -524,8 +495,6 @@ class CaldronaLite:
 
     def _tick(self) -> None:
         now = time.monotonic()
-        dt = min(0.05, now-self.last_tick)
-        self.last_tick = now
         self._scan_controller(now)
         self.pad_keys = self._dpad()
         buttons = self._controller_buttons()
@@ -547,25 +516,33 @@ class CaldronaLite:
         elif self.screen == "game" and self.game_menu.active:
             self.game_menu.navigate(direction, now)
         elif self.screen == "game" and not self.dialogue.active:
-            # D-pad input resolves to one axis; diagonals are discarded by priority.
+            # One input step is one complete tile. Retri never rests across a
+            # floor/wall edge, even when a direction is held.
             active = direction
-            moved = False
             if active:
-                dx, dy = {"up":(0,-1), "down":(0,1), "left":(-1,0), "right":(1,0)}[active]
-                distance = MOVE_SPEED*dt
-                old_x, old_y = self.x, self.y
-                nx, ny = self.x+dx*distance, self.y+dy*distance
-                if self.cave.walkable(nx, self.y):
-                    self.x = nx
-                if self.cave.walkable(self.x, ny):
-                    self.y = ny
-                moved = self.x != old_x or self.y != old_y
-                self.was_moving = moved
-            elif self.was_moving:
-                self.was_moving = False
-                moved = True
-            if moved:
-                self._update_world()
+                if active != self.held_direction:
+                    self.held_direction = active
+                    self.next_step_at = now
+                if now >= self.next_step_at:
+                    dx, dy = {"up": (0, -1), "down": (0, 1),
+                              "left": (-1, 0), "right": (1, 0)}[active]
+                    old_direction, old_frame = self.direction, self.walk_frame
+                    self.direction = active
+                    nx, ny = self.x + dx * TILE, self.y + dy * TILE
+                    if self.cave.walkable(nx, ny):
+                        self.x, self.y = nx, ny
+                        self.walk_frame = 0 if self.walk_frame == 2 else 2
+                        self._update_world()
+                    else:
+                        self.walk_frame = 1
+                        if (self.direction, self.walk_frame) != (old_direction, old_frame):
+                            self._update_world()
+                    self.next_step_at = now + STEP_INTERVAL
+            else:
+                self.held_direction = None
+                if self.walk_frame != 1:
+                    self.walk_frame = 1
+                    self._update_world()
         self.root.after(FRAME_MS, self._tick)
 
     def _close(self) -> None:

@@ -14,7 +14,7 @@ The in-game menu in `game_menu.py` opens with Escape or the controller Options b
 
 PlayStation controller: use the digital D-pad to move, Cross to select, Circle to go back, and Options to open or close the in-game menu. Analog sticks are ignored. Pygame reads the standardized D-pad when Windows exposes the controller through SDL; direct joystick hats are supported too.
 
-The cavern uses a fixed 320×180 logical view enlarged 3×, connected rooms, directional Retri walking frames, and collision against rock. Static cave art is cached in chunks and the background moves in one Canvas operation while the player walks.
+The cavern uses a fixed 320×180 logical view enlarged 3×, connected rooms, directional Retri walking frames, and tile-by-tile collision against rock. Each step lands Retri exactly at a tile center, keeping his 16×16 sprite within a single floor tile. Static cave art is cached in chunks.
 
 The supplied Cavern Travel track plays on a loop in the cavern, fades in on Play, and fades out when returning to the menu. The menu stays silent.
 
