@@ -1,0 +1,284 @@
+"""Step encounters and a small, strictly turn-based cavern battle scene."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+import random
+import tkinter as tk
+
+# Tune encounters here. Only successful tile moves call EncounterMeter.step().
+ENCOUNTER_CHANCE = 0.08
+SAFE_STEPS = 12
+MAX_HP = 60
+MAX_POTIONS = 3
+TRANSITION_SECONDS = 0.45
+
+
+class EncounterMeter:
+    def __init__(self, rng=None, chance=ENCOUNTER_CHANCE, safe_steps=SAFE_STEPS):
+        self.rng = rng if rng is not None else random.Random()
+        self.chance = chance
+        self.safe_steps = safe_steps
+        self.reset()
+
+    def reset(self):
+        self.steps_left = self.safe_steps
+
+    def step(self):
+        if self.steps_left:
+            self.steps_left -= 1
+            return False
+        if self.rng.random() < self.chance:
+            self.reset()
+            return True
+        return False
+
+
+@dataclass(frozen=True)
+class Enemy:
+    name: str
+    sprite: str
+    hp: int
+    attack: tuple[int, int]
+    armor: int
+    gold: int
+    move: str
+
+
+ENEMIES = (
+    Enemy("Ivory Spider", "spider.png", 30, (4, 7), 0, 8, "bites"),
+    Enemy("Echo Bat", "bat.png", 24, (3, 6), 0, 6, "swoops"),
+    Enemy("Rock Crawler", "crawler.png", 36, (4, 8), 2, 12, "rams"),
+)
+
+
+class BattleModel:
+    """No clock advances a turn: a command, then one enemy reply."""
+    def __init__(self, enemy, hp=MAX_HP, potions=MAX_POTIONS, rng=None):
+        self.enemy = enemy
+        self.enemy_hp = enemy.hp
+        self.hp = hp
+        self.potions = potions
+        self.rng = rng if rng is not None else random.Random()
+        self.outcome = None
+        self.pending_reply = False
+        self.guarding = False
+        self.effect = ""
+        self.message = f"{enemy.name} approaches!"
+
+    def command(self, action):
+        if self.outcome or self.pending_reply:
+            return False
+        self.effect = action
+        if action == "Attack":
+            damage = max(1, self.rng.randint(10, 14) - self.enemy.armor)
+            self.enemy_hp = max(0, self.enemy_hp - damage)
+            self.message = f"Retri strikes for {damage}!"
+            if not self.enemy_hp:
+                self.outcome = "victory"
+        elif action == "Guard":
+            self.guarding = True
+            self.message = "Retri braces for the next blow."
+        elif action == "Potion":
+            if not self.potions:
+                self.message = "No potions left. Choose another action."
+                return False
+            if self.hp == MAX_HP:
+                self.message = "Retri is already at full health."
+                return False
+            healed = min(25, MAX_HP - self.hp)
+            self.hp += healed
+            self.potions -= 1
+            self.message = f"Retri recovers {healed} HP."
+        elif action == "Flee":
+            if self.rng.random() < 0.75:
+                self.outcome = "fled"
+                self.message = "Retri slips away!"
+            else:
+                self.message = "The way out is blocked!"
+        else:
+            return False
+        self.pending_reply = self.outcome is None
+        return True
+
+    def reply(self):
+        if not self.pending_reply or self.outcome:
+            return
+        self.pending_reply = False
+        damage = self.rng.randint(*self.enemy.attack)
+        if self.guarding:
+            damage = max(1, damage // 2)
+        self.guarding = False
+        self.hp = max(0, self.hp - damage)
+        self.effect = "enemy"
+        self.message = f"{self.enemy.name} {self.enemy.move} for {damage}!"
+        if self.hp == 0:
+            self.outcome = "defeat"
+
+
+class BattleScene:
+    TAG = "battle"
+    DYNAMIC = "battle_dynamic"
+    COMMANDS = ("Attack", "Guard", "Potion", "Flee")
+
+    def __init__(self, canvas, font, assets: Path):
+        self.canvas, self.font = canvas, font
+        self.enemies = {
+            e.sprite: tk.PhotoImage(master=canvas, file=str(assets / "battle" / e.sprite)).zoom(3)
+            for e in ENEMIES
+        }
+        self.hero = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri.png")).zoom(3)
+        tile = tk.PhotoImage(master=canvas, file=str(assets / "wall_brick.png")).subsample(2).zoom(3)
+        self.backdrop = tk.PhotoImage(master=canvas, width=960, height=96)
+        for y in range(0, 96, tile.height()):
+            for x in range(0, 960, tile.width()):
+                self.backdrop.tk.call(self.backdrop, "copy", tile, "-to", x, y)
+        self.model = None
+
+    def start(self, model, now):
+        self.model = model
+        self.selection = 0
+        self.phase = "command"
+        self.held = None
+        self.repeat_at = 0.0
+        self.phase_at = now
+        c = self.canvas
+        c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
+        c.create_image(0, 0, image=self.backdrop, anchor="nw", tags=self.TAG)
+        self.enemy_item = c.create_image(270, 255, image=self.enemies[model.enemy.sprite], tags=self.TAG)
+        self.hero_item = c.create_image(738, 255, image=self.hero, tags=self.TAG)
+        self._frame(18, 320, 942, 382)
+        self._frame(18, 394, 296, 526)
+        self._frame(308, 394, 942, 526)
+        self.draw_status()
+
+    def _frame(self, x1, y1, x2, y2):
+        c = self.canvas
+        c.create_rectangle(x1, y1, x2, y2, fill="#727980", outline="", tags=self.TAG)
+        c.create_rectangle(x1+3, y1+3, x2-3, y2-3, fill="#f2f1df", outline="", tags=self.TAG)
+        c.create_rectangle(x1+8, y1+8, x2-8, y2-8, fill="#242181", outline="", tags=self.TAG)
+
+    def draw_status(self):
+        c, m = self.canvas, self.model
+        c.delete(self.DYNAMIC)
+        tags = (self.TAG, self.DYNAMIC)
+        c.create_text(40, 350, text=m.message, anchor="w", fill="#ffffff", font=self.font(23), tags=tags)
+        for i, command in enumerate(self.COMMANDS):
+            x, y = 52 + (i % 2) * 126, 435 + (i // 2) * 43
+            text = ("> " if i == self.selection and self.phase == "command" else "  ") + command
+            c.create_text(x-16, y, text=text, anchor="w", font=self.font(22),
+                          fill="#ffe37e" if i == self.selection else "#ffffff", tags=tags)
+        c.create_text(334, 429, text="RETRI", anchor="w", fill="#ffe37e", font=self.font(28, True), tags=tags)
+        c.create_text(505, 429, text=f"HP  {m.hp:2} / {MAX_HP}", anchor="w", fill="#ffffff", font=self.font(26), tags=tags)
+        c.create_text(334, 474, text=f"POTIONS  {m.potions}", anchor="w", fill="#80eaf5", font=self.font(21), tags=tags)
+        c.create_text(555, 474, text=f"FOE HP  {m.enemy_hp:2} / {m.enemy.hp}", anchor="w", fill="#ffffff", font=self.font(21), tags=tags)
+        hint = "ENTER / CROSS" if self.phase == "result" else "CHOOSE A COMMAND"
+        c.create_text(914, 504, text=hint, anchor="e", fill="#bec8e4", font=self.font(15), tags=tags)
+
+    def navigate(self, direction, now):
+        if self.phase != "command":
+            return
+        if direction not in ("up", "down", "left", "right"):
+            self.held = None
+            return
+        if direction != self.held:
+            self.held = direction
+            self.repeat_at = now
+        if now >= self.repeat_at:
+            step = {"up": -2, "down": 2, "left": -1, "right": 1}[direction]
+            self.selection = (self.selection + step) % 4
+            self.repeat_at = now + 0.22
+            self.draw_status()
+
+    def confirm(self, now):
+        if self.phase == "result":
+            return self.model.outcome
+        if self.phase == "command":
+            if self.model.command(self.COMMANDS[self.selection]):
+                self.phase = "hero_action"
+                self.phase_at = now
+            self.draw_status()
+        return None
+
+    def back(self):
+        if self.phase == "command":
+            self.selection = 3
+            self.draw_status()
+
+    def click(self, x, y, now):
+        if self.phase == "result":
+            return self.confirm(now)
+        if self.phase == "command":
+            for i in range(4):
+                if abs(x - (100 + i % 2 * 126)) < 60 and abs(y - (435 + i // 2 * 43)) < 19:
+                    self.selection = i
+                    return self.confirm(now)
+        return None
+
+    def update(self, now):
+        if self.phase not in ("hero_action", "enemy_action"):
+            return
+        elapsed = now - self.phase_at
+        attacking = self.phase == "hero_action" and self.model.effect == "Attack"
+        enemy_attacking = self.phase == "enemy_action"
+        # Only coordinates/visibility change while animating; no per-frame art work.
+        offset = int(18 * max(0, 1 - abs(elapsed - 0.18) / 0.18))
+        c = self.canvas
+        c.coords(self.hero_item, 738 - (offset if attacking else 0), 255)
+        c.coords(self.enemy_item, 270 + (offset if enemy_attacking else 0), 255)
+        c.itemconfigure(self.enemy_item, state="hidden" if attacking and int(elapsed * 16) % 2 else "normal")
+        c.itemconfigure(self.hero_item, state="hidden" if enemy_attacking and int(elapsed * 16) % 2 else "normal")
+        if elapsed < 0.65:
+            return
+        c.coords(self.hero_item, 738, 255)
+        c.coords(self.enemy_item, 270, 255)
+        c.itemconfigure(self.hero_item, state="normal")
+        c.itemconfigure(self.enemy_item, state="normal")
+        if self.model.outcome:
+            self.phase = "result"
+            self.model.message = {
+                "victory": f"Victory!  {self.model.enemy.gold} gold, +8 HP, +1 potion.",
+                "defeat": "Retri retreats to the entrance to recover.",
+                "fled": "Escaped safely. Continue exploring.",
+            }[self.model.outcome]
+            if self.model.outcome == "victory":
+                c.itemconfigure(self.enemy_item, state="hidden")
+        elif self.phase == "hero_action":
+            self.model.reply()
+            self.phase = "enemy_action"
+            self.phase_at = now
+        else:
+            self.phase = "command"
+            self.held = None
+            self.model.message = "What will Retri do?"
+        self.draw_status()
+
+    def close(self):
+        self.canvas.delete(self.TAG)
+
+
+class BattleTransition:
+    """A twelve-strip shutter, updated by the normal game tick."""
+    TAG = "battle_transition"
+
+    def __init__(self, canvas):
+        self.canvas = canvas
+        self.items = []
+
+    def start(self, now):
+        self.started = now
+        self.canvas.delete(self.TAG)
+        self.items = [self.canvas.create_rectangle(0, y*45, 0, (y+1)*45,
+                      fill="#08090c", outline="", tags=self.TAG) for y in range(12)]
+
+    def update(self, now):
+        progress = min(1.0, (now - self.started) / TRANSITION_SECONDS)
+        edge = int(960 * progress)
+        for i, item in enumerate(self.items):
+            left, right = (0, edge) if i % 2 == 0 else (960-edge, 960)
+            self.canvas.coords(item, left, i*45, right, (i+1)*45)
+        self.canvas.tag_raise(self.TAG)
+        return progress
+
+    def close(self):
+        self.canvas.delete(self.TAG)

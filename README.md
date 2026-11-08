@@ -20,6 +20,42 @@ The cavern uses a fixed 320×180 logical view enlarged 3×, connected rooms, dir
 
 The supplied Cavern Travel track plays on a loop in the cavern, fades in on Play, and fades out when returning to the menu. The menu stays silent.
 
+### Cavern battles
+
+Random encounters are checked only after a successful tile move. `battle.py` exposes
+`ENCOUNTER_CHANCE = 0.08` (8% per step) and `SAFE_STEPS = 12`. The first twelve steps
+after starting or finishing a battle are safe; the default averages roughly 25
+steps between encounters. Standing still, hitting a wall, dialogue, and menus
+never roll an encounter.
+
+A short alternating shutter transitions into a side-view battle with Retri on
+the right and one randomly selected Ivory Spider, Echo Bat, or Rock Crawler on
+the left. Each sprite uses a 32×32 transparent asset at the same pixel scale.
+The supplied Cavern Battle theme loops during combat. Music fades down during
+the transition, then the incoming theme fades in; exploration music returns
+after battle.
+
+Battles are strictly turn-based: arrows/WASD or the PS4 D-pad select Attack,
+Guard, Potion, or Flee; Enter/Cross confirms. Escape/Circle highlights Flee
+without executing it. Mouse command selection also works. An enemy replies
+once after your action, and never attacks while you are choosing a command.
+Guard halves the next hit, potions restore up to 25 HP, and fleeing has a 75%
+success chance. Retri starts with 60 HP and three potions. Victory awards gold,
+restores up to 8 HP, and replenishes one potion (maximum three). Defeat returns
+Retri to the entrance with full health and potions. Confirm the result screen
+to resume exploring. These stats and rewards last for the current journey;
+saving and equipment remain future features.
+
+`battle.py` holds the encounter logic, combat model, battle UI, and transition.
+Sprites load once and are reused; turns and transitions use the existing tick,
+without blocking waits. `prepare_battle_assets.py` is an offline asset-preparation
+tool, not a runtime dependency. Enemy generation details are in
+`assets/battle/ART_NOTES.md`.
+
+Run the regression checks with:
+
+    python -m unittest test_battle test_battle_ui test_display_settings
+
 This project reuses three existing Ipi assets, copied into this project:
 
 - assets/retri-overworld.png — Retri's directional walking atlas

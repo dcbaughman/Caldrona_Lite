@@ -12,6 +12,8 @@ from dialogue import DialogueBox, DialogueLine
 from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
                               load_display, pixel_scale, save_display)
 from game_menu import GameMenu
+from battle import (BattleModel, BattleScene, BattleTransition, EncounterMeter,
+                    ENEMIES, MAX_HP, MAX_POTIONS)
 
 TILE = 16
 VIEW_W, VIEW_H = 320, 180
@@ -26,6 +28,7 @@ ROOT = Path(__file__).resolve().parent
 DISPLAY_FILE = ROOT / "display_settings.json"
 ASSETS = ROOT / "assets"
 CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
+BATTLE_MUSIC = ASSETS / "audio" / "cavern-battle.mp3"
 RETRI_PORTRAIT = ASSETS / "portraits" / "allsprites.png"
 RETRI_PORTRAIT_REGION = (110, 24, 238, 152)
 INK = "#101722"
@@ -365,6 +368,13 @@ class CaldronaLite:
                                 fill=GOLD, font=self._font(26))
 
     def _activate(self) -> None:
+        if self.screen == "battle":
+            outcome = self.battle.confirm(time.monotonic())
+            if outcome:
+                self._finish_battle(outcome)
+            return
+        if self.screen in ("battle_in", "battle_out"):
+            return
         if self.screen == "game":
             if self.dialogue.active:
                 self.dialogue.advance()
@@ -440,6 +450,11 @@ class CaldronaLite:
         self.settings_repeating = True
 
     def _back(self) -> None:
+        if self.screen == "battle":
+            self.battle.back()
+            return
+        if self.screen in ("battle_in", "battle_out"):
+            return
         if self.screen == "game":
             if self.dialogue.active:
                 self.dialogue.clear()
@@ -467,16 +482,19 @@ class CaldronaLite:
         self._draw_menu()
 
     def _start_cavern_music(self) -> None:
-        if self.pygame is None or not CAVERN_MUSIC.is_file():
+        self._play_music(CAVERN_MUSIC)
+
+    def _play_music(self, path: Path) -> None:
+        if self.pygame is None or not path.is_file():
             return
         try:
             if not self.pygame.mixer.get_init():
                 self.pygame.mixer.init()
-            self.pygame.mixer.music.load(str(CAVERN_MUSIC))
+            self.pygame.mixer.music.load(str(path))
             self.pygame.mixer.music.set_volume(0.65)
             self.pygame.mixer.music.play(-1, fade_ms=700)
         except (self.pygame.error, OSError):
-            self.notice = "Cavern music could not start."
+            self.notice = f"Music could not start: {path.name}"
 
     def _stop_cavern_music(self) -> None:
         if self.pygame is not None and self.pygame.mixer.get_init():
@@ -484,6 +502,11 @@ class CaldronaLite:
 
     def _click(self, event: tk.Event) -> None:
         x, y = self.canvas.logical_x(event.x), self.canvas.logical_y(event.y)
+        if self.screen == "battle":
+            outcome = self.battle.click(x, y, time.monotonic())
+            if outcome:
+                self._finish_battle(outcome)
+            return
         if self.screen == "game" and self.dialogue.active:
             self.dialogue.advance()
             return
@@ -516,6 +539,11 @@ class CaldronaLite:
         self.floor_tile = tk.PhotoImage(master=self.root, file=str(ASSETS / "cobble_floor.png")).subsample(2, 2).zoom(SCALE, SCALE)
         self.wall_tile = tk.PhotoImage(master=self.root, file=str(ASSETS / "wall_brick.png")).subsample(2, 2).zoom(SCALE, SCALE)
         self.player_frames = self._load_player()
+        self.encounters = EncounterMeter()
+        self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
+        if not hasattr(self, "battle"):
+            self.battle = BattleScene(self.canvas, self._font, ASSETS)
+            self.battle_transition = BattleTransition(self.canvas)
         self.chunk_cache: dict[tuple[int, int], tk.PhotoImage] = {}
         self.chunk_items: dict[tuple[int, int], int] = {}
         self.world_camera = (0.0, 0.0)
@@ -543,6 +571,49 @@ class CaldronaLite:
             DialogueLine("Retri", "I'll find its source. Carefully.", RETRI_PORTRAIT,
                          portrait_region=RETRI_PORTRAIT_REGION),
         ])
+
+    def _begin_battle(self, now: float) -> None:
+        self.screen = "battle_in"
+        self.keys.clear()
+        self.held_direction = None
+        self.battle_transition.start(now)
+
+    def _finish_battle(self, outcome: str) -> None:
+        model = self.battle.model
+        if outcome == "victory":
+            self.gold += model.enemy.gold
+            self.hp = min(MAX_HP, model.hp + 8)
+            self.potions = min(MAX_POTIONS, model.potions + 1)
+        elif outcome == "defeat":
+            self.x, self.y = self.cave.spawn
+            self.hp, self.potions = MAX_HP, MAX_POTIONS
+        else:
+            self.hp, self.potions = model.hp, model.potions
+        self.encounters.reset()
+        self.screen = "battle_out"
+        self.keys.clear()
+        self.battle_transition.start(time.monotonic())
+
+    def _update_battle_transition(self, now: float) -> None:
+        progress = self.battle_transition.update(now)
+        if self.pygame is not None and self.pygame.mixer.get_init():
+            self.pygame.mixer.music.set_volume(0.65 * (1 - progress))
+        if progress < 1:
+            return
+        if self.screen == "battle_in":
+            enemy = self.encounters.rng.choice(ENEMIES)
+            self.battle.start(BattleModel(enemy, self.hp, self.potions), now)
+            self.screen = "battle"
+            self._play_music(BATTLE_MUSIC)
+        else:
+            self.battle.close()
+            self.screen = "game"
+            self.direction, self.walk_frame = "down", 1
+            self._update_world(force=True)
+            self.held_direction = None
+            self.next_step_at = now + STEP_INTERVAL
+            self._start_cavern_music()
+        self.battle_transition.close()
 
     def _load_player(self) -> dict[str, list[tk.PhotoImage]]:
         atlas = tk.PhotoImage(master=self.root, file=str(ASSETS / "retri-overworld.png"))
@@ -638,6 +709,11 @@ class CaldronaLite:
             self.menu_nav_after = now + 0.18
         elif self.screen == "settings":
             self._navigate_settings(direction, now)
+        elif self.screen in ("battle_in", "battle_out"):
+            self._update_battle_transition(now)
+        elif self.screen == "battle":
+            self.battle.navigate(direction, now)
+            self.battle.update(now)
         elif self.screen == "game" and self.game_menu.active:
             self.game_menu.navigate(direction, now)
         elif self.screen == "game" and not self.dialogue.active:
@@ -658,6 +734,8 @@ class CaldronaLite:
                         self.x, self.y = nx, ny
                         self.walk_frame = 0 if self.walk_frame == 2 else 2
                         self._update_world()
+                        if self.encounters.step():
+                            self._begin_battle(now)
                     else:
                         self.walk_frame = 1
                         if (self.direction, self.walk_frame) != (old_direction, old_frame):
