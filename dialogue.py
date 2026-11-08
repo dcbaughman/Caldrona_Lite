@@ -37,7 +37,15 @@ class DialogueBox:
 
     def show(self, lines: list[DialogueLine]) -> None:
         self.clear()
-        self.lines.extend(lines)
+        for line in lines:
+            # Keep each page to two lines so the text never reaches the
+            # lower border, even when later conversations are longer.
+            wrapped = textwrap.wrap(line.text, width=42 if line.portrait else 54) or [""]
+            for start in range(0, len(wrapped), 2):
+                self.lines.append(DialogueLine(
+                    line.speaker, "\n".join(wrapped[start:start + 2]),
+                    line.portrait, line.thought, line.portrait_region,
+                ))
         self.advance()
 
     def clear(self) -> None:
@@ -54,7 +62,7 @@ class DialogueBox:
         line = self.lines.popleft()
         self._draw(line)
 
-    def _portrait(
+    def portrait(
         self, path: Path, region: tuple[int, int, int, int] | None
     ) -> tk.PhotoImage | None:
         key = (path, region)
@@ -99,20 +107,21 @@ class DialogueBox:
         tag = self.TAG
         has_portrait = line.portrait is not None
         box_left = 179 if has_portrait else 18
-        self._frame(box_left, 365, 942, 517)
+        self._frame(box_left, 350, 942, 517)
         if has_portrait:
-            self._frame(18, 365, 166, 517)
-            image = self._portrait(line.portrait, line.portrait_region)
+            self._frame(18, 350, 166, 517)
+            image = self.portrait(line.portrait, line.portrait_region)
             if image is not None:
-                c.create_image(92, 441, image=image, anchor="center", tags=tag)
+                c.create_image(92, 433, image=image, anchor="center", tags=tag)
 
         label = line.speaker.upper() + (" · THOUGHT" if line.thought else "")
-        c.create_text(box_left + 30, 391, text=label, anchor="w",
-                      fill="#f7d58c", font=self.font(25, True), tags=tag)
-        wrapped = "\n".join(textwrap.wrap(line.text, width=48 if has_portrait else 60))
-        c.create_text(box_left + 30, 424, text=wrapped, anchor="nw",
-                      fill="#ffffff", font=self.font(30, False),
-                      width=700 if has_portrait else 825, tags=tag)
+        c.create_text(box_left + 30, 380, text=label, anchor="w",
+                      fill="#f7d58c", font=self.font(20, True), tags=tag)
+        family = self.font(24, False)[0]
+        body_font = (family, 24, "italic") if line.thought else self.font(24, False)
+        c.create_text(box_left + 30, 398, text=line.text, anchor="nw",
+                      fill="#ffffff", font=body_font,
+                      width=690 if has_portrait else 815, tags=tag)
         c.create_text(903, 492, text="▼", fill="#ffffff",
                       font=self.font(23, True), tags=tag)
         c.tag_raise(tag)

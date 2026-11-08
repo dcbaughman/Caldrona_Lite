@@ -6,11 +6,13 @@ Run Caldrona_Lite.py from PyCharm. Install the one optional controller dependenc
 
     python -m pip install -r requirements.txt
 
-Keyboard: arrows or WASD to move, Enter to select, Escape to return to menu.
+Keyboard: arrows or WASD to move, Enter to select, Escape to open or close the in-game menu.
 
-The opening cavern dialogue introduces Retri, a skirter investigating a strange sound. Press Enter, Cross, or click to advance each line. Walking pauses while the panel is open. The portrait and blue, silver-bordered text box are implemented in the reusable `dialogue.py` module for future conversations and inner monologue.
+The opening cavern dialogue introduces Retri, a skirter investigating a strange sound. Press Enter, Cross, or click to advance each line. Walking pauses while the panel is open. Internal thoughts are italicized, and longer text is paged to fit the blue, silver-bordered box in `dialogue.py`.
 
-PlayStation controller: use the digital D-pad to move, Cross to select, and Circle to return. Analog sticks are ignored. Pygame reads the standardized D-pad when Windows exposes the controller through SDL; direct joystick hats are supported too.
+The in-game menu in `game_menu.py` opens with Escape or the controller Options button. D-pad/arrows move the cursor with a short initial delay and faster repeat; Enter/Cross opens the selected section, and Escape/Circle goes back. The sections are navigation shells for future features. "Title Screen" goes back to the start screen.
+
+PlayStation controller: use the digital D-pad to move, Cross to select, Circle to go back, and Options to open or close the in-game menu. Analog sticks are ignored. Pygame reads the standardized D-pad when Windows exposes the controller through SDL; direct joystick hats are supported too.
 
 The cavern uses a fixed 320×180 logical view enlarged 3×, connected rooms, directional Retri walking frames, and collision against rock. Static cave art is cached in chunks and the background moves in one Canvas operation while the player walks.
 

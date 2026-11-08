@@ -9,6 +9,7 @@ import tkinter.font as tkfont
 from pathlib import Path
 
 from dialogue import DialogueBox, DialogueLine
+from game_menu import GameMenu
 
 TILE = 16
 VIEW_W, VIEW_H = 320, 180
@@ -88,6 +89,10 @@ class CaldronaLite:
         self._load_font()
         self._init_controller()
         self.dialogue = DialogueBox(self.canvas, self.root, self._font)
+        self.game_menu = GameMenu(
+            self.canvas, self._font,
+            lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
+        )
 
         self.screen = "menu"
         self.selection = 0
@@ -198,11 +203,12 @@ class CaldronaLite:
             return {name for name, button in (
                 ("confirm", self.pygame.CONTROLLER_BUTTON_A),
                 ("back", self.pygame.CONTROLLER_BUTTON_B),
+                ("menu", self.pygame.CONTROLLER_BUTTON_START),
             ) if self.pad.get_button(button)}
         if self.joystick is not None and self.joystick.get_init():
             count = self.joystick.get_numbuttons()
             # Common DS4 DirectInput order: Cross is button 1, Circle is button 2.
-            return {name for index, name in ((1, "confirm"), (2, "back"))
+            return {name for index, name in ((1, "confirm"), (2, "back"), (9, "menu"))
                     if count > index and self.joystick.get_button(index)}
         return set()
 
@@ -305,6 +311,8 @@ class CaldronaLite:
         if self.screen == "game":
             if self.dialogue.active:
                 self.dialogue.advance()
+            elif self.game_menu.active and self.game_menu.activate() == "title":
+                self._leave_cavern()
             return
         if self.screen == "menu":
             if self.selection == 0:
@@ -318,12 +326,26 @@ class CaldronaLite:
 
     def _back(self) -> None:
         if self.screen == "game":
-            self._leave_cavern()
+            if self.dialogue.active:
+                self.dialogue.clear()
+            elif self.game_menu.active:
+                self.game_menu.back()
+            else:
+                self.game_menu.open()
         elif self.screen != "menu":
             self._draw_menu()
 
+    def _toggle_game_menu(self) -> None:
+        if self.screen != "game" or self.dialogue.active:
+            return
+        if self.game_menu.active:
+            self.game_menu.close()
+        else:
+            self.game_menu.open()
+
     def _leave_cavern(self) -> None:
         self.dialogue.clear()
+        self.game_menu.close()
         self._stop_cavern_music()
         self.keys.clear()
         self.pad_keys.clear()
@@ -348,6 +370,10 @@ class CaldronaLite:
     def _click(self, event: tk.Event) -> None:
         if self.screen == "game" and self.dialogue.active:
             self.dialogue.advance()
+            return
+        if self.screen == "game" and self.game_menu.active:
+            if self.game_menu.click(event.x, event.y) == "title":
+                self._leave_cavern()
             return
         if self.screen != "menu":
             return
@@ -380,7 +406,7 @@ class CaldronaLite:
                                 font=self._font(25, True), text="SUNREST EXCAVATION · FLOOR 1",
                                 tags=("hud",))
         self.canvas.create_text(36, VIEW_H*SCALE-31, anchor="w", fill="#d1d5dc",
-                                font=self._font(19), text="D-PAD / WASD TO WALK · ESC TO MENU",
+                                font=self._font(19), text="D-PAD / WASD TO WALK · ESC / OPTIONS FOR MENU",
                                 tags=("hud",))
         self.last_tick = time.monotonic()
         self._update_world(force=True)
@@ -509,6 +535,8 @@ class CaldronaLite:
             self._activate()
         if "back" in tapped:
             self._back()
+        if "menu" in tapped:
+            self._toggle_game_menu()
         direction = self._menu_direction()
         if self.screen == "menu" and direction in ("up", "down") and now >= self.menu_nav_after:
             new_selection = (self.selection + (-1 if direction == "up" else 1)) % len(self.menu_items)
@@ -516,6 +544,8 @@ class CaldronaLite:
                 self.selection = new_selection
                 self._draw_menu()
             self.menu_nav_after = now + 0.18
+        elif self.screen == "game" and self.game_menu.active:
+            self.game_menu.navigate(direction, now)
         elif self.screen == "game" and not self.dialogue.active:
             # D-pad input resolves to one axis; diagonals are discarded by priority.
             active = direction
