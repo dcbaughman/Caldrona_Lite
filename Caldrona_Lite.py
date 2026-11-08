@@ -454,6 +454,27 @@ class CaldronaLite:
                 self.canvas.move("world", shift_x, shift_y)
         self.world_camera = camera
         self._place_player(camera)
+        self._place_near_wall(camera)
+
+    def _place_near_wall(self, camera: tuple[float, float]) -> None:
+        """Let the south wall face cover Retri when he walks behind its lip."""
+        self.canvas.delete("near_wall")
+        cx, cy = camera
+        # Only tiles intersecting the sprite can affect its depth. The wall
+        # itself is already in the cached background; these few copies sit
+        # between the player and HUD without redrawing the cave.
+        left = int((self.x - TILE / 2) // TILE)
+        right = int((self.x + TILE / 2 - 0.001) // TILE)
+        top = int((self.y - TILE / 2) // TILE)
+        bottom = int((self.y + TILE / 2 - 0.001) // TILE)
+        for ty in range(top, bottom + 1):
+            for tx in range(left, right + 1):
+                if (tx, ty) not in self.cave.floor and (tx, ty - 1) in self.cave.floor:
+                    self.canvas.create_image(
+                        (tx * TILE - cx) * SCALE, (ty * TILE - cy) * SCALE,
+                        image=self.wall_tile, anchor="nw", tags=("near_wall",),
+                    )
+        self.canvas.tag_raise("near_wall", "player")
 
     def _place_player(self, camera: tuple[float, float]) -> None:
         cx, cy = camera
