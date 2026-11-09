@@ -1,5 +1,7 @@
 # Temur artwork
 
+Current world sprite: `temur-world-v3.png`, with clearer eyes at the native 16×16 world size. See `party-art-notes.md` for this follow-up. The battle sprite and portrait below remain current.
+
 Generated with the built-in imagegen tool, using Retri's sprites as scale/style references and the supplied Temur sheet for his identity.
 
 Runtime assets: `temur-world-v2.png`, `battle/temur-v2.png`, and `portraits/temur.png`. Both sprites use 32×32 cells with Retri's 26-pixel source height and foot baseline. World and battle images use exactly Retri's respective display scales. The original `temur.png` is retained. `prepare_temur_assets.py` performs offline nearest-neighbor preparation and binary-alpha cleanup. Sources are `temur-v2-source.png` and `portraits/temur-source.png`.

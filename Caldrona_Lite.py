@@ -31,8 +31,8 @@ CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
 BATTLE_MUSIC = ASSETS / "audio" / "cavern-battle.mp3"
 VICTORY_MUSIC = ASSETS / "audio" / "caldrona-level-up.mp3"
 GAME_OVER_MUSIC = ASSETS / "audio" / "caldrona-game-over.mp3"
-RETRI_PORTRAIT = ASSETS / "portraits" / "allsprites.png"
-RETRI_PORTRAIT_REGION = (110, 24, 238, 152)
+RETRI_PORTRAIT = ASSETS / "portraits" / "retri-v2.png"
+RETRI_PORTRAIT_REGION = None
 TEMUR_PORTRAIT = ASSETS / "portraits" / "temur.png"
 INK = "#101722"
 PANEL = "#202b3c"
@@ -580,7 +580,7 @@ class CaldronaLite:
         self.party = [{"name": "Retri", "hp": MAX_HP, "max_hp": MAX_HP}]
         self.temur_story = "waiting"
         self.temur_tile = (10, 7)
-        self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur-world-v2.png")).subsample(2).zoom(SCALE)
+        self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur-world-v3.png")).zoom(SCALE)
         self.chest_tile = (12, 5)
         self.chest_open = False
         self.chest_images = [tk.PhotoImage(master=self.root, file=str(ASSETS / name)).zoom(SCALE)

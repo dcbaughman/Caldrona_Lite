@@ -16,6 +16,8 @@ Temur waits near the entrance. Face him and press Enter or Cross to talk. After 
 
 Temur uses separate front-facing world and left-facing battle sprites, prepared at Retri's source pixel height and displayed at the same scales. His dialogue portrait is registered by speaker name, so every Temur line receives it automatically. The party menu displays both members' portraits after recruitment. Generated source art and the prompts are documented in `assets/temur-art-notes.md`.
 
+Retri's updated battle pose and portrait follow Temur's approved art style. Temur's world sprite is prepared directly at 16×16 so his eyes remain readable. The source art, preparation steps and prompts for these revisions are in `assets/party-art-notes.md`.
+
 The in-game menu in `game_menu.py` opens with Escape or the controller Options button. D-pad/arrows move the cursor with a short initial delay and faster repeat; Enter/Cross opens the selected section, and Escape/Circle goes back. The sections are navigation shells for future features. "Title Screen" goes back to the start screen.
 
 PlayStation controller: use the digital D-pad to move, Cross to select, Circle to go back, and Options to open or close the in-game menu. Analog sticks are ignored. Pygame reads the standardized D-pad when Windows exposes the controller through SDL; direct joystick hats are supported too.
