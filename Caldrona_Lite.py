@@ -116,6 +116,7 @@ class CaldronaLite:
             self.canvas, self._font,
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
+        self.game_menu.party_names = lambda: [member["name"] for member in getattr(self, "party", [{"name": "Retri"}])]
 
         self.screen = "menu"
         self.selection = 0
@@ -370,7 +371,7 @@ class CaldronaLite:
                                 fill=GOLD, font=self._font(26))
 
     def _activate(self) -> None:
-        if self.screen == "faint":
+        if self.screen in ("faint", "cave_shake"):
             return
         if self.screen == "game_over":
             self.canvas.delete("game_over")
@@ -390,10 +391,18 @@ class CaldronaLite:
         if self.screen == "game":
             if self.dialogue.active:
                 self.dialogue.advance()
+                if not self.dialogue.active and getattr(self, "temur_story", "") == "intro":
+                    self.temur_story, self.screen = "shaking", "cave_shake"
+                    self.shake_started = time.monotonic()
+                elif not self.dialogue.active and getattr(self, "temur_story", "") == "joining":
+                    self.temur_story = "joined"
+                    self.party.append({"name": "Temur", "hp": 70, "max_hp": 70})
+                    self.canvas.itemconfigure(self.temur_item, state="hidden")
             elif self.game_menu.active and self.game_menu.activate() == "title":
                 self._leave_cavern()
             elif not self.game_menu.active:
-                self._interact_chest()
+                if not self._interact_temur():
+                    self._interact_chest()
             return
         if self.screen == "menu":
             if self.selection == 0:
@@ -464,7 +473,7 @@ class CaldronaLite:
         self.settings_repeating = True
 
     def _back(self) -> None:
-        if self.screen in ("faint", "game_over"):
+        if self.screen in ("faint", "game_over", "cave_shake"):
             return
         if self.screen == "battle":
             self.battle.back()
@@ -473,7 +482,10 @@ class CaldronaLite:
             return
         if self.screen == "game":
             if self.dialogue.active:
-                self.dialogue.clear()
+                if getattr(self, "temur_story", "") in ("intro", "joining"):
+                    self._activate()
+                else:
+                    self.dialogue.clear()
             elif self.game_menu.active:
                 self.game_menu.back()
             else:
@@ -524,7 +536,7 @@ class CaldronaLite:
                 self._finish_battle(outcome)
             return
         if self.screen == "game" and self.dialogue.active:
-            self.dialogue.advance()
+            self._activate()
             return
         if self.screen == "game" and self.game_menu.active:
             if self.game_menu.click(int(x), int(y)) == "title":
@@ -558,6 +570,10 @@ class CaldronaLite:
         self.encounters = EncounterMeter()
         self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
         self.level, self.xp = 1, 0
+        self.party = [{"name": "Retri", "hp": MAX_HP, "max_hp": MAX_HP}]
+        self.temur_story = "waiting"
+        self.temur_tile = (10, 7)
+        self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur.png")).zoom(SCALE)
         self.chest_tile = (12, 5)
         self.chest_open = False
         self.chest_images = [tk.PhotoImage(master=self.root, file=str(ASSETS / name)).zoom(SCALE)
@@ -571,6 +587,7 @@ class CaldronaLite:
         self.chunk_items: dict[tuple[int, int], int] = {}
         self.world_camera = (0.0, 0.0)
         self.player_item = self.canvas.create_image(0, 0, anchor="center", tags=("player",))
+        self.temur_item = self.canvas.create_image(0, 0, image=self.temur_image, tags=("temur",))
         self.chest_item = self.canvas.create_image(0, 0, image=self.chest_images[0], tags=("chest",))
         self.drawn_player_frame = None
         self.held_direction: str | None = None
@@ -595,6 +612,18 @@ class CaldronaLite:
             DialogueLine("Retri", "I'll find its source. Carefully.", RETRI_PORTRAIT,
                          portrait_region=RETRI_PORTRAIT_REGION),
         ])
+
+    def _interact_temur(self) -> bool:
+        dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
+        if self.temur_story != "waiting" or (int(self.x // TILE) + dx, int(self.y // TILE) + dy) != self.temur_tile:
+            return False
+        self.temur_story = "intro"
+        self.dialogue.show([
+            DialogueLine("Temur", "What brings you into a place like this?"),
+            DialogueLine("Retri", "I heard a strange noise outside the cave and followed it in.", RETRI_PORTRAIT, portrait_region=RETRI_PORTRAIT_REGION),
+            DialogueLine("Temur", "A sound? I heard it too. Stay close."),
+        ])
+        return True
 
     def _interact_chest(self) -> None:
         dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
@@ -641,6 +670,8 @@ class CaldronaLite:
         elif outcome == "defeat":
             self.x, self.y = self.cave.spawn
             self.hp, self.potions = MAX_HP + (self.level - 1) * 5, MAX_POTIONS
+            for member in self.party:
+                member["hp"] = member["max_hp"]
         else:
             self.hp, self.potions = model.hp, model.potions
         self.encounters.reset()
@@ -656,7 +687,9 @@ class CaldronaLite:
             return
         if self.screen == "battle_in":
             enemy = [self.encounters.rng.choice(ENEMIES) for _ in range(self.encounters.rng.randint(1, 3))]
-            self.battle.start(BattleModel(enemy, self.hp, self.potions, level=self.level, xp=self.xp), now)
+            self.party[0]["hp"] = self.hp
+            self.party[0]["max_hp"] = MAX_HP + (self.level-1)*5
+            self.battle.start(BattleModel(enemy, self.hp, self.potions, level=self.level, xp=self.xp, party=self.party), now)
             self.screen = "battle"
             self._play_music(BATTLE_MUSIC)
         else:
@@ -732,6 +765,8 @@ class CaldronaLite:
         self.world_camera = camera
         self.canvas.coords(self.chest_item, (self.chest_tile[0]*TILE + TILE/2-cx)*SCALE,
                            (self.chest_tile[1]*TILE + TILE/2-cy)*SCALE)
+        self.canvas.coords(self.temur_item, (self.temur_tile[0]*TILE + TILE/2-cx)*SCALE,
+                           (self.temur_tile[1]*TILE + TILE/2-cy)*SCALE)
         self._place_player(camera)
 
     def _place_player(self, camera: tuple[float, float]) -> None:
@@ -765,6 +800,22 @@ class CaldronaLite:
             self.menu_nav_after = now + 0.18
         elif self.screen == "settings":
             self._navigate_settings(direction, now)
+        elif self.screen == "cave_shake":
+            elapsed = now - self.shake_started
+            shift = (3 if int(elapsed*20)%2 else -3) if elapsed < 1.0 else 0
+            self.canvas.move("world", shift - getattr(self, "shake_shift", 0), 0)
+            self.canvas.move("player", shift - getattr(self, "shake_shift", 0), 0)
+            self.canvas.move("temur", shift - getattr(self, "shake_shift", 0), 0)
+            self.canvas.move("chest", shift - getattr(self, "shake_shift", 0), 0)
+            self.shake_shift = shift
+            if elapsed >= 1.0:
+                self.screen, self.temur_story = "game", "joining"
+                self.dialogue.show([
+                    DialogueLine("Retri", "The whole cave is shaking!"),
+                    DialogueLine("Temur", "The mountain is restless. We should travel together."),
+                    DialogueLine("Retri", "I'm Retri. Glad to have you with me."),
+                    DialogueLine("", "Temur joined the party!"),
+                ])
         elif self.screen == "faint":
             if now - self.faint_started >= 1.5:
                 self._show_game_over(now)
@@ -804,7 +855,7 @@ class CaldronaLite:
                     old_direction, old_frame = self.direction, self.walk_frame
                     self.direction = active
                     nx, ny = self.x + dx * TILE, self.y + dy * TILE
-                    if self.cave.walkable(nx, ny) and (int(nx // TILE), int(ny // TILE)) != self.chest_tile:
+                    if self.cave.walkable(nx, ny) and (int(nx // TILE), int(ny // TILE)) != self.chest_tile and (self.temur_story == "joined" or (int(nx // TILE), int(ny // TILE)) != self.temur_tile):
                         self.x, self.y = nx, ny
                         self.walk_frame = 0 if self.walk_frame == 2 else 2
                         self._update_world()

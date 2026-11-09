@@ -28,6 +28,7 @@ class GameMenu:
         self.canvas = canvas
         self.font = font
         self.portrait = portrait
+        self.party_names = lambda: ["Retri"]
         self.active = False
         self.selection = 0
         self.detail: int | None = None
@@ -144,7 +145,7 @@ class GameMenu:
                           font=self.font(37, True), tags=tag)
             c.create_text(475, 151, text="Skirter", anchor="w", fill="#dcecf0",
                           font=self.font(27), tags=tag)
-            c.create_text(475, 198, text="PARTY  1 / 1", anchor="w",
+            c.create_text(475, 198, text="PARTY  " + " · ".join(self.party_names()), anchor="w",
                           fill="#80eaf5", font=self.font(26), tags=tag)
             c.create_line(311, 242, 905, 242, fill="#a9c2d1", width=3, tags=tag)
             c.create_text(315, 274, text="SUNREST EXCAVATION", anchor="w",
@@ -155,6 +156,8 @@ class GameMenu:
                           fill="#80eaf5", font=self.font(27), tags=tag)
         else:
             title, description = self.OPTIONS[self.detail]
+            if title == "Formation":
+                description = "Party: " + ", ".join(self.party_names()) + "."
             c.create_text(314, 96, text=title.upper(), anchor="w",
                           fill="#ffe37e", font=self.font(36, True), tags=tag)
             c.create_line(311, 129, 905, 129, fill="#a9c2d1", width=3, tags=tag)

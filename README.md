@@ -12,6 +12,8 @@ Keyboard: arrows or WASD to move, Enter to select, Escape to open or close the i
 
 The opening cavern dialogue introduces Retri, a skirter investigating a strange sound. Press Enter, Cross, or click to advance each line. Walking pauses while the panel is open. Internal thoughts are italicized, and longer text is paged to fit the blue, silver-bordered box in `dialogue.py`.
 
+Temur waits near the entrance. Face him and press Enter or Cross to talk. After the cave shakes and the conversation finishes, he joins for the current journey. Party members take individual battle turns; the shared inventory's Potion heals the acting member. A surviving enemy responds after the party's turns. Continue after a party defeat restores the party at the entrance. The existing save system is not yet implemented, so recruitment lasts until a new journey begins.
+
 The in-game menu in `game_menu.py` opens with Escape or the controller Options button. D-pad/arrows move the cursor with a short initial delay and faster repeat; Enter/Cross opens the selected section, and Escape/Circle goes back. The sections are navigation shells for future features. "Title Screen" goes back to the start screen.
 
 PlayStation controller: use the digital D-pad to move, Cross to select, Circle to go back, and Options to open or close the in-game menu. Analog sticks are ignored. Pygame reads the standardized D-pad when Windows exposes the controller through SDL; direct joystick hats are supported too.

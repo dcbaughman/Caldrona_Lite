@@ -15,6 +15,32 @@ def no_controller(app):
 
 
 class BattleIntegrationTests(unittest.TestCase):
+    def test_temur_recruitment_and_party_turns(self):
+        a = self.app
+        a.x, a.y, a.direction = 9 * 16 + 8, 7 * 16 + 8, "right"
+        self.assertTrue(a._interact_temur())
+        while a.dialogue.active:
+            a._activate()
+        self.assertEqual(a.screen, "cave_shake")
+        a.shake_started = time.monotonic() - 2
+        self.tick()
+        self.assertEqual(a.temur_story, "joining")
+        while a.dialogue.active:
+            a._activate()
+        self.assertEqual([p["name"] for p in a.party], ["Retri", "Temur"])
+        self.assertFalse(a._interact_temur())
+        a._begin_battle(time.monotonic())
+        a._update_battle_transition(time.monotonic()+1)
+        m = a.battle.model
+        self.assertEqual(len(m.party), 2)
+        m.command("Guard")
+        self.assertTrue(m.next_party_turn())
+        self.assertEqual(m.party[m.actor]["name"], "Temur")
+        m.command("Guard")
+        self.assertFalse(m.next_party_turn())
+        m.reply()
+        self.assertFalse(m.pending_reply)
+
     def test_game_over_choices(self):
         a = self.app
         for choice in (0, 1):
