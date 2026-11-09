@@ -566,7 +566,7 @@ class CaldronaLite:
             self.battle = BattleScene(self.canvas, self._font, ASSETS,
                                       lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION))
             self.battle_transition = BattleTransition(self.canvas)
-            self.feather_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "battle" / "feather.png")).zoom(3)
+            self.feather_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "battle" / "feather-v2.png")).zoom(3)
         self.chunk_cache: dict[tuple[int, int], tk.PhotoImage] = {}
         self.chunk_items: dict[tuple[int, int], int] = {}
         self.world_camera = (0.0, 0.0)

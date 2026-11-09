@@ -163,7 +163,7 @@ class BattleScene:
             for e in ENEMIES
         }
         self.hero = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri.png")).zoom(2)
-        self.fainted = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-fainted.png")).zoom(2)
+        self.fainted = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-fainted-v2.png")).zoom(2)
         tile = tk.PhotoImage(master=canvas, file=str(assets / "wall_brick.png")).subsample(2).zoom(3)
         self.backdrop = tk.PhotoImage(master=canvas, width=960, height=96)
         for y in range(0, 96, tile.height()):
