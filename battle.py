@@ -159,10 +159,10 @@ class BattleScene:
         self.canvas, self.font = canvas, font
         self.portrait = portrait
         self.enemies = {
-            e.sprite: tk.PhotoImage(master=canvas, file=str(assets / "battle" / e.sprite)).zoom(3)
+            e.sprite: tk.PhotoImage(master=canvas, file=str(assets / "battle" / e.sprite)).zoom(2)
             for e in ENEMIES
         }
-        self.hero = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri.png")).zoom(3)
+        self.hero = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri.png")).zoom(2)
         tile = tk.PhotoImage(master=canvas, file=str(assets / "wall_brick.png")).subsample(2).zoom(3)
         self.backdrop = tk.PhotoImage(master=canvas, width=960, height=96)
         for y in range(0, 96, tile.height()):
@@ -205,7 +205,7 @@ class BattleScene:
         tags = (self.TAG, self.DYNAMIC)
         if self.phase == "target":
             x, y = self.enemy_positions[m.target]
-            c.create_text(x-68, y, text="▶", fill="#ffe37e", font=self.font(28, True), tags=tags)
+            c.create_text(x-48, y, text="▶", fill="#ffe37e", font=self.font(24, True), tags=tags)
         c.create_text(40, 350, text=m.message, anchor="w", fill="#ffffff", font=self.font(23), tags=tags)
         commands = (f"Potion x{m.potions}", "Back") if self.item_menu else self.COMMANDS
         for i, command in enumerate(commands):
