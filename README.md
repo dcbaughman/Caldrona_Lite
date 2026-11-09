@@ -52,6 +52,10 @@ Victories also award experience equal to twice the enemy's gold reward. The
 next level requires 30 times the current level in XP; excess carries over.
 Each level adds 5 maximum HP and 1 attack damage. Level and XP persist during
 the current journey, including through defeat; saving remains a future feature.
+After victory, the results screen shows Retri's XP, gold and progress toward
+the next level. A glowing LEVEL UP animation appears when he advances, while
+the supplied Caldrona Level Up track plays once for every victory. Confirm to
+return to the cavern; the travel music fades back in.
 
 `battle.py` holds the encounter logic, combat model, battle UI, and transition.
 Sprites load once and are reused; turns and transitions use the existing tick,

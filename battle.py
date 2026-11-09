@@ -136,8 +136,9 @@ class BattleScene:
     DYNAMIC = "battle_dynamic"
     COMMANDS = ("Attack", "Guard", "Items", "Flee")
 
-    def __init__(self, canvas, font, assets: Path):
+    def __init__(self, canvas, font, assets: Path, portrait=None):
         self.canvas, self.font = canvas, font
+        self.portrait = portrait
         self.enemies = {
             e.sprite: tk.PhotoImage(master=canvas, file=str(assets / "battle" / e.sprite)).zoom(3)
             for e in ENEMIES
@@ -246,6 +247,12 @@ class BattleScene:
         return None
 
     def update(self, now):
+        if self.phase == "result" and self.model.outcome == "victory":
+            if self.level_item is not None:
+                colors = ("#ffe48a", "#ffffff", "#ffad49", "#fff6c0")
+                self.canvas.itemconfigure(self.level_item, fill=colors[int((now-self.result_at)*5) % len(colors)])
+                self.canvas.coords(self.level_item, 470, 231 + int((now-self.result_at)*4) % 3)
+            return
         if self.phase not in ("hero_action", "enemy_action"):
             return
         elapsed = now - self.phase_at
@@ -274,7 +281,8 @@ class BattleScene:
                 "fled": "Escaped safely. Continue exploring.",
             }[self.model.outcome]
             if self.model.outcome == "victory":
-                c.itemconfigure(self.enemy_item, state="hidden")
+                self._victory_screen(now)
+                return
         elif self.phase == "hero_action":
             self.model.reply()
             self.phase = "enemy_action"
@@ -284,6 +292,38 @@ class BattleScene:
             self.held = None
             self.model.message = "What will Retri do?"
         self.draw_status()
+
+    def _victory_screen(self, now):
+        c, m = self.canvas, self.model
+        level, xp = gain_xp(m.level, m.xp, m.xp_reward)
+        self.result_at = now
+        self.level_item = None
+        c.delete(self.TAG)
+        c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
+        self._frame(35, 28, 925, 106)
+        self._frame(35, 120, 465, 195)
+        self._frame(485, 120, 925, 195)
+        self._frame(35, 210, 925, 430)
+        self._frame(35, 447, 925, 520)
+        def text(x, y, label, size=26, color="#ffffff", **kw):
+            return c.create_text(x, y, text=label, anchor="w", fill=color,
+                                 font=self.font(size), tags=self.TAG, **kw)
+        text(65, 67, "BATTLE COMPLETE", 34, "#ffe48a")
+        text(65, 157, f"EXP  +{m.xp_reward}", 29)
+        text(515, 157, f"GOLD  +{m.enemy.gold}", 29)
+        image = self.portrait() if self.portrait else None
+        if image:
+            c.create_image(150, 320, image=image, tags=self.TAG)
+        else:
+            c.create_image(150, 320, image=self.hero, tags=self.TAG)
+        text(270, 248, "RETRI", 30, "#ffe48a")
+        text(270, 305, f"LEVEL  {level}", 28)
+        text(270, 355, f"EXP  {xp} / {xp_threshold(level)}", 25)
+        text(620, 305, f"NEXT LV  {xp_threshold(level)-xp}", 24, "#80eaf5")
+        text(620, 355, "RECOVER HP / POTION", 20)
+        if level > m.level:
+            self.level_item = text(470, 231, "LEVEL UP!", 32, "#ffe48a")
+        text(65, 483, "ENTER / CROSS TO CONTINUE", 25)
 
     def close(self):
         self.canvas.delete(self.TAG)

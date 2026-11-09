@@ -29,6 +29,7 @@ DISPLAY_FILE = ROOT / "display_settings.json"
 ASSETS = ROOT / "assets"
 CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
 BATTLE_MUSIC = ASSETS / "audio" / "cavern-battle.mp3"
+VICTORY_MUSIC = ASSETS / "audio" / "caldrona-level-up.mp3"
 RETRI_PORTRAIT = ASSETS / "portraits" / "allsprites.png"
 RETRI_PORTRAIT_REGION = (110, 24, 238, 152)
 INK = "#101722"
@@ -486,7 +487,7 @@ class CaldronaLite:
     def _start_cavern_music(self) -> None:
         self._play_music(CAVERN_MUSIC)
 
-    def _play_music(self, path: Path) -> None:
+    def _play_music(self, path: Path, loops: int = -1, fade_ms: int = 700) -> None:
         if self.pygame is None or not path.is_file():
             return
         try:
@@ -494,7 +495,7 @@ class CaldronaLite:
                 self.pygame.mixer.init()
             self.pygame.mixer.music.load(str(path))
             self.pygame.mixer.music.set_volume(0.65)
-            self.pygame.mixer.music.play(-1, fade_ms=700)
+            self.pygame.mixer.music.play(loops, fade_ms=fade_ms)
         except (self.pygame.error, OSError):
             self.notice = f"Music could not start: {path.name}"
 
@@ -549,7 +550,8 @@ class CaldronaLite:
         self.chest_images = [tk.PhotoImage(master=self.root, file=str(ASSETS / name)).zoom(SCALE)
                              for name in ("chest-closed.png", "chest-open.png")]
         if not hasattr(self, "battle"):
-            self.battle = BattleScene(self.canvas, self._font, ASSETS)
+            self.battle = BattleScene(self.canvas, self._font, ASSETS,
+                                      lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION))
             self.battle_transition = BattleTransition(self.canvas)
         self.chunk_cache: dict[tuple[int, int], tk.PhotoImage] = {}
         self.chunk_items: dict[tuple[int, int], int] = {}
@@ -738,7 +740,10 @@ class CaldronaLite:
             self._update_battle_transition(now)
         elif self.screen == "battle":
             self.battle.navigate(direction, now)
+            previous_phase = self.battle.phase
             self.battle.update(now)
+            if previous_phase != "result" and self.battle.phase == "result" and self.battle.model.outcome == "victory":
+                self._play_music(VICTORY_MUSIC, loops=0, fade_ms=100)
         elif self.screen == "game" and self.game_menu.active:
             self.game_menu.navigate(direction, now)
         elif self.screen == "game" and not self.dialogue.active:
