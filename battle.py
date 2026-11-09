@@ -181,7 +181,9 @@ class BattleScene:
         c = self.canvas
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
         c.create_image(0, 0, image=self.backdrop, anchor="nw", tags=self.TAG)
-        self.enemy_positions = [(170 + i * 135, 245) for i in range(len(model.enemies))]
+        count = len(model.enemies)
+        self.enemy_positions = [(270, 190 + (i - (count - 1) / 2) * 80)
+                                for i in range(count)]
         self.enemy_items = [c.create_image(x, y, image=self.enemies[foe.sprite], tags=self.TAG)
                             for (x, y), foe in zip(self.enemy_positions, model.enemies)]
         self.enemy_item = self.enemy_items[0]
@@ -203,7 +205,7 @@ class BattleScene:
         tags = (self.TAG, self.DYNAMIC)
         if self.phase == "target":
             x, y = self.enemy_positions[m.target]
-            c.create_text(x, y-70, text="▼", fill="#ffe37e", font=self.font(28, True), tags=tags)
+            c.create_text(x-68, y, text="▶", fill="#ffe37e", font=self.font(28, True), tags=tags)
         c.create_text(40, 350, text=m.message, anchor="w", fill="#ffffff", font=self.font(23), tags=tags)
         commands = (f"Potion x{m.potions}", "Back") if self.item_menu else self.COMMANDS
         for i, command in enumerate(commands):
