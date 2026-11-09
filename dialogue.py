@@ -5,7 +5,7 @@ import math
 import textwrap
 import tkinter as tk
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable
 
@@ -34,10 +34,17 @@ class DialogueBox:
         self.lines: deque[DialogueLine] = deque()
         self.active = False
         self.portraits: dict[tuple[Path, tuple[int, int, int, int] | None], tk.PhotoImage] = {}
+        self.speaker_portraits: dict[str, tuple[Path, tuple[int, int, int, int] | None]] = {}
+
+    def register_portrait(self, speaker: str, path: Path, region=None) -> None:
+        self.speaker_portraits[speaker.casefold()] = (path, region)
 
     def show(self, lines: list[DialogueLine]) -> None:
         self.clear()
         for line in lines:
+            if line.portrait is None and line.speaker.casefold() in self.speaker_portraits:
+                path, region = self.speaker_portraits[line.speaker.casefold()]
+                line = replace(line, portrait=path, portrait_region=region)
             # Keep each page to two lines so the text never reaches the
             # lower border, even when later conversations are longer.
             wrapped = textwrap.wrap(line.text, width=42 if line.portrait else 54) or [""]

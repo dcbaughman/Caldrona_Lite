@@ -15,6 +15,28 @@ def no_controller(app):
 
 
 class BattleIntegrationTests(unittest.TestCase):
+    def test_temur_uses_matching_sprite_scale_and_portraits(self):
+        a = self.app
+        self.assertEqual((a.temur_image.width(), a.temur_image.height()),
+                         (a.player_frames["down"][1].width(), a.player_frames["down"][1].height()))
+        self.assertEqual((a.battle.temur.width(), a.battle.temur.height()),
+                         (a.battle.hero.width(), a.battle.hero.height()))
+        a.x, a.y, a.direction = 9 * 16 + 8, 7 * 16 + 8, "right"
+        a._interact_temur()
+        portrait = a.dialogue.portrait(game.TEMUR_PORTRAIT, None)
+        self.assertIsNotNone(portrait)
+        self.assertEqual((portrait.width(), portrait.height()), (128, 128))
+        images = [item for item in a.canvas.find_withtag("dialogue") if a.canvas.type(item) == "image"]
+        self.assertEqual(len(images), 1)
+        for line in a.dialogue.lines:
+            if line.speaker == "Temur":
+                self.assertEqual(line.portrait, game.TEMUR_PORTRAIT)
+        a.dialogue.clear()
+        a.party.append({"name": "Temur", "hp": 70, "max_hp": 70})
+        a.game_menu.open()
+        images = [item for item in a.canvas.find_withtag("game_menu") if a.canvas.type(item) == "image"]
+        self.assertEqual(len(images), 2)
+
     def test_temur_recruitment_and_party_turns(self):
         a = self.app
         a.x, a.y, a.direction = 9 * 16 + 8, 7 * 16 + 8, "right"

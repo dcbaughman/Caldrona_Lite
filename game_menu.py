@@ -29,6 +29,8 @@ class GameMenu:
         self.font = font
         self.portrait = portrait
         self.party_names = lambda: ["Retri"]
+        self.party_portrait = lambda name: self.portrait() if name == "Retri" else None
+        self._small_portraits = {}
         self.active = False
         self.selection = 0
         self.detail: int | None = None
@@ -135,7 +137,28 @@ class GameMenu:
                           fill="#ffe37e" if active else "#f4f5f3",
                           font=self.font(23, active), tags=tag)
 
-        if self.detail is None:
+        if self.detail is None and len(self.party_names()) > 1:
+            names = self.party_names()
+            row_height = min(160, 320 // len(names))
+            for index, name in enumerate(names):
+                top = 79 + index * row_height
+                image = self.party_portrait(name)
+                side = 128 if row_height >= 138 else 64
+                if image is not None and side == 64:
+                    if name not in self._small_portraits:
+                        self._small_portraits[name] = image.subsample(2)
+                    image = self._small_portraits[name]
+                c.create_rectangle(311, top, 321 + side, top + side + 10,
+                                   fill="#1e235f", outline="#d8e9e7", width=3, tags=tag)
+                if image is not None:
+                    c.create_image(316 + side/2, top + side/2 + 5, image=image, tags=tag)
+                c.create_text(475, top + 20, text=name.upper(), anchor="w", fill="#ffffff",
+                              font=self.font(30, True), tags=tag)
+                c.create_text(475, top + 64, text="Mountain Wanderer" if name == "Temur" else "Skirter",
+                              anchor="w", fill="#80eaf5", font=self.font(23), tags=tag)
+            c.create_text(315, 425, text="SUNREST EXCAVATION · FLOOR 1", anchor="w",
+                          fill="#f5e29b", font=self.font(23), tags=tag)
+        elif self.detail is None:
             image = self.portrait()
             c.create_rectangle(311, 79, 449, 217, fill="#1e235f",
                                outline="#d8e9e7", width=3, tags=tag)

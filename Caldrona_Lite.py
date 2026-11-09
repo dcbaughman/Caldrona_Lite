@@ -33,6 +33,7 @@ VICTORY_MUSIC = ASSETS / "audio" / "caldrona-level-up.mp3"
 GAME_OVER_MUSIC = ASSETS / "audio" / "caldrona-game-over.mp3"
 RETRI_PORTRAIT = ASSETS / "portraits" / "allsprites.png"
 RETRI_PORTRAIT_REGION = (110, 24, 238, 152)
+TEMUR_PORTRAIT = ASSETS / "portraits" / "temur.png"
 INK = "#101722"
 PANEL = "#202b3c"
 GOLD = "#f0d28c"
@@ -112,11 +113,17 @@ class CaldronaLite:
         self._load_font()
         self._init_controller()
         self.dialogue = DialogueBox(self.canvas, self.root, self._font)
+        self.dialogue.register_portrait("Retri", RETRI_PORTRAIT, RETRI_PORTRAIT_REGION)
+        self.dialogue.register_portrait("Temur", TEMUR_PORTRAIT)
         self.game_menu = GameMenu(
             self.canvas, self._font,
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
         self.game_menu.party_names = lambda: [member["name"] for member in getattr(self, "party", [{"name": "Retri"}])]
+        self.game_menu.party_portrait = lambda name: self.dialogue.portrait(
+            TEMUR_PORTRAIT if name == "Temur" else RETRI_PORTRAIT,
+            None if name == "Temur" else RETRI_PORTRAIT_REGION,
+        )
 
         self.screen = "menu"
         self.selection = 0
@@ -573,7 +580,7 @@ class CaldronaLite:
         self.party = [{"name": "Retri", "hp": MAX_HP, "max_hp": MAX_HP}]
         self.temur_story = "waiting"
         self.temur_tile = (10, 7)
-        self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur.png")).zoom(SCALE)
+        self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur-world-v2.png")).subsample(2).zoom(SCALE)
         self.chest_tile = (12, 5)
         self.chest_open = False
         self.chest_images = [tk.PhotoImage(master=self.root, file=str(ASSETS / name)).zoom(SCALE)
