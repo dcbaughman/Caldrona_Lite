@@ -30,6 +30,7 @@ ASSETS = ROOT / "assets"
 CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
 BATTLE_MUSIC = ASSETS / "audio" / "cavern-battle.mp3"
 VICTORY_MUSIC = ASSETS / "audio" / "caldrona-level-up.mp3"
+GAME_OVER_MUSIC = ASSETS / "audio" / "caldrona-game-over.mp3"
 RETRI_PORTRAIT = ASSETS / "portraits" / "allsprites.png"
 RETRI_PORTRAIT_REGION = (110, 24, 238, 152)
 INK = "#101722"
@@ -369,6 +370,16 @@ class CaldronaLite:
                                 fill=GOLD, font=self._font(26))
 
     def _activate(self) -> None:
+        if self.screen == "faint":
+            return
+        if self.screen == "game_over":
+            self.canvas.delete("game_over")
+            if self.game_over_selection == 0:
+                self._finish_battle("defeat")
+            else:
+                self.battle.close()
+                self._leave_cavern()
+            return
         if self.screen == "battle":
             outcome = self.battle.confirm(time.monotonic())
             if outcome:
@@ -453,6 +464,8 @@ class CaldronaLite:
         self.settings_repeating = True
 
     def _back(self) -> None:
+        if self.screen in ("faint", "game_over"):
+            return
         if self.screen == "battle":
             self.battle.back()
             return
@@ -553,6 +566,7 @@ class CaldronaLite:
             self.battle = BattleScene(self.canvas, self._font, ASSETS,
                                       lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION))
             self.battle_transition = BattleTransition(self.canvas)
+            self.feather_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "battle" / "feather.png")).zoom(3)
         self.chunk_cache: dict[tuple[int, int], tk.PhotoImage] = {}
         self.chunk_items: dict[tuple[int, int], int] = {}
         self.world_camera = (0.0, 0.0)
@@ -601,6 +615,21 @@ class CaldronaLite:
         self.keys.clear()
         self.held_direction = None
         self.battle_transition.start(now)
+
+    def _show_game_over(self, now: float) -> None:
+        self.screen = "game_over"
+        self.game_over_selection = 0
+        self.game_over_started = now
+        self.menu_nav_after = now + 0.2
+        c = self.canvas
+        c.create_rectangle(0, 0, 960, 540, fill="#10101b", outline="", tags="game_over")
+        c.create_text(480, 145, text="GAME OVER", fill=GOLD, font=self._font(50, True), tags="game_over")
+        self.feather_item = c.create_image(480, 180, image=self.feather_image, tags="game_over")
+        self.game_over_options = [c.create_text(480, 360 + i*55, text=label, fill=CREAM,
+                                  font=self._font(30, True), tags="game_over")
+                                  for i, label in enumerate(("▶  CONTINUE", "TITLE SCREEN"))]
+        c.create_text(480, 493, text="D-PAD / ARROWS · ENTER / CROSS", fill=MUTED,
+                      font=self._font(21), tags="game_over")
 
     def _finish_battle(self, outcome: str) -> None:
         model = self.battle.model
@@ -736,6 +765,18 @@ class CaldronaLite:
             self.menu_nav_after = now + 0.18
         elif self.screen == "settings":
             self._navigate_settings(direction, now)
+        elif self.screen == "faint":
+            if now - self.faint_started >= 1.5:
+                self._show_game_over(now)
+        elif self.screen == "game_over":
+            elapsed = now - self.game_over_started
+            self.canvas.coords(self.feather_item, 480 + math.sin(elapsed * 1.8)*45, 180 + min(130, elapsed*25))
+            if direction in ("up", "down") and now >= self.menu_nav_after:
+                self.game_over_selection = 1 - self.game_over_selection
+                self.menu_nav_after = now + 0.2
+                for i, label in enumerate(("CONTINUE", "TITLE SCREEN")):
+                    self.canvas.itemconfigure(self.game_over_options[i], text=("▶  " if i == self.game_over_selection else "") + label,
+                                              fill=GOLD if i == self.game_over_selection else CREAM)
         elif self.screen in ("battle_in", "battle_out"):
             self._update_battle_transition(now)
         elif self.screen == "battle":
@@ -744,6 +785,9 @@ class CaldronaLite:
             self.battle.update(now)
             if previous_phase != "result" and self.battle.phase == "result" and self.battle.model.outcome == "victory":
                 self._play_music(VICTORY_MUSIC, loops=0, fade_ms=100)
+            elif previous_phase != "result" and self.battle.phase == "result" and self.battle.model.outcome == "defeat":
+                self.screen, self.faint_started = "faint", now
+                self._play_music(GAME_OVER_MUSIC, loops=0, fade_ms=200)
         elif self.screen == "game" and self.game_menu.active:
             self.game_menu.navigate(direction, now)
         elif self.screen == "game" and not self.dialogue.active:

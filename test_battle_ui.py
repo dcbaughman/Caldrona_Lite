@@ -15,6 +15,21 @@ def no_controller(app):
 
 
 class BattleIntegrationTests(unittest.TestCase):
+    def test_game_over_choices(self):
+        a = self.app
+        for choice in (0, 1):
+            a._begin_battle(time.monotonic())
+            a._update_battle_transition(time.monotonic() + 1)
+            a._show_game_over(time.monotonic())
+            a.game_over_selection = choice
+            a._activate()
+            if choice == 0:
+                self.assertEqual(a.screen, "battle_out")
+                a._update_battle_transition(time.monotonic() + 1)
+                self.assertEqual(a.screen, "game")
+            else:
+                self.assertEqual(a.screen, "menu")
+
     def setUp(self):
         with patch.object(tk.Tk, "mainloop"), patch.object(game.CaldronaLite, "_init_controller", no_controller), patch.object(game, "load_display", return_value=DisplayConfig()):
             self.app = game.CaldronaLite()
