@@ -30,6 +30,21 @@ class BattleIntegrationTests(unittest.TestCase):
         self.app._tick()
         self.app.root.after_cancel(self.app.tick_after)
 
+    def test_chest_only_opens_once_and_blocks_movement(self):
+        a = self.app
+        a.x, a.y = 11 * 16 + 8, 5 * 16 + 8
+        a.direction = "right"
+        a._interact_chest()
+        self.assertTrue(a.chest_open)
+        self.assertEqual(a.potions, 4)
+        a.dialogue.clear()
+        a._interact_chest()
+        self.assertEqual(a.potions, 4)
+        a.dialogue.clear()
+        a.keys = {"right"}
+        self.tick()
+        self.assertEqual((a.x, a.y), (11 * 16 + 8, 5 * 16 + 8))
+
     def test_encounters_only_on_walked_tiles_and_input_is_locked_during_wipe(self):
         a = self.app
         a.encounters.step = Mock(return_value=True)

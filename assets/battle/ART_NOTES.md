@@ -1,5 +1,7 @@
 # Cavern battle assets
 
+The current enemy and closed chest art was generated with the built-in imagegen tool using: "Sprite sheet for classic 16-bit JRPG, transparent background, exactly four separate sprites in a horizontal row, equally spaced: ivory cave spider red eyes; purple cave bat; mossy stone armored beetle; closed wooden treasure chest with gold bands. Side view creatures facing right, chest front view. Crisp hand placed pixel art, limited palette, each looks designed on 32x32 pixel grid, dark outlines, no words, no shadows, no scenery. Consistent pixel size, inspired by classic 1990s RPG monster sprites, original designs." The open chest was generated using: "One open empty wooden treasure chest sprite, lid visibly raised with dark empty interior, brass gold bands, front-facing top-down slight angle for retro 16-bit JRPG game. Tiny 16x16 pixel art aesthetic, crisp limited palette dark outlines, isolated, transparent background, no text or shadow." Sources are `enemy-source-v2.png` and `chest-open-source.png`; the older preparation script and source document the previous generation.
+
 Enemy source: generated with the built-in imagegen tool for this patch.
 The requested sprite sheets informed the low-resolution presentation; the
 existing Retri walking atlas supplies his battle-facing pose, preserving his

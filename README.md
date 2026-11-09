@@ -18,6 +18,8 @@ PlayStation controller: use the digital D-pad to move, Cross to select, Circle t
 
 The cavern uses a fixed 320×180 logical view enlarged 3×, connected rooms, directional Retri walking frames, and tile-by-tile collision against rock. Each step lands Retri exactly at a tile center, keeping his 16×16 sprite within a single floor tile. Static cave art is cached in chunks.
 
+A treasure chest sits in the first cavern room. Face it and press Enter or Cross to collect one potion; the opened chest remains empty for the current journey.
+
 The supplied Cavern Travel track plays on a loop in the cavern, fades in on Play, and fades out when returning to the menu. The menu stays silent.
 
 ### Cavern battles

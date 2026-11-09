@@ -380,6 +380,8 @@ class CaldronaLite:
                 self.dialogue.advance()
             elif self.game_menu.active and self.game_menu.activate() == "title":
                 self._leave_cavern()
+            elif not self.game_menu.active:
+                self._interact_chest()
             return
         if self.screen == "menu":
             if self.selection == 0:
@@ -542,6 +544,10 @@ class CaldronaLite:
         self.encounters = EncounterMeter()
         self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
         self.level, self.xp = 1, 0
+        self.chest_tile = (12, 5)
+        self.chest_open = False
+        self.chest_images = [tk.PhotoImage(master=self.root, file=str(ASSETS / name)).zoom(SCALE)
+                             for name in ("chest-closed.png", "chest-open.png")]
         if not hasattr(self, "battle"):
             self.battle = BattleScene(self.canvas, self._font, ASSETS)
             self.battle_transition = BattleTransition(self.canvas)
@@ -549,6 +555,7 @@ class CaldronaLite:
         self.chunk_items: dict[tuple[int, int], int] = {}
         self.world_camera = (0.0, 0.0)
         self.player_item = self.canvas.create_image(0, 0, anchor="center", tags=("player",))
+        self.chest_item = self.canvas.create_image(0, 0, image=self.chest_images[0], tags=("chest",))
         self.drawn_player_frame = None
         self.held_direction: str | None = None
         self.next_step_at = 0.0
@@ -573,6 +580,20 @@ class CaldronaLite:
                          portrait_region=RETRI_PORTRAIT_REGION),
         ])
 
+    def _interact_chest(self) -> None:
+        dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
+        tile = (int(self.x // TILE) + dx, int(self.y // TILE) + dy)
+        if tile != self.chest_tile:
+            return
+        if not self.chest_open:
+            self.chest_open = True
+            self.potions += 1
+            self.canvas.itemconfigure(self.chest_item, image=self.chest_images[1])
+            message = "Found a Potion!"
+        else:
+            message = "The chest is empty."
+        self.dialogue.show([DialogueLine("", message)])
+
     def _begin_battle(self, now: float) -> None:
         self.screen = "battle_in"
         self.keys.clear()
@@ -585,7 +606,7 @@ class CaldronaLite:
             self.gold += model.enemy.gold
             self.level, self.xp = gain_xp(self.level, self.xp, model.xp_reward)
             self.hp = min(MAX_HP + (self.level - 1) * 5, model.hp + 8 + (self.level - model.level) * 5)
-            self.potions = min(MAX_POTIONS, model.potions + 1)
+            self.potions = max(model.potions, min(MAX_POTIONS, model.potions + 1))
         elif outcome == "defeat":
             self.x, self.y = self.cave.spawn
             self.hp, self.potions = MAX_HP + (self.level - 1) * 5, MAX_POTIONS
@@ -678,6 +699,8 @@ class CaldronaLite:
             if shift_x or shift_y:
                 self.canvas.move("world", shift_x, shift_y)
         self.world_camera = camera
+        self.canvas.coords(self.chest_item, (self.chest_tile[0]*TILE + TILE/2-cx)*SCALE,
+                           (self.chest_tile[1]*TILE + TILE/2-cy)*SCALE)
         self._place_player(camera)
 
     def _place_player(self, camera: tuple[float, float]) -> None:
@@ -732,7 +755,7 @@ class CaldronaLite:
                     old_direction, old_frame = self.direction, self.walk_frame
                     self.direction = active
                     nx, ny = self.x + dx * TILE, self.y + dy * TILE
-                    if self.cave.walkable(nx, ny):
+                    if self.cave.walkable(nx, ny) and (int(nx // TILE), int(ny // TILE)) != self.chest_tile:
                         self.x, self.y = nx, ny
                         self.walk_frame = 0 if self.walk_frame == 2 else 2
                         self._update_world()
