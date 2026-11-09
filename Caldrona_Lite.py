@@ -605,7 +605,7 @@ class CaldronaLite:
     def _finish_battle(self, outcome: str) -> None:
         model = self.battle.model
         if outcome == "victory":
-            self.gold += model.enemy.gold
+            self.gold += model.gold_reward
             self.level, self.xp = gain_xp(self.level, self.xp, model.xp_reward)
             self.hp = min(MAX_HP + (self.level - 1) * 5, model.hp + 8 + (self.level - model.level) * 5)
             self.potions = max(model.potions, min(MAX_POTIONS, model.potions + 1))
@@ -626,7 +626,7 @@ class CaldronaLite:
         if progress < 1:
             return
         if self.screen == "battle_in":
-            enemy = self.encounters.rng.choice(ENEMIES)
+            enemy = [self.encounters.rng.choice(ENEMIES) for _ in range(self.encounters.rng.randint(1, 3))]
             self.battle.start(BattleModel(enemy, self.hp, self.potions, level=self.level, xp=self.xp), now)
             self.screen = "battle"
             self._play_music(BATTLE_MUSIC)

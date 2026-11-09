@@ -7,6 +7,18 @@ from battle import BattleModel, EncounterMeter, ENEMIES, MAX_HP, SAFE_STEPS
 
 
 class BattleTests(unittest.TestCase):
+    def test_group_targets_and_rewards(self):
+        model = BattleModel([ENEMIES[0], ENEMIES[1]], rng=random.Random(2))
+        model.target = 1
+        model.enemy_hp = 1
+        model.command("Attack")
+        self.assertEqual(model.health[1], 0)
+        self.assertIsNone(model.outcome)
+        self.assertEqual(model.gold_reward, ENEMIES[0].gold + ENEMIES[1].gold)
+        model.reply()
+        self.assertEqual(model.attacker, 0)
+        self.assertGreater(model.damage, 0)
+
     def test_safe_steps_and_configured_probability(self):
         rng = Mock()
         rng.random.side_effect = [0.5, 0.079]

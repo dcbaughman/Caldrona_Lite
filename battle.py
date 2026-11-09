@@ -67,19 +67,34 @@ ENEMIES = (
 class BattleModel:
     """No clock advances a turn: a command, then one enemy reply."""
     def __init__(self, enemy, hp=MAX_HP, potions=MAX_POTIONS, rng=None, level=1, xp=0):
-        self.enemy = enemy
-        self.enemy_hp = enemy.hp
+        self.enemies = list(enemy) if isinstance(enemy, (list, tuple)) else [enemy]
+        self.health = [foe.hp for foe in self.enemies]
+        self.target = 0
+        self.damage = 0
         self.hp = hp
         self.potions = potions
         self.level, self.xp = level, xp
         self.max_hp = MAX_HP + (level - 1) * 5
-        self.xp_reward = enemy.gold * 2
+        self.gold_reward = sum(foe.gold for foe in self.enemies)
+        self.xp_reward = self.gold_reward * 2
         self.rng = rng if rng is not None else random.Random()
         self.outcome = None
         self.pending_reply = False
         self.guarding = False
         self.effect = ""
-        self.message = f"{enemy.name} approaches!"
+        self.message = "Enemies approach!" if len(self.enemies) > 1 else f"{self.enemy.name} approaches!"
+
+    @property
+    def enemy(self):
+        return self.enemies[self.target]
+
+    @property
+    def enemy_hp(self):
+        return self.health[self.target]
+
+    @enemy_hp.setter
+    def enemy_hp(self, value):
+        self.health[self.target] = value
 
     def command(self, action):
         if self.outcome or self.pending_reply:
@@ -87,9 +102,10 @@ class BattleModel:
         self.effect = action
         if action == "Attack":
             damage = max(1, self.rng.randint(10, 14) + self.level - 1 - self.enemy.armor)
+            self.damage = damage
             self.enemy_hp = max(0, self.enemy_hp - damage)
             self.message = f"Retri strikes for {damage}!"
-            if not self.enemy_hp:
+            if not any(self.health):
                 self.outcome = "victory"
         elif action == "Guard":
             self.guarding = True
@@ -120,13 +136,16 @@ class BattleModel:
         if not self.pending_reply or self.outcome:
             return
         self.pending_reply = False
-        damage = self.rng.randint(*self.enemy.attack)
+        self.attacker = next(i for i, hp in enumerate(self.health) if hp)
+        foe = self.enemies[self.attacker]
+        damage = self.rng.randint(*foe.attack)
         if self.guarding:
             damage = max(1, damage // 2)
         self.guarding = False
         self.hp = max(0, self.hp - damage)
+        self.damage = damage
         self.effect = "enemy"
-        self.message = f"{self.enemy.name} {self.enemy.move} for {damage}!"
+        self.message = f"{foe.name} {foe.move} for {damage}!"
         if self.hp == 0:
             self.outcome = "defeat"
 
@@ -162,7 +181,10 @@ class BattleScene:
         c = self.canvas
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
         c.create_image(0, 0, image=self.backdrop, anchor="nw", tags=self.TAG)
-        self.enemy_item = c.create_image(270, 255, image=self.enemies[model.enemy.sprite], tags=self.TAG)
+        self.enemy_positions = [(170 + i * 135, 245) for i in range(len(model.enemies))]
+        self.enemy_items = [c.create_image(x, y, image=self.enemies[foe.sprite], tags=self.TAG)
+                            for (x, y), foe in zip(self.enemy_positions, model.enemies)]
+        self.enemy_item = self.enemy_items[0]
         self.hero_item = c.create_image(738, 255, image=self.hero, tags=self.TAG)
         self._frame(18, 320, 942, 382)
         self._frame(18, 394, 296, 526)
@@ -179,6 +201,9 @@ class BattleScene:
         c, m = self.canvas, self.model
         c.delete(self.DYNAMIC)
         tags = (self.TAG, self.DYNAMIC)
+        if self.phase == "target":
+            x, y = self.enemy_positions[m.target]
+            c.create_text(x, y-70, text="▼", fill="#ffe37e", font=self.font(28, True), tags=tags)
         c.create_text(40, 350, text=m.message, anchor="w", fill="#ffffff", font=self.font(23), tags=tags)
         commands = (f"Potion x{m.potions}", "Back") if self.item_menu else self.COMMANDS
         for i, command in enumerate(commands):
@@ -194,6 +219,18 @@ class BattleScene:
         c.create_text(914, 504, text=hint, anchor="e", fill="#bec8e4", font=self.font(15), tags=tags)
 
     def navigate(self, direction, now):
+        if self.phase == "target":
+            if direction not in ("up", "down", "left", "right"):
+                self.held = None
+            elif direction != self.held or now >= self.repeat_at:
+                self.held, self.repeat_at = direction, now + 0.22
+                step = -1 if direction in ("left", "up") else 1
+                for _ in self.model.enemies:
+                    self.model.target = (self.model.target + step) % len(self.model.enemies)
+                    if self.model.enemy_hp:
+                        break
+                self.draw_status()
+            return
         if self.phase != "command":
             return
         if direction not in ("up", "down", "left", "right"):
@@ -211,7 +248,18 @@ class BattleScene:
     def confirm(self, now):
         if self.phase == "result":
             return self.model.outcome
+        if self.phase == "target":
+            self.model.command("Attack")
+            self.phase, self.phase_at = "hero_action", now
+            self.draw_status()
+            return None
         if self.phase == "command":
+            if not self.item_menu and self.COMMANDS[self.selection] == "Attack":
+                self.model.target = next(i for i, hp in enumerate(self.model.health) if hp)
+                self.phase, self.held = "target", None
+                self.model.message = "Choose a target."
+                self.draw_status()
+                return None
             if not self.item_menu and self.COMMANDS[self.selection] == "Items":
                 self.item_menu, self.selection = True, 0
                 self.draw_status()
@@ -229,6 +277,10 @@ class BattleScene:
         return None
 
     def back(self):
+        if self.phase == "target":
+            self.phase = "command"
+            self.draw_status()
+            return
         if self.phase == "command":
             if self.item_menu:
                 self.item_menu, self.selection = False, 2
@@ -237,6 +289,12 @@ class BattleScene:
             self.draw_status()
 
     def click(self, x, y, now):
+        if self.phase == "target":
+            for i, (ex, ey) in enumerate(self.enemy_positions):
+                if self.model.health[i] and abs(x-ex) < 60 and abs(y-ey) < 60:
+                    self.model.target = i
+                    return self.confirm(now)
+            return None
         if self.phase == "result":
             return self.confirm(now)
         if self.phase == "command":
@@ -261,16 +319,25 @@ class BattleScene:
         # Only coordinates/visibility change while animating; no per-frame art work.
         offset = int(18 * max(0, 1 - abs(elapsed - 0.18) / 0.18))
         c = self.canvas
+        index = self.model.target if attacking else getattr(self.model, "attacker", self.model.target)
+        self.enemy_item = self.enemy_items[index]
+        ex, ey = self.enemy_positions[index]
+        c.delete("damage_number")
+        if attacking or enemy_attacking:
+            c.create_text(738 if enemy_attacking else ex, (205 if enemy_attacking else ey-50)-int(elapsed*25),
+                          text=str(self.model.damage), fill="#fff2a4", font=self.font(28, True),
+                          tags=(self.TAG, "damage_number"))
         c.coords(self.hero_item, 738 - (offset if attacking else 0), 255)
-        c.coords(self.enemy_item, 270 + (offset if enemy_attacking else 0), 255)
+        c.coords(self.enemy_item, ex + (offset if enemy_attacking else 0), ey)
         c.itemconfigure(self.enemy_item, state="hidden" if attacking and int(elapsed * 16) % 2 else "normal")
         c.itemconfigure(self.hero_item, state="hidden" if enemy_attacking and int(elapsed * 16) % 2 else "normal")
         if elapsed < 0.65:
             return
         c.coords(self.hero_item, 738, 255)
-        c.coords(self.enemy_item, 270, 255)
+        c.delete("damage_number")
+        c.coords(self.enemy_item, ex, ey)
         c.itemconfigure(self.hero_item, state="normal")
-        c.itemconfigure(self.enemy_item, state="normal")
+        c.itemconfigure(self.enemy_item, state="normal" if self.model.health[index] else "hidden")
         if self.model.outcome:
             self.phase = "result"
             self.model.message = {
@@ -310,7 +377,7 @@ class BattleScene:
                                  font=self.font(size), tags=self.TAG, **kw)
         text(65, 67, "BATTLE COMPLETE", 34, "#ffe48a")
         text(65, 157, f"EXP  +{m.xp_reward}", 29)
-        text(515, 157, f"GOLD  +{m.enemy.gold}", 29)
+        text(515, 157, f"GOLD  +{m.gold_reward}", 29)
         image = self.portrait() if self.portrait else None
         if image:
             c.create_image(150, 320, image=image, tags=self.TAG)

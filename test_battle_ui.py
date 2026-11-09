@@ -52,7 +52,10 @@ class BattleIntegrationTests(unittest.TestCase):
         a._begin_battle(time.monotonic())
         a._update_battle_transition(time.monotonic() + 1)
         m = a.battle.model
+        for i in range(1, len(m.health)):
+            m.health[i] = 0
         m.enemy_hp = 1
+        a.battle.confirm(0)
         a.battle.confirm(0)
         a.battle.update(1)
         self.assertEqual(a.battle.phase, "result")
@@ -62,7 +65,7 @@ class BattleIntegrationTests(unittest.TestCase):
         a._finish_battle("victory")
         self.assertEqual(a.level, 2)
         self.assertEqual(a.xp, 20 + m.xp_reward - 30)
-        self.assertEqual(a.gold, m.enemy.gold)
+        self.assertEqual(a.gold, m.gold_reward)
 
     def test_encounters_only_on_walked_tiles_and_input_is_locked_during_wipe(self):
         a = self.app
@@ -130,6 +133,7 @@ class BattleIntegrationTests(unittest.TestCase):
                         self.assertLessEqual(x2, c._value(930))
                         self.assertGreaterEqual(y1, c._value(328))
                         self.assertLessEqual(y2, c._value(518))
+                    scene.confirm(0)
                     scene.confirm(0)
                     scene.update(0.7)
                     scene.update(1.4)
