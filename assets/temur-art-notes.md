@@ -1,6 +1,6 @@
 # Temur artwork
 
-Current world sprite: `temur-world-v3.png`, with clearer eyes at the native 16×16 world size. See `party-art-notes.md` for this follow-up. The battle sprite and portrait below remain current.
+Current world sprite: `temur-world-v4.png`, with the eyes and face reduced to the same native 16×16 pixel grid as the body. See `party-art-notes.md` for this follow-up. The battle sprite and portrait below remain current.
 
 Generated with the built-in imagegen tool, using Retri's sprites as scale/style references and the supplied Temur sheet for his identity.
 

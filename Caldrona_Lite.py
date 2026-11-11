@@ -580,7 +580,7 @@ class CaldronaLite:
         self.party = [{"name": "Retri", "hp": MAX_HP, "max_hp": MAX_HP}]
         self.temur_story = "waiting"
         self.temur_tile = (10, 7)
-        self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur-world-v3.png")).zoom(SCALE)
+        self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur-world-v4.png")).zoom(SCALE)
         self.chest_tile = (12, 5)
         self.chest_open = False
         self.chest_images = [tk.PhotoImage(master=self.root, file=str(ASSETS / name)).zoom(SCALE)
