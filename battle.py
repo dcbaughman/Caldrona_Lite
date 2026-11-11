@@ -64,6 +64,10 @@ ENEMIES = (
 )
 
 
+SHALEHORN = Enemy("Shalehorn", "shalehorn.png", 116, (14, 18), 3, 32, "charges")
+JOBS = ("Seer", "Cutpurse", "Saint Warrior")
+
+
 class BattleModel:
     """No clock advances a turn: a command, then one enemy reply."""
     def __init__(self, enemy, hp=MAX_HP, potions=MAX_POTIONS, rng=None, level=1, xp=0, party=None):
@@ -80,10 +84,13 @@ class BattleModel:
         self.max_hp = MAX_HP + (level - 1) * 5
         self.gold_reward = sum(foe.gold for foe in self.enemies)
         self.xp_reward = self.gold_reward * 2
+        if any(p.get("job") == "Cutpurse" for p in self.party):
+            self.gold_reward += len(self.enemies) * 2
         self.rng = rng if rng is not None else random.Random()
         self.outcome = None
         self.pending_reply = False
-        self.guarding = False
+        self.guarded = set()
+        self.hits = {}
         self.effect = ""
         self.message = "Enemies approach!" if len(self.enemies) > 1 else f"{self.enemy.name} approaches!"
 
@@ -104,15 +111,20 @@ class BattleModel:
             return False
         self.effect = action
         if action == "Attack":
-            damage = max(1, self.rng.randint(10, 14) + self.level - 1 - self.enemy.armor)
+            armor = 0 if self.party[self.actor].get("job") == "Seer" else self.enemy.armor
+            damage = max(1, self.rng.randint(10, 14) + self.level - 1 - armor)
             self.damage = damage
             self.enemy_hp = max(0, self.enemy_hp - damage)
             self.message = f"{self.party[self.actor]['name']} strikes for {damage}!"
             if not any(self.health):
                 self.outcome = "victory"
         elif action == "Guard":
-            self.guarding = True
-            self.message = "Retri braces for the next blow."
+            self.guarded.add(self.actor)
+            member = self.party[self.actor]
+            if member.get("job") == "Saint Warrior":
+                member["hp"] = min(member["max_hp"], member["hp"] + 3)
+                self.hp = self.party[0]["hp"]
+            self.message = f"{member['name']} braces for the next blow."
         elif action == "Potion":
             if not self.potions:
                 self.message = "No potions left. Choose another action."
@@ -125,7 +137,7 @@ class BattleModel:
             member["hp"] += healed
             self.hp = self.party[0]["hp"]
             self.potions -= 1
-            self.message = f"Retri recovers {healed} HP."
+            self.message = f"{member['name']} recovers {healed} HP."
         elif action == "Flee":
             if self.rng.random() < 0.75:
                 self.outcome = "fled"
@@ -155,11 +167,12 @@ class BattleModel:
         self.attacker = next(i for i, hp in enumerate(self.health) if hp)
         foe = self.enemies[self.attacker]
         damage = self.rng.randint(*foe.attack)
-        if self.guarding:
-            damage = max(1, damage // 2)
-        self.guarding = False
         living = [i for i, member in enumerate(self.party) if member["hp"] > 0]
         self.defender = living[self.rng.randrange(len(living))] if len(living) > 1 else living[0]
+        if self.defender in self.guarded:
+            damage = max(1, damage // 2)
+        self.guarded.clear()
+        self.hits = {self.defender: damage}
         member = self.party[self.defender]
         member["hp"] = max(0, member["hp"] - damage)
         self.hp = self.party[0]["hp"]
@@ -172,6 +185,77 @@ class BattleModel:
             self.actor = next(i for i, member in enumerate(self.party) if member["hp"] > 0)
 
 
+class ShalehornBattle(BattleModel):
+    """One telegraphed move per party round."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.move_index = 0
+        self.mark = self.actor
+        self.exposed = False
+        self.buried = False
+
+    def tell(self):
+        return (f"Stonebreaker Charge aims at {self.party[self.mark]['name']}. Guard!",
+                "Its flank is exposed! Tremor incoming." if self.exposed else "Its foreclaws rise. Tremor incoming.",
+                "Shalehorn digs at the shale.", "Underground! Brace for its return.")[self.move_index]
+
+    def command(self, action):
+        if action == "Attack" and self.buried and not self.pending_reply and not self.outcome:
+            self.damage = 0
+            self.effect = "miss"
+            self.pending_reply = True
+            self.message = "Your strike finds only loose shale."
+            return True
+        accepted = super().command(action)
+        if accepted and action == "Attack" and self.exposed:
+            self.enemy_hp = max(0, self.enemy_hp - self.damage)
+            self.damage *= 2
+            self.message = f"Fractured armor! {self.damage} damage."
+            if self.enemy_hp == 0:
+                self.outcome, self.pending_reply = "victory", False
+        return accepted
+
+    def reply(self):
+        if not self.pending_reply or self.outcome:
+            return
+        self.pending_reply = False
+        self.attacker = 0
+        living = [i for i, p in enumerate(self.party) if p["hp"]]
+        self.exposed = False
+        if self.move_index == 0:
+            self.exposed = self.mark in self.guarded
+            self.hits = {self.mark: 0 if self.exposed else 17}
+            self.message = ("Charge misses! Its flank cracks against the wall." if self.exposed
+                            else "Stonebreaker Charge!")
+        elif self.move_index == 1:
+            self.hits = {i: 4 if i in self.guarded else 8 for i in living}
+            self.message = "Quarry Tremor!"
+        elif self.move_index == 2:
+            self.buried = True
+            self.hits = {}
+            self.message = "Shalehorn burrows beneath the floor."
+        else:
+            self.buried = False
+            target = self.rng.choice(living)
+            self.hits = {target: 4 if target in self.guarded else 9}
+            self.message = "Shalehorn erupts from the stone!"
+        self.effect = "tremor" if self.move_index == 1 else "enemy"
+        self.defender = next(iter(self.hits), living[0])
+        self.damage = self.hits.get(self.defender, 0)
+        for i, amount in self.hits.items():
+            self.party[i]["hp"] = max(0, self.party[i]["hp"] - amount)
+        self.hp = self.party[0]["hp"]
+        self.guarded.clear()
+        living = [i for i in living if self.party[i]["hp"]]
+        if not living:
+            self.outcome = "defeat"
+            return
+        self.actor = living[0]
+        self.move_index = (self.move_index + 1) % 4
+        if self.move_index == 0:
+            self.mark = self.rng.choice(living)
+
+
 class BattleScene:
     TAG = "battle"
     DYNAMIC = "battle_dynamic"
@@ -180,9 +264,11 @@ class BattleScene:
     def __init__(self, canvas, font, assets: Path, portrait=None):
         self.canvas, self.font = canvas, font
         self.portrait = portrait
+        self.member_portrait = None
+        self.reward_portraits = {}
         self.enemies = {
             e.sprite: tk.PhotoImage(master=canvas, file=str(assets / "battle" / e.sprite)).zoom(2)
-            for e in ENEMIES
+            for e in (*ENEMIES, SHALEHORN)
         }
         self.hero = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-v2.png")).zoom(2)
         self.fainted = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-fainted-v2.png")).zoom(2)
@@ -211,10 +297,17 @@ class BattleScene:
         self.enemy_items = [c.create_image(x, y, image=self.enemies[foe.sprite], tags=self.TAG)
                             for (x, y), foe in zip(self.enemy_positions, model.enemies)]
         self.enemy_item = self.enemy_items[0]
-        self.hero_item = c.create_image(738, 255, image=self.hero, tags=self.TAG)
-        self.party_items = [self.hero_item]
-        for i in range(1, len(model.party)):
-            self.party_items.append(c.create_image(820, 255 - i*75, image=self.temur, tags=self.TAG))
+        self.party_positions = [(738 + 36*i, 255 - 66*i) for i in range(len(model.party))]
+        sprites = {"Retri": self.hero, "Temur": self.temur}
+        self.party_sprites = [sprites.get(p["name"]) for p in model.party]
+        self.party_items = []
+        for (x, y), image, member in zip(self.party_positions, self.party_sprites, model.party):
+            if image is None:
+                item = c.create_text(x, y, text=member["name"], fill="#ffffff", font=self.font(20), tags=self.TAG)
+            else:
+                item = c.create_image(x, y, image=image, tags=self.TAG)
+            self.party_items.append(item)
+        self.hero_item = self.party_items[0]
         self._frame(18, 320, 942, 382)
         self._frame(18, 394, 296, 526)
         self._frame(308, 394, 942, 526)
@@ -234,6 +327,8 @@ class BattleScene:
             x, y = self.enemy_positions[m.target]
             c.create_text(x-48, y, text="▶", fill="#ffe37e", font=self.font(24, True), tags=tags)
         c.create_text(40, 350, text=m.message, anchor="w", fill="#ffffff", font=self.font(23), tags=tags)
+        if isinstance(m, ShalehornBattle) and self.phase in ("command", "target"):
+            c.create_text(480, 65, text=m.tell(), fill="#ffe37e", font=self.font(24, True), tags=tags)
         commands = (f"Potion x{m.potions}", "Back") if self.item_menu else self.COMMANDS
         for i, command in enumerate(commands):
             x, y = 52 + (i % 2) * 126, 435 + (i // 2) * 43
@@ -342,7 +437,7 @@ class BattleScene:
             if self.level_item is not None:
                 colors = ("#ffe48a", "#ffffff", "#ffad49", "#fff6c0")
                 self.canvas.itemconfigure(self.level_item, fill=colors[int((now-self.result_at)*5) % len(colors)])
-                self.canvas.coords(self.level_item, 470, 231 + int((now-self.result_at)*4) % 3)
+                self.canvas.coords(self.level_item, 712, 65 + int((now-self.result_at)*4) % 3)
             return
         if self.phase not in ("hero_action", "enemy_action"):
             return
@@ -356,24 +451,30 @@ class BattleScene:
         self.enemy_item = self.enemy_items[index]
         ex, ey = self.enemy_positions[index]
         c.delete("damage_number")
-        if attacking or enemy_attacking:
-            c.create_text((738 if self.model.defender == 0 else 820) if enemy_attacking else ex, (205 if enemy_attacking else ey-50)-int(elapsed*25),
-                          text=str(self.model.damage), fill="#fff2a4", font=self.font(28, True),
-                          tags=(self.TAG, "damage_number"))
-        active_item = self.party_items[self.model.actor if attacking else getattr(self.model, "defender", 0)]
-        ax = 738 if active_item == self.hero_item else 820
-        ay = 255 if active_item == self.hero_item else 180
+        if attacking:
+            c.create_text(ex, ey-50-int(elapsed*25), text=str(self.model.damage), fill="#ffe37e",
+                          font=self.font(28, True), tags=(self.TAG, "damage_number"))
+        if enemy_attacking:
+            for i, loss in self.model.hits.items():
+                x, y = self.party_positions[i]
+                c.create_text(x, y-38-int(elapsed*25), text=str(loss), fill="#ffe37e",
+                              font=self.font(28, True), tags=(self.TAG, "damage_number"))
+        i = self.model.defender if enemy_attacking else self.model.actor
+        active_item = self.party_items[i]
+        ax, ay = self.party_positions[i]
+        if enemy_attacking and self.model.effect == "tremor":
+            ay += 3 if int(elapsed*22)%2 else -3
         c.coords(active_item, ax - (offset if attacking else 0), ay)
         c.coords(self.enemy_item, ex + (offset if enemy_attacking else 0), ey)
-        c.itemconfigure(self.enemy_item, state="hidden" if attacking and int(elapsed * 16) % 2 else "normal")
+        c.itemconfigure(self.enemy_item, state="hidden" if getattr(self.model, "buried", False) or (attacking and int(elapsed * 16) % 2) else "normal")
         c.itemconfigure(active_item, state="hidden" if enemy_attacking and int(elapsed * 16) % 2 else "normal")
         if elapsed < 0.65:
             return
-        c.coords(active_item, ax, ay)
+        c.coords(active_item, *self.party_positions[i])
         c.delete("damage_number")
         c.coords(self.enemy_item, ex, ey)
         c.itemconfigure(active_item, state="normal")
-        c.itemconfigure(self.enemy_item, state="normal" if self.model.health[index] else "hidden")
+        c.itemconfigure(self.enemy_item, state="normal" if self.model.health[index] and not getattr(self.model, "buried", False) else "hidden")
         if self.model.outcome:
             self.phase = "result"
             self.model.message = {
@@ -387,7 +488,11 @@ class BattleScene:
                 self._victory_screen(now)
                 return
             if self.model.outcome == "defeat":
-                c.itemconfigure(self.hero_item, image=self.fainted)
+                for member, item in zip(self.model.party, self.party_items):
+                    if member["name"] == "Retri":
+                        c.itemconfigure(item, image=self.fainted)
+                    else:
+                        c.move(item, 0, 12)
         elif self.phase == "hero_action":
             if self.model.next_party_turn():
                 self.phase = "command"
@@ -399,7 +504,7 @@ class BattleScene:
         else:
             self.phase = "command"
             self.held = None
-            self.model.message = "What will Retri do?"
+            self.model.message = f"What will {self.model.party[self.model.actor]['name']} do?"
         self.draw_status()
 
     def _victory_screen(self, now):
@@ -420,18 +525,23 @@ class BattleScene:
         text(65, 67, "BATTLE COMPLETE", 34, "#ffe48a")
         text(65, 157, f"EXP  +{m.xp_reward}", 29)
         text(515, 157, f"GOLD  +{m.gold_reward}", 29)
-        image = self.portrait() if self.portrait else None
-        if image:
-            c.create_image(150, 320, image=image, tags=self.TAG)
-        else:
-            c.create_image(150, 320, image=self.hero, tags=self.TAG)
-        text(270, 248, "RETRI", 30, "#ffe48a")
-        text(270, 305, f"LEVEL  {level}", 28)
-        text(270, 355, f"EXP  {xp} / {xp_threshold(level)}", 25)
-        text(620, 305, f"NEXT LV  {xp_threshold(level)-xp}", 24, "#80eaf5")
-        text(620, 355, "RECOVER HP / POTION", 20)
+        row_height = 180 // len(m.party)
+        for i, member in enumerate(m.party):
+            y = 243 + i * row_height
+            name = member["name"]
+            if name not in self.reward_portraits:
+                portrait = self.member_portrait(name) if self.member_portrait else None
+                if portrait is not None:
+                    self.reward_portraits[name] = portrait.subsample(2)
+            image = self.reward_portraits.get(name, self.party_sprites[i])
+            if image is not None:
+                c.create_image(110, y + 10, image=image, tags=self.TAG)
+            text(190, y, member["name"].upper(), 26, "#ffe48a")
+            text(405, y, f"LV {level}", 25)
+            text(565, y, f"EXP {xp}/{xp_threshold(level)}", 23)
+            text(565, y+26, f"NEXT LV  {xp_threshold(level)-xp}", 17, "#80eaf5")
         if level > m.level:
-            self.level_item = text(470, 231, "LEVEL UP!", 32, "#ffe48a")
+            self.level_item = text(712, 65, "LEVEL UP!", 32, "#ffe48a")
         text(65, 483, "ENTER / CROSS TO CONTINUE", 25)
 
     def close(self):

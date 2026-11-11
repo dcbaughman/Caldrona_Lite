@@ -5,6 +5,9 @@ import tkinter as tk
 from typing import Callable
 
 
+from battle import JOBS
+
+
 class GameMenu:
     TAG = "game_menu"
     OPTIONS = (
@@ -30,6 +33,10 @@ class GameMenu:
         self.portrait = portrait
         self.party_names = lambda: ["Retri"]
         self.party_portrait = lambda name: self.portrait() if name == "Retri" else None
+        self.roster = lambda: []
+        self.sync_unlocked = lambda: False
+        self.member_index = 0
+        self.feedback = ""
         self._small_portraits = {}
         self.active = False
         self.selection = 0
@@ -62,17 +69,47 @@ class GameMenu:
     def activate(self) -> str | None:
         if not self.active:
             return None
+        if self._roster_page():
+            self._choose_member()
+            self.draw()
+            return None
         if self.detail is not None:
             self.back()
             return None
         if self.selection == len(self.OPTIONS) - 1:
             return "title"
+        self.member_index = 0
+        self.feedback = ""
         self.detail = self.selection
         self.draw()
         return None
 
+    def _roster_page(self):
+        return self.detail == 4 or (self.detail == 1 and self.sync_unlocked())
+
+    def _choose_member(self):
+        members = self.roster()
+        member = members[self.member_index]
+        if self.detail == 1:
+            current = member.get("job")
+            member["job"] = JOBS[(JOBS.index(current)+1) % len(JOBS)] if current in JOBS else JOBS[0]
+            self.feedback = {"Seer": "Seer strikes ignore armor.", "Cutpurse": "Earn extra gold on victory.",
+                             "Saint Warrior": "Guard restores 3 HP."}[member["job"]]
+            return
+        active = [p for p in members if p.get("active", True)]
+        self.feedback = ""
+        if member in active:
+            if not any(p is not member and p["hp"] > 0 for p in active):
+                self.feedback = "Keep one standing fighter active."
+            else:
+                member["active"] = False
+        elif len(active) >= 3:
+            self.feedback = "Move a fighter to reserve first."
+        else:
+            member["active"] = True
+
     def navigate(self, direction: str | None, now: float) -> None:
-        if not self.active or self.detail is not None:
+        if not self.active or (self.detail is not None and not self._roster_page()):
             return
         if direction not in ("up", "down"):
             self.held_direction = None
@@ -84,12 +121,24 @@ class GameMenu:
             self.repeating = False
         if now >= self.repeat_at:
             step = -1 if direction == "up" else 1
-            self.selection = (self.selection + step) % len(self.OPTIONS)
+            if self._roster_page():
+                self.member_index = (self.member_index + step) % len(self.roster())
+                self.feedback = ""
+            else:
+                self.selection = (self.selection + step) % len(self.OPTIONS)
             self.draw()
             self.repeat_at = now + (0.09 if self.repeating else 0.24)
             self.repeating = True
 
     def click(self, x: int, y: int) -> str | None:
+        if self.active and self._roster_page():
+            start = max(0, self.member_index-3)
+            row = (y-146)//48
+            if 315 <= x <= 900 and 0 <= row < 4 and start+row < len(self.roster()):
+                self.member_index = start+row
+                self._choose_member()
+                self.draw()
+            return None
         if not self.active:
             return None
         if self.detail is not None:
@@ -177,6 +226,19 @@ class GameMenu:
                           anchor="w", fill="#ffffff", font=self.font(27), tags=tag)
             c.create_text(315, 401, text="FLOOR  1", anchor="w",
                           fill="#80eaf5", font=self.font(27), tags=tag)
+        elif self._roster_page():
+            members = self.roster()
+            count = sum(p.get("active", True) for p in members)
+            heading = f"FORMATION  {count}/3" if self.detail == 4 else "ASTRAL SYNC"
+            c.create_text(315, 96, text=heading, anchor="w", fill="#ffe37e", font=self.font(30, True), tags=tag)
+            start = max(0, self.member_index-3)
+            for row, member in enumerate(members[start:start+4]):
+                selected = start+row == self.member_index
+                value = ("Active" if member.get("active", True) else "Reserve") if self.detail == 4 else member.get("job", "Unbound")
+                c.create_text(320, 170+48*row, anchor="w", text=("▶  " if selected else "   ") + member["name"] + "    " + value,
+                              fill="#ffe37e" if selected else "#ffffff", font=self.font(25), tags=tag)
+            help_text = "Confirm to change formation." if self.detail == 4 else "Confirm to change this member's path."
+            c.create_text(315, 390, text=self.feedback or help_text, width=570, anchor="w", fill="#9adbe8", font=self.font(22), tags=tag)
         else:
             title, description = self.OPTIONS[self.detail]
             if title == "Formation":

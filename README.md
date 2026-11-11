@@ -58,8 +58,7 @@ Victories also award experience equal to twice the enemy's gold reward. The
 next level requires 30 times the current level in XP; excess carries over.
 Each level adds 5 maximum HP and 1 attack damage. Level and XP persist during
 the current journey, including through defeat; saving remains a future feature.
-After victory, the results screen shows Retri's XP, gold and progress toward
-the next level. A glowing LEVEL UP animation appears when he advances, while
+The results screen shows the fighters who took part and the party's shared XP and gold. A glowing LEVEL UP animation appears when he advances, while
 the supplied Caldrona Level Up track plays once for every victory. Confirm to
 return to the cavern; the travel music fades back in.
 
@@ -69,9 +68,23 @@ without blocking waits. `prepare_battle_assets.py` is an offline asset-preparati
 tool, not a runtime dependency. Enemy generation details are in
 `assets/battle/ART_NOTES.md`.
 
+### Astral Hollow
+
+The timber door in the north wall of the northeastern quarry room leads to Astral Hollow.
+Walk into the door or face it and confirm. Inside, Shalehorn stands over a blue stone.
+Watch the charge target and Guard with that fighter to expose its flank. Quarry Tremor hits
+all standing fighters. During Burrow, use the turn to guard or heal. First Boss plays for
+this encounter. After victory, approach the stone and confirm to unlock Astral Sync.
+Use Abilities to cycle each member's path between Seer (ignore armor), Cutpurse (bonus
+victory gold), and Saint Warrior (heal 3 HP on Guard). The southern door returns to the quarry.
+
+Formation lets you confirm a recruited member to switch between active and reserve.
+Up to three fight at once. New recruits enter reserve when all three slots are occupied.
+Formation and the boss unlock last for the current journey.
+
 Run the regression checks with:
 
-    python -m unittest test_battle test_battle_ui test_display_settings
+    python -m unittest discover
 
 This project reuses three existing Ipi assets, copied into this project:
 

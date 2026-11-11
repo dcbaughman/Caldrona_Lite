@@ -13,7 +13,7 @@ from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
                               load_display, pixel_scale, save_display)
 from game_menu import GameMenu
 from battle import (BattleModel, BattleScene, BattleTransition, EncounterMeter,
-                    ENEMIES, MAX_HP, MAX_POTIONS, gain_xp)
+                    ENEMIES, MAX_HP, MAX_POTIONS, gain_xp, SHALEHORN, ShalehornBattle)
 
 TILE = 16
 VIEW_W, VIEW_H = 320, 180
@@ -44,7 +44,7 @@ CREAM = "#fff1cf"
 class CavernInstance:
     """A fixed first-floor cave, built once and kept as a light tile map."""
 
-    width, height = 56, 36
+    width, height = 84, 36
 
     def __init__(self) -> None:
         self.floor: set[tuple[int, int]] = set()
@@ -58,6 +58,7 @@ class CavernInstance:
         self._hall((10, 12), (11, 25), 3)
         self._hall((20, 26), (33, 26), 3)
         self._hall((40, 16), (39, 25), 3)
+        self._room(64, 9, 77, 21)
         self.spawn = (8 * TILE + TILE / 2, 8 * TILE + TILE / 2)
 
     def _room(self, left: int, top: int, right: int, bottom: int) -> None:
@@ -119,11 +120,13 @@ class CaldronaLite:
             self.canvas, self._font,
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
-        self.game_menu.party_names = lambda: [member["name"] for member in getattr(self, "party", [{"name": "Retri"}])]
+        self.game_menu.roster = lambda: self.party
+        self.game_menu.sync_unlocked = lambda: self.astral_sync
+        self.game_menu.party_names = lambda: [member["name"] for member in getattr(self, "party", [{"name": "Retri"}]) if member.get("active", True)]
         self.game_menu.party_portrait = lambda name: self.dialogue.portrait(
             TEMUR_PORTRAIT if name == "Temur" else RETRI_PORTRAIT,
             None if name == "Temur" else RETRI_PORTRAIT_REGION,
-        )
+        ) if name in ("Retri", "Temur") else None
 
         self.screen = "menu"
         self.selection = 0
@@ -398,17 +401,20 @@ class CaldronaLite:
         if self.screen == "game":
             if self.dialogue.active:
                 self.dialogue.advance()
-                if not self.dialogue.active and getattr(self, "temur_story", "") == "intro":
+                if not self.dialogue.active and self.boss_intro:
+                    self.boss_intro = False
+                    self._begin_battle(time.monotonic())
+                elif not self.dialogue.active and getattr(self, "temur_story", "") == "intro":
                     self.temur_story, self.screen = "shaking", "cave_shake"
                     self.shake_started = time.monotonic()
                 elif not self.dialogue.active and getattr(self, "temur_story", "") == "joining":
                     self.temur_story = "joined"
-                    self.party.append({"name": "Temur", "hp": 70, "max_hp": 70})
+                    self._recruit({"name": "Temur", "hp": 70, "max_hp": 70})
                     self.canvas.itemconfigure(self.temur_item, state="hidden")
             elif self.game_menu.active and self.game_menu.activate() == "title":
                 self._leave_cavern()
             elif not self.game_menu.active:
-                if not self._interact_temur():
+                if not self._interact_quarry() and not self._interact_temur():
                     self._interact_chest()
             return
         if self.screen == "menu":
@@ -489,7 +495,7 @@ class CaldronaLite:
             return
         if self.screen == "game":
             if self.dialogue.active:
-                if getattr(self, "temur_story", "") in ("intro", "joining"):
+                if self.boss_intro or getattr(self, "temur_story", "") in ("intro", "joining"):
                     self._activate()
                 else:
                     self.dialogue.clear()
@@ -581,6 +587,19 @@ class CaldronaLite:
         self.temur_story = "waiting"
         self.temur_tile = (10, 7)
         self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur-world-v4.png")).zoom(SCALE)
+        self.in_chamber = self.boss_intro = self.boss_cleared = self.astral_sync = False
+        self.stone_reveal = False
+        self.outer_door, self.inner_door, self.stone_tile = (49, 4), (70, 21), (70, 14)
+        self.quarry_objects = []
+        for tile, filename, scale, lift in (
+            (self.outer_door, "quarry-door.png", SCALE, 0),
+            (self.inner_door, "quarry-door.png", SCALE, 0),
+            (self.stone_tile, "astral-stone.png", SCALE, 0),
+            (self.stone_tile, "battle/shalehorn.png", 2, 48),
+        ):
+            image = tk.PhotoImage(master=self.root, file=str(ASSETS / filename)).zoom(scale)
+            item = self.canvas.create_image(0, 0, image=image)
+            self.quarry_objects.append((tile, image, item, lift))
         self.chest_tile = (12, 5)
         self.chest_open = False
         self.chest_images = [tk.PhotoImage(master=self.root, file=str(ASSETS / name)).zoom(SCALE)
@@ -588,6 +607,7 @@ class CaldronaLite:
         if not hasattr(self, "battle"):
             self.battle = BattleScene(self.canvas, self._font, ASSETS,
                                       lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION))
+            self.battle.member_portrait = self.game_menu.party_portrait
             self.battle_transition = BattleTransition(self.canvas)
             self.feather_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "battle" / "feather-v2.png")).zoom(3)
         self.chunk_cache: dict[tuple[int, int], tk.PhotoImage] = {}
@@ -601,7 +621,7 @@ class CaldronaLite:
         self.next_step_at = 0.0
         self.canvas.create_rectangle(18, VIEW_H*SCALE-98, 570, VIEW_H*SCALE-18,
                                      fill="#101625", outline="#ad8c54", width=3, tags=("hud",))
-        self.canvas.create_text(36, VIEW_H*SCALE-76, anchor="w", fill=GOLD,
+        self.location_label = self.canvas.create_text(36, VIEW_H*SCALE-76, anchor="w", fill=GOLD,
                                 font=self._font(22, True), text="SUNREST EXCAVATION · FLOOR 1",
                                 tags=("hud",))
         self.canvas.create_text(36, VIEW_H*SCALE-39, anchor="w", fill="#d1d5dc",
@@ -619,6 +639,47 @@ class CaldronaLite:
             DialogueLine("Retri", "I'll find its source. Carefully.", RETRI_PORTRAIT,
                          portrait_region=RETRI_PORTRAIT_REGION),
         ])
+
+    def _recruit(self, member):
+        if not any(p["name"] == member["name"] for p in self.party):
+            member["active"] = sum(p.get("active", True) for p in self.party) < 3
+            self.party.append(member)
+
+    def _interact_quarry(self):
+        dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
+        tile = (int(self.x // TILE) + dx, int(self.y // TILE) + dy)
+        if tile == self.outer_door:
+            self.in_chamber = True
+            self.x, self.y = 70.5*TILE, 17.5*TILE
+            self.direction = "up"
+            self._update_world(force=True)
+            if not self.boss_cleared:
+                self._meet_shalehorn()
+        elif tile == self.inner_door:
+            self.in_chamber = False
+            self.x, self.y = 49.5*TILE, 5.5*TILE
+            self.direction = "down"
+            self._update_world(force=True)
+        elif tile == self.stone_tile:
+            if not self.boss_cleared:
+                self._meet_shalehorn()
+            elif not self.astral_sync:
+                self.astral_sync = True
+                self.dialogue.show([DialogueLine("Retri", "It answers when I touch it. Three voices..."),
+                                    DialogueLine("Astral Sync", "Seer, Cutpurse and Saint Warrior are open. Choose a path in Abilities.")])
+            else:
+                self.dialogue.show([DialogueLine("", "The stone hums in time with your pulse.")])
+        else:
+            return False
+        return True
+
+    def _meet_shalehorn(self):
+        self.boss_intro = True
+        lines = [DialogueLine("Retri", "That scraping sound... Look under its tusks. Something blue is pulsing.")]
+        if any(p["name"] == "Temur" for p in self.party):
+            lines.append(DialogueLine("Temur", "Shalehorn. See how it leans into the light? Brace when it lowers its head."))
+        lines.append(DialogueLine("", "A hoof strikes the shale. The beast turns toward the footsteps."))
+        self.dialogue.show(lines)
 
     def _interact_temur(self) -> bool:
         dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
@@ -672,15 +733,24 @@ class CaldronaLite:
         if outcome == "victory":
             self.gold += model.gold_reward
             self.level, self.xp = gain_xp(self.level, self.xp, model.xp_reward)
-            self.hp = min(MAX_HP + (self.level - 1) * 5, model.hp + 8 + (self.level - model.level) * 5)
+            for member in model.party:
+                if member["name"] == "Retri":
+                    member["max_hp"] = MAX_HP + (self.level - 1)*5
+                member["hp"] = min(member["max_hp"], member["hp"] + 8 + (self.level-model.level)*5)
+                if member["name"] == "Retri":
+                    self.hp = member["hp"]
+            if isinstance(model, ShalehornBattle):
+                self.boss_cleared = self.stone_reveal = True
             self.potions = max(model.potions, min(MAX_POTIONS, model.potions + 1))
         elif outcome == "defeat":
+            self.in_chamber = False
             self.x, self.y = self.cave.spawn
             self.hp, self.potions = MAX_HP + (self.level - 1) * 5, MAX_POTIONS
             for member in self.party:
                 member["hp"] = member["max_hp"]
         else:
-            self.hp, self.potions = model.hp, model.potions
+            self.hp = next((p["hp"] for p in model.party if p["name"] == "Retri"), self.hp)
+            self.potions = model.potions
         self.encounters.reset()
         self.screen = "battle_out"
         self.keys.clear()
@@ -696,9 +766,13 @@ class CaldronaLite:
             enemy = [self.encounters.rng.choice(ENEMIES) for _ in range(self.encounters.rng.randint(1, 3))]
             self.party[0]["hp"] = self.hp
             self.party[0]["max_hp"] = MAX_HP + (self.level-1)*5
-            self.battle.start(BattleModel(enemy, self.hp, self.potions, level=self.level, xp=self.xp, party=self.party), now)
+            active = [p for p in self.party if p.get("active", True)][:3]
+            model_type = ShalehornBattle if self.in_chamber else BattleModel
+            opponents = SHALEHORN if self.in_chamber else enemy
+            self.battle.start(model_type(opponents, active[0]["hp"], self.potions,
+                                        level=self.level, xp=self.xp, party=active), now)
             self.screen = "battle"
-            self._play_music(BATTLE_MUSIC)
+            self._play_music(ASSETS / "audio" / "first-boss.mp3" if self.in_chamber else BATTLE_MUSIC)
         else:
             self.battle.close()
             self.screen = "game"
@@ -707,6 +781,9 @@ class CaldronaLite:
             self.held_direction = None
             self.next_step_at = now + STEP_INTERVAL
             self._start_cavern_music()
+            if self.stone_reveal:
+                self.stone_reveal = False
+                self.dialogue.show([DialogueLine("Retri", "It was guarding that blue stone. I can reach it now.")])
         self.battle_transition.close()
 
     def _load_player(self) -> dict[str, list[tk.PhotoImage]]:
@@ -774,6 +851,10 @@ class CaldronaLite:
                            (self.chest_tile[1]*TILE + TILE/2-cy)*SCALE)
         self.canvas.coords(self.temur_item, (self.temur_tile[0]*TILE + TILE/2-cx)*SCALE,
                            (self.temur_tile[1]*TILE + TILE/2-cy)*SCALE)
+        for tile, image, item, lift in self.quarry_objects:
+            self.canvas.coords(item, ((tile[0]+0.5)*TILE-cx)*SCALE, ((tile[1]+0.5)*TILE-cy)*SCALE-lift)
+            self.canvas.itemconfigure(item, state="hidden" if lift and self.boss_cleared else "normal")
+        self.canvas.itemconfigure(self.location_label, text="ASTRAL HOLLOW" if self.in_chamber else "SUNREST EXCAVATION · FLOOR 1")
         self._place_player(camera)
 
     def _place_player(self, camera: tuple[float, float]) -> None:
@@ -862,11 +943,13 @@ class CaldronaLite:
                     old_direction, old_frame = self.direction, self.walk_frame
                     self.direction = active
                     nx, ny = self.x + dx * TILE, self.y + dy * TILE
-                    if self.cave.walkable(nx, ny) and (int(nx // TILE), int(ny // TILE)) != self.chest_tile and (self.temur_story == "joined" or (int(nx // TILE), int(ny // TILE)) != self.temur_tile):
+                    if (int(nx // TILE), int(ny // TILE)) in (self.outer_door, self.inner_door):
+                        self._interact_quarry()
+                    elif self.cave.walkable(nx, ny) and (int(nx // TILE), int(ny // TILE)) not in (self.chest_tile, self.stone_tile) and (self.temur_story == "joined" or (int(nx // TILE), int(ny // TILE)) != self.temur_tile):
                         self.x, self.y = nx, ny
                         self.walk_frame = 0 if self.walk_frame == 2 else 2
                         self._update_world()
-                        if self.encounters.step():
+                        if not self.in_chamber and self.encounters.step():
                             self._begin_battle(now)
                     else:
                         self.walk_frame = 1

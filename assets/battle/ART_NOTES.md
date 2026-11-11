@@ -27,3 +27,9 @@ chunky deliberate square pixel clusters, dark brown outlines, limited palette
 around 8 colors each, flat pixel shading, no realistic texture, no gradients,
 no text, no labels, no floor, no shadow. Classic early console battle sprites.
 Each creature same approximate visual footprint. Output wide 3:1 sprite sheet.
+
+## Shalehorn and Astral Hollow
+
+Built-in imagegen used the supplied Caldrona Shalehorn Creature Archive as the design reference. The runtime images are `assets/battle/shalehorn.png`, `assets/quarry-door.png` and `assets/astral-stone.png`. The final generation prompt was:
+
+One transparent retro SNES RPG asset sheet. Three isolated sprites, exactly three equal cells in a single horizontal row, generous margins. Left cell: Shalehorn based on reference, squat huge mole-boar with sweeping ivory tusks, slate armored plates and amber mineral cracks, three-quarter facing right, all feet visible. Center cell: front view of a timber-braced arched quarry door, iron latch and dark stone surround. Right cell: a low blue stone glowing with cyan crystalline veins, on a little dark rock base. Simple sharply separated pixel clusters, limited palettes and dark outlines. No letters, scenery or labels.
