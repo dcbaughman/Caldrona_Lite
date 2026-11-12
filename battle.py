@@ -285,11 +285,7 @@ class BattleScene:
         self.hero = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-v2.png")).zoom(2)
         self.fainted = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-fainted-v2.png")).zoom(2)
         self.temur = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "temur-v2.png")).zoom(2)
-        tile = tk.PhotoImage(master=canvas, file=str(assets / "wall_brick.png")).subsample(2).zoom(3)
-        self.backdrop = tk.PhotoImage(master=canvas, width=960, height=96)
-        for y in range(0, 96, tile.height()):
-            for x in range(0, 960, tile.width()):
-                self.backdrop.tk.call(self.backdrop, "copy", tile, "-to", x, y)
+        self.backdrop = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "crystal-quarry.png"))
         self.model = None
 
     def start(self, model, now):
@@ -322,7 +318,8 @@ class BattleScene:
         self.hero_item = self.party_items[0]
         self._frame(18, 320, 942, 382)
         self._frame(18, 394, 296, 526)
-        self._frame(308, 394, 942, 526)
+        self._frame(308, 394, 516, 526)
+        self._frame(526, 394, 942, 526)
         self.draw_status()
 
     def _frame(self, x1, y1, x2, y2):
@@ -347,16 +344,19 @@ class BattleScene:
             text = ("> " if i == self.selection and self.phase == "command" else "  ") + command
             c.create_text(x-16, y, text=text, anchor="w", font=self.font(22),
                           fill="#ffe37e" if i == self.selection else "#ffffff", tags=tags)
-        active_name = m.party[m.actor]["name"].upper()
-        c.create_text(334, 429, text=f"{active_name} LV {m.level}", anchor="w", fill="#ffe37e", font=self.font(24, True), tags=tags)
-        active = m.party[m.actor]
-        c.create_text(590, 429, text=f"HP  {active['hp']:2} / {active['max_hp']}", anchor="w", fill="#ffffff", font=self.font(24), tags=tags)
-        c.create_text(334, 474, text=f"XP {m.xp}/{xp_threshold(m.level)}", anchor="w", fill="#80eaf5", font=self.font(21), tags=tags)
-        if len(m.party) > 1:
-            c.create_text(334, 502, text="  ".join(f"{p['name']} {p['hp']}/{p['max_hp']}" for p in m.party), anchor="w", fill="#80eaf5", font=self.font(16), tags=tags)
-        c.create_text(555, 474, text=f"FOE HP  {m.enemy_hp:2} / {m.enemy.hp}", anchor="w", fill="#ffffff", font=self.font(21), tags=tags)
-        hint = "ENTER / CROSS" if self.phase == "result" else "CHOOSE A COMMAND"
-        c.create_text(914, 504, text=hint, anchor="e", fill="#bec8e4", font=self.font(15), tags=tags)
+        c.create_text(326, 425, text="ENEMY", anchor="w", fill="#80eaf5", font=self.font(17), tags=tags)
+        c.create_text(326, 458, text=m.enemy.name, anchor="w", width=172,
+                      fill="#ffffff", font=self.font(18), tags=tags)
+        c.create_text(326, 494, text=f"HP {m.enemy_hp}/{m.enemy.hp}", anchor="w",
+                      fill="#ffffff", font=self.font(17), tags=tags)
+        for i, member in enumerate(m.party):
+            y = 421 + i * 34
+            active = i == m.actor and self.phase in ("command", "target")
+            color = "#ffe37e" if active else "#ffffff"
+            name = ("> " if active else "  ") + member["name"]
+            c.create_text(545, y, text=name, anchor="w", fill=color, font=self.font(20), tags=tags)
+            c.create_text(912, y, text=f"HP {member['hp']} / {member['max_hp']}",
+                          anchor="e", fill=color, font=self.font(20), tags=tags)
 
     def navigate(self, direction, now):
         if self.phase == "target":

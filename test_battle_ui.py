@@ -204,6 +204,29 @@ class BattleIntegrationTests(unittest.TestCase):
                     scene.close()
             c.destroy()
 
+    def test_party_roster_shows_all_active_members_and_updates(self):
+        party = [
+            {"name": "Retri", "hp": 520, "max_hp": 520},
+            {"name": "Temur", "hp": 870, "max_hp": 1030},
+            {"name": "Ally", "hp": 123, "max_hp": 200},
+        ]
+        scene = self.app.battle
+        scene.start(BattleModel(ENEMIES[0], party=party), 0)
+        def labels():
+            c = self.app.canvas
+            return [c.itemcget(item, "text") for item in c.find_withtag(scene.DYNAMIC)
+                    if c.type(item) == "text"]
+        for name, hp in (("Retri", "HP 520 / 520"), ("Temur", "HP 870 / 1030"),
+                         ("Ally", "HP 123 / 200")):
+            self.assertTrue(any(name in label for label in labels()))
+            self.assertIn(hp, labels())
+        party[1]["hp"] = 800
+        scene.model.actor = 1
+        scene.draw_status()
+        self.assertIn("HP 800 / 1030", labels())
+        self.assertIn("> Temur", labels())
+        self.assertEqual((scene.backdrop.width(), scene.backdrop.height()), (960, 321))
+
 
 if __name__ == "__main__":
     unittest.main()
