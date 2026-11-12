@@ -581,8 +581,10 @@ class CaldronaLite:
         self.x, self.y = self.cave.spawn
         self.direction = "down"
         self.walk_frame = 1
-        self.floor_tile = tk.PhotoImage(master=self.root, file=str(ASSETS / "cobble_floor.png")).subsample(2, 2).zoom(SCALE, SCALE)
-        self.wall_tile = tk.PhotoImage(master=self.root, file=str(ASSETS / "wall_brick.png")).subsample(2, 2).zoom(SCALE, SCALE)
+        cavern_art = ASSETS / "crystal_cavern"
+        self.floor_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"floor_{i}.png")).zoom(SCALE) for i in range(4)]
+        self.wall_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"wall_{i}.png")).zoom(SCALE) for i in range(4)]
+        self.crystal_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"crystal_{i}.png")).zoom(SCALE) for i in range(4)]
         self.player_frames = self._load_player()
         self.encounters = EncounterMeter()
         self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
@@ -831,11 +833,20 @@ class CaldronaLite:
             for ox in range(CHUNK_TILES):
                 tx, ty = gx*CHUNK_TILES + ox, gy*CHUNK_TILES + oy
                 dest = (ox*TILE*SCALE, oy*TILE*SCALE)
+                # Stable variation keeps cached chunks identical when revisited.
+                variation = ((tx * 73856093) ^ (ty * 19349663)) & 0xffffffff
                 if (tx, ty) in self.cave.floor:
-                    photo.tk.call(photo, "copy", self.floor_tile, "-to", *dest)
+                    roll = variation % 100
+                    index = 0 if roll < 70 else 2 if roll < 85 else 1 if roll < 97 else 3
+                    photo.tk.call(photo, "copy", self.floor_tiles[index], "-to", *dest)
                 elif any((tx+dx, ty+dy) in self.cave.floor
                          for dx, dy in ((0,1),(0,-1),(1,0),(-1,0))):
-                    photo.tk.call(photo, "copy", self.wall_tile, "-to", *dest)
+                    roll = variation % 100
+                    index = 0 if roll < 55 else 1 if roll < 92 else 2 if roll < 97 else 3
+                    photo.tk.call(photo, "copy", self.wall_tiles[index], "-to", *dest)
+                    if (tx, ty+1) in self.cave.floor and variation % 13 == 0:
+                        crystal = self.crystal_tiles[(variation // 13) % 4]
+                        photo.tk.call(photo, "copy", crystal, "-to", *dest, "-compositingrule", "overlay")
         self.chunk_cache[key] = photo
         return photo
 
