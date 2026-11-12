@@ -228,8 +228,8 @@ class GameMenu:
             self.back()
             return None
         if 42 <= x <= 274:
-            index = round((y - 82) / 40)
-            if 0 <= index < len(self.OPTIONS) and abs(y - (82 + index * 40)) <= 18:
+            index = round((y - 82) / 36)
+            if 0 <= index < len(self.OPTIONS) and abs(y - (82 + index * 36)) <= 17:
                 self.selection = index
                 return self.activate()
         return None
@@ -260,7 +260,7 @@ class GameMenu:
         self._frame(28, 478, 932, 529)
 
         for index, (label, _) in enumerate(self.OPTIONS):
-            y = 82 + index * 40
+            y = 82 + index * 36
             active = index == self.selection
             if active:
                 c.create_text(51, y, text="▶", anchor="w", fill="#f7f2dc",
@@ -338,8 +338,7 @@ class GameMenu:
             c.create_text(314, 395, text="PRESS BACK TO RETURN TO THE LIST",
                           anchor="w", fill="#9adbe8", font=self.font(23), tags=tag)
 
-        controls = ("D-PAD MOVE   CROSS SELECT   CIRCLE BACK" if self._sync_page() else
-                    "D-PAD / ARROWS  MOVE     CROSS / ENTER  SELECT     CIRCLE / ESC  BACK")
+        controls = "ARROWS/D-PAD MOVE   ENTER/CROSS OK   ESC/CIRCLE BACK"
         c.create_text(52, 503,
                       text=controls,
                       anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
@@ -388,7 +387,14 @@ class GameMenu:
         else:
             level, xp, needed = self.progress()
             job = self._current_job(member) or "Unbound"
-            for i, line in enumerate((f"{member['name']}  ▲▼", f"HP  {member['hp']} / {member['max_hp']}", f"PARTY LEVEL  {level}     XP  {xp} / {needed}", f"SYNC  {job}", f"ATTACK  {10+level-1}–{14+level-1}")):
-                c.create_text(320, 150+i*42, text=line, anchor="w", fill="#ffffff", font=self.font(24), tags=tag)
+            c.create_text(320, 140, text=f"{member['name']}  ▲▼    LV {level}   XP {xp}/{needed}", anchor="w", fill="#ffffff", font=self.font(21), tags=tag)
+            values = (("HP", f"{member['hp']}/{member['max_hp']}"), ("MP", f"{member.get('mp', 0)}/{member.get('max_mp', 0)}"),
+                      ("Strength", member.get('strength', 0)), ("Defense", member.get('defense', 0)),
+                      ("Magic", member.get('magic', 0)), ("Magic Defense", member.get('magic_defense', 0)),
+                      ("Agility", member.get('agility', 0)), ("Luck", member.get('luck', 0)),
+                      ("Evasion", member.get('evasion', 0)), ("Accuracy", member.get('accuracy', 0)))
+            for i, (label, value) in enumerate(values):
+                c.create_text(320+(i%2)*285, 185+(i//2)*38, text=f"{label}  {value}", anchor="w", fill="#ffffff", font=self.font(19), tags=tag)
+            c.create_text(320, 380, text=f"SYNC  {job}", anchor="w", fill="#80eaf5", font=self.font(19), tags=tag)
             hint = "UP/DOWN choose member · BACK return"
         c.create_text(320, 399, text=self.feedback or hint, anchor="w", width=570, fill="#9adbe8", font=self.font(21), tags=tag)

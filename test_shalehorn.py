@@ -11,7 +11,7 @@ from display_settings import DisplayConfig
 
 class ShalehornTests(unittest.TestCase):
     def test_charge_fracture_tremor_and_burrow(self):
-        party = [dict(name=name, hp=60, max_hp=60) for name in ("Retri", "Temur")]
+        party = [dict(name=name, hp=600, max_hp=600) for name in ("Retri", "Temur")]
         battle = ShalehornBattle(SHALEHORN, party=party, rng=random.Random(1))
 
         def round_of(*actions):
@@ -22,11 +22,11 @@ class ShalehornTests(unittest.TestCase):
 
         round_of("Guard", "Attack")
         self.assertTrue(battle.exposed)
-        self.assertEqual(party[0]["hp"], 60)
+        self.assertEqual(party[0]["hp"], 600)
         before = battle.enemy_hp
         round_of("Attack", "Attack")
         self.assertGreaterEqual(before-battle.enemy_hp, 28)
-        self.assertEqual(battle.hits, {0: 8, 1: 8})
+        self.assertEqual(battle.hits, {0: 80, 1: 80})
         round_of("Attack", "Attack")
         self.assertTrue(battle.buried)
         before = battle.enemy_hp

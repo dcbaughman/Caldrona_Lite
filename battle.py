@@ -9,7 +9,7 @@ import tkinter as tk
 # Tune encounters here. Only successful tile moves call EncounterMeter.step().
 ENCOUNTER_CHANCE = 0.08
 SAFE_STEPS = 12
-MAX_HP = 60
+MAX_HP = 520
 MAX_POTIONS = 3
 TRANSITION_SECONDS = 0.45
 
@@ -55,16 +55,25 @@ class Enemy:
     armor: int
     gold: int
     move: str
+    mp: int = 0
+    strength: int = 10
+    defense: int = 0
+    magic: int = 1
+    magic_defense: int = 1
+    agility: int = 10
+    luck: int = 15
+    evasion: int = 0
+    accuracy: int = 0
 
 
 ENEMIES = (
-    Enemy("Ivory Spider", "spider.png", 30, (4, 7), 0, 8, "bites"),
-    Enemy("Echo Bat", "bat.png", 24, (3, 6), 0, 6, "swoops"),
-    Enemy("Rock Crawler", "crawler.png", 36, (4, 8), 2, 12, "rams"),
+    Enemy("Ivory Spider", "spider.png", 110, (30, 45), 1, 8, "bites", 12, 11, 1, 1, 1, 10, 15, 7, 0),
+    Enemy("Echo Bat", "bat.png", 95, (25, 38), 1, 6, "swoops", 15, 9, 1, 1, 1, 11, 15, 10, 0),
+    Enemy("Rock Crawler", "crawler.png", 125, (40, 55), 1, 12, "rams", 10, 13, 1, 1, 120, 10, 15, 5, 0),
 )
 
 
-SHALEHORN = Enemy("Shalehorn", "shalehorn.png", 116, (14, 18), 3, 32, "charges")
+SHALEHORN = Enemy("Shalehorn", "shalehorn.png", 650, (120, 160), 8, 32, "charges", strength=22, defense=8)
 JOBS = ("Seer", "Cutpurse", "Saint")
 
 
@@ -76,12 +85,12 @@ class BattleModel:
         self.target = 0
         self.damage = 0
         self.hp = hp
-        self.party = party if party is not None else [{"name": "Retri", "hp": hp, "max_hp": MAX_HP + (level-1)*5}]
+        self.party = party if party is not None else [{"name": "Retri", "hp": hp, "max_hp": MAX_HP + (level-1)*50}]
         self.actor = next((i for i, member in enumerate(self.party) if member["hp"] > 0), 0)
         self.defender = 0
         self.potions = potions
         self.level, self.xp = level, xp
-        self.max_hp = MAX_HP + (level - 1) * 5
+        self.max_hp = MAX_HP + (level - 1) * 50
         self.gold_reward = sum(foe.gold for foe in self.enemies)
         self.xp_reward = self.gold_reward * 2
         if any(p.get("job") == "Cutpurse" for p in self.party):
@@ -112,7 +121,8 @@ class BattleModel:
         self.effect = action
         if action == "Attack":
             armor = 0 if self.party[self.actor].get("job") == "Seer" else self.enemy.armor
-            damage = max(1, self.rng.randint(10, 14) + self.level - 1 - armor)
+            strength = self.party[self.actor].get("strength", 15)
+            damage = max(1, self.rng.randint(strength*3, strength*4) + self.level - 1 - armor*2)
             self.damage = damage
             self.enemy_hp = max(0, self.enemy_hp - damage)
             self.message = f"{self.party[self.actor]['name']} strikes for {damage}!"
@@ -133,7 +143,7 @@ class BattleModel:
             if member["hp"] >= member["max_hp"]:
                 self.message = "Already at full health."
                 return False
-            healed = min(25, member["max_hp"] - member["hp"])
+            healed = min(250, member["max_hp"] - member["hp"])
             member["hp"] += healed
             self.hp = self.party[0]["hp"]
             self.potions -= 1
@@ -174,6 +184,8 @@ class BattleModel:
         self.guarded.clear()
         self.hits = {self.defender: damage}
         member = self.party[self.defender]
+        damage = max(1, damage - member.get("defense", 0))
+        self.hits[self.defender] = damage
         member["hp"] = max(0, member["hp"] - damage)
         self.hp = self.party[0]["hp"]
         self.damage = damage
@@ -224,11 +236,11 @@ class ShalehornBattle(BattleModel):
         self.exposed = False
         if self.move_index == 0:
             self.exposed = self.mark in self.guarded
-            self.hits = {self.mark: 0 if self.exposed else 17}
+            self.hits = {self.mark: 0 if self.exposed else 160}
             self.message = ("Charge misses! Its flank cracks against the wall." if self.exposed
                             else "Stonebreaker Charge!")
         elif self.move_index == 1:
-            self.hits = {i: 4 if i in self.guarded else 8 for i in living}
+            self.hits = {i: 40 if i in self.guarded else 80 for i in living}
             self.message = "Quarry Tremor!"
         elif self.move_index == 2:
             self.buried = True
@@ -237,7 +249,7 @@ class ShalehornBattle(BattleModel):
         else:
             self.buried = False
             target = self.rng.choice(living)
-            self.hits = {target: 4 if target in self.guarded else 9}
+            self.hits = {target: 45 if target in self.guarded else 90}
             self.message = "Shalehorn erupts from the stone!"
         self.effect = "tremor" if self.move_index == 1 else "enemy"
         self.defender = next(iter(self.hits), living[0])

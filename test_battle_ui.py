@@ -180,7 +180,7 @@ class BattleIntegrationTests(unittest.TestCase):
                 self.assertEqual(a.hp, MAX_HP)
             else:
                 self.assertEqual((a.x, a.y), (168, 136))
-                self.assertEqual(a.hp, 28 if outcome == "victory" else 20)
+                self.assertEqual(a.hp, 100 if outcome == "victory" else 20)
         self.assertEqual(a.gold, 8)
 
     def test_battle_layout_and_all_enemy_sprites_at_every_scale(self):

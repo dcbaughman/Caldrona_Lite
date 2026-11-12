@@ -17,18 +17,18 @@ class MenuItemTests(unittest.TestCase):
         app._start_cavern()
         app.dialogue.clear()
         app._recruit({"name": "Temur", "hp": 30, "max_hp": 70})
-        app.party[0]["hp"] = app.hp = 50
+        app.party[0]["hp"] = app.hp = 500
         menu = app.game_menu
         menu.open()
         menu.activate()
         menu.activate()
         menu.activate()
-        self.assertEqual((app.hp, app.potions), (60, 2))
+        self.assertEqual((app.hp, app.potions), (520, 2))
         menu.activate()
         self.assertEqual(app.potions, 2)
         menu.navigate("down", 1)
         menu.activate()
-        self.assertEqual((app.party[1]["hp"], app.potions), (55, 1))
+        self.assertEqual((app.party[1]["hp"], app.potions), (70, 1))
         app.party[1]["hp"] = 0
         menu.activate()
         self.assertEqual(app.potions, 1)
@@ -40,7 +40,7 @@ class MenuItemTests(unittest.TestCase):
         self.assertEqual(menu.member_index, 1)
         labels = [app.canvas.itemcget(i, "text") for i in app.canvas.find_withtag(menu.TAG) if app.canvas.type(i) == "text"]
         self.assertTrue(any("Temur" in text for text in labels))
-        self.assertTrue(any("0 / 70" in text for text in labels))
+        self.assertTrue(any("0/70" in text for text in labels))
 
 
 if __name__ == "__main__":
