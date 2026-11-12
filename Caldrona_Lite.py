@@ -583,8 +583,21 @@ class CaldronaLite:
         self.walk_frame = 1
         cavern_art = ASSETS / "crystal_cavern"
         self.floor_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"floor_{i}.png")).zoom(SCALE) for i in range(4)]
-        self.wall_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"wall_{i}.png")).zoom(SCALE) for i in range(4)]
-        self.side_wall_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"side_wall_{i}.png")).zoom(SCALE) for i in range(3)]
+        source_walls = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"wall_{i}.png")) for i in range(4)]
+        self.wall_tiles = [tile.zoom(SCALE) for tile in source_walls]
+        def side_wall(source, clockwise):
+            # Rotate the actual horizontal wall pixels so color and texture match.
+            size = source.width()
+            rotated = tk.PhotoImage(master=self.root, width=size, height=size)
+            for y in range(size):
+                row = []
+                for x in range(size):
+                    sx, sy = (y, size-1-x) if clockwise else (size-1-y, x)
+                    row.append("#%02x%02x%02x" % source.get(sx, sy))
+                rotated.put("{" + " ".join(row) + "}", to=(0, y))
+            return rotated.zoom(SCALE)
+        self.side_wall_tiles = [[side_wall(tile, clockwise) for tile in source_walls[:2]]
+                                for clockwise in (False, True)]
         self.crystal_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"crystal_lit_{i}.png")).zoom(SCALE) for i in range(4)]
         self.player_frames = self._load_player()
         self.encounters = EncounterMeter()
@@ -845,7 +858,7 @@ class CaldronaLite:
                     roll = variation % 100
                     index = 0 if roll < 55 else 1 if roll < 92 else 2 if roll < 97 else 3
                     side = ((tx-1, ty) in self.cave.floor or (tx+1, ty) in self.cave.floor) and (tx, ty+1) not in self.cave.floor
-                    wall = self.side_wall_tiles[variation % 3] if side else self.wall_tiles[index]
+                    wall = self.side_wall_tiles[0 if (tx+1, ty) in self.cave.floor else 1][variation % 2] if side else self.wall_tiles[index]
                     photo.tk.call(photo, "copy", wall, "-to", *dest)
                     if (tx, ty+1) in self.cave.floor and variation % 13 == 0:
                         crystal = self.crystal_tiles[(variation // 13) % 4]
