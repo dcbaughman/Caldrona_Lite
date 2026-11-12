@@ -238,6 +238,18 @@ class BattleIntegrationTests(unittest.TestCase):
         self.assertEqual(scene.glow_index, 1)
         self.assertEqual(scene.phase, "command")
 
+    def test_cavern_backgrounds_rotate_without_immediate_repeats(self):
+        scene = self.app.battle
+        selections = []
+        for _ in range(9):
+            scene.start(BattleModel(ENEMIES[0]), 0)
+            selections.append(scene.background_index)
+            self.assertIs(scene.glow_frames, scene.backgrounds[scene.background_index])
+            scene.close()
+        for start in (0, 3, 6):
+            self.assertEqual(set(selections[start:start+3]), {0, 1, 2})
+        self.assertTrue(all(a != b for a, b in zip(selections, selections[1:])))
+
 
 if __name__ == "__main__":
     unittest.main()

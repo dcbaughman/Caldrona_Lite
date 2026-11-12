@@ -286,13 +286,26 @@ class BattleScene:
         self.fainted = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-fainted-v2.png")).zoom(2)
         self.temur = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "temur-v2.png")).zoom(2)
         self.backdrop = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "crystal-quarry.png"))
-        self.glow_frames = [
-            tk.PhotoImage(master=canvas, file=str(assets / "battle" / f"crystal-glow-{i}.png"))
-            for i in range(3)
+        self.backgrounds = [
+            [tk.PhotoImage(master=canvas, file=str(assets / "battle" / pattern.format(i)))
+             for i in range(3)]
+            for pattern in ("crystal-glow-{}.png", "crystal-cave-2-glow-{}.png",
+                            "crystal-cave-3-glow-{}.png")
         ]
+        self.glow_frames = self.backgrounds[0]
+        self.background_rng = random.Random()
+        self.background_bag = []
+        self.background_index = None
         self.model = None
 
     def start(self, model, now):
+        if not self.background_bag:
+            self.background_bag = list(range(len(self.backgrounds)))
+            self.background_rng.shuffle(self.background_bag)
+            if self.background_index is not None and self.background_bag[-1] == self.background_index:
+                self.background_bag[0], self.background_bag[-1] = self.background_bag[-1], self.background_bag[0]
+        self.background_index = self.background_bag.pop()
+        self.glow_frames = self.backgrounds[self.background_index]
         self.model = model
         self.selection = 0
         self.item_menu = False
