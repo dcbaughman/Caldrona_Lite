@@ -584,7 +584,8 @@ class CaldronaLite:
         cavern_art = ASSETS / "crystal_cavern"
         self.floor_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"floor_{i}.png")).zoom(SCALE) for i in range(4)]
         self.wall_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"wall_{i}.png")).zoom(SCALE) for i in range(4)]
-        self.crystal_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"crystal_{i}.png")).zoom(SCALE) for i in range(4)]
+        self.side_wall_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"side_wall_{i}.png")).zoom(SCALE) for i in range(3)]
+        self.crystal_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"crystal_lit_{i}.png")).zoom(SCALE) for i in range(4)]
         self.player_frames = self._load_player()
         self.encounters = EncounterMeter()
         self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
@@ -843,7 +844,9 @@ class CaldronaLite:
                          for dx, dy in ((0,1),(0,-1),(1,0),(-1,0))):
                     roll = variation % 100
                     index = 0 if roll < 55 else 1 if roll < 92 else 2 if roll < 97 else 3
-                    photo.tk.call(photo, "copy", self.wall_tiles[index], "-to", *dest)
+                    side = ((tx-1, ty) in self.cave.floor or (tx+1, ty) in self.cave.floor) and (tx, ty+1) not in self.cave.floor
+                    wall = self.side_wall_tiles[variation % 3] if side else self.wall_tiles[index]
+                    photo.tk.call(photo, "copy", wall, "-to", *dest)
                     if (tx, ty+1) in self.cave.floor and variation % 13 == 0:
                         crystal = self.crystal_tiles[(variation // 13) % 4]
                         photo.tk.call(photo, "copy", crystal, "-to", *dest, "-compositingrule", "overlay")
