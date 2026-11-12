@@ -227,6 +227,17 @@ class BattleIntegrationTests(unittest.TestCase):
         self.assertIn("> Temur", labels())
         self.assertEqual((scene.backdrop.width(), scene.backdrop.height()), (960, 321))
 
+    def test_cavern_lights_pulse_during_command_selection(self):
+        scene = self.app.battle
+        scene.start(BattleModel(ENEMIES[0]), 0)
+        scene.update(0.41)
+        self.assertEqual(scene.glow_index, 1)
+        scene.update(0.81)
+        self.assertEqual(scene.glow_index, 2)
+        scene.update(1.21)
+        self.assertEqual(scene.glow_index, 1)
+        self.assertEqual(scene.phase, "command")
+
 
 if __name__ == "__main__":
     unittest.main()

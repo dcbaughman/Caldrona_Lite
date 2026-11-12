@@ -286,6 +286,10 @@ class BattleScene:
         self.fainted = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-fainted-v2.png")).zoom(2)
         self.temur = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "temur-v2.png")).zoom(2)
         self.backdrop = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "crystal-quarry.png"))
+        self.glow_frames = [
+            tk.PhotoImage(master=canvas, file=str(assets / "battle" / f"crystal-glow-{i}.png"))
+            for i in range(3)
+        ]
         self.model = None
 
     def start(self, model, now):
@@ -298,7 +302,9 @@ class BattleScene:
         self.phase_at = now
         c = self.canvas
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
-        c.create_image(0, 0, image=self.backdrop, anchor="nw", tags=self.TAG)
+        self.glow_started = now
+        self.glow_index = 0
+        self.backdrop_item = c.create_image(0, 0, image=self.glow_frames[0], anchor="nw", tags=self.TAG)
         count = len(model.enemies)
         self.enemy_positions = [(270, 190 + (i - (count - 1) / 2) * 80)
                                 for i in range(count)]
@@ -445,6 +451,11 @@ class BattleScene:
         return None
 
     def update(self, now):
+        if self.phase != "result":
+            index = (0, 1, 2, 1)[int(max(0, now - self.glow_started) / 0.4) % 4]
+            if index != self.glow_index:
+                self.glow_index = index
+                self.canvas.itemconfigure(self.backdrop_item, image=self.glow_frames[index])
         if self.phase == "result" and self.model.outcome == "victory":
             if self.level_item is not None:
                 colors = ("#ffe48a", "#ffffff", "#ffad49", "#fff6c0")
