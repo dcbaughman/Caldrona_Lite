@@ -585,6 +585,7 @@ class CaldronaLite:
         self.floor_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"floor_{i}.png")).zoom(SCALE) for i in range(4)]
         source_walls = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"wall_{i}.png")) for i in range(4)]
         self.wall_tiles = [tile.zoom(SCALE) for tile in source_walls]
+        self.solid_rock_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"side_wall_{i}.png")).zoom(SCALE) for i in range(3)]
         def side_wall(source, clockwise):
             # Rotate the actual horizontal wall pixels so color and texture match.
             size = source.width()
@@ -863,6 +864,8 @@ class CaldronaLite:
                     if (tx, ty+1) in self.cave.floor and variation % 13 == 0:
                         crystal = self.crystal_tiles[(variation // 13) % 4]
                         photo.tk.call(photo, "copy", crystal, "-to", *dest, "-compositingrule", "overlay")
+                else:
+                    photo.tk.call(photo, "copy", self.solid_rock_tiles[variation % 3], "-to", *dest)
         self.chunk_cache[key] = photo
         return photo
 

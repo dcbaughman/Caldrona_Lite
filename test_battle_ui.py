@@ -108,6 +108,13 @@ class BattleIntegrationTests(unittest.TestCase):
         self.tick()
         self.assertEqual((a.x, a.y), (11 * 16 + 8, 5 * 16 + 8))
 
+    def test_cave_solid_rock_fills_void_without_becoming_walkable(self):
+        a = self.app
+        self.assertNotIn((0, 0), a.cave.floor)
+        self.assertFalse(a.cave.walkable(8, 8))
+        chunk = a._build_chunk((0, 0))
+        self.assertFalse(chunk.transparency_get(8, 8))
+
     def test_victory_screen_levels_and_awards_once(self):
         a = self.app
         a._play_music = Mock()
