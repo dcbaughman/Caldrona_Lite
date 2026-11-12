@@ -121,6 +121,9 @@ class CaldronaLite:
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
         self.game_menu.roster = lambda: self.party
+        self.game_menu.inventory = lambda: {"Potion": self.potions}
+        self.game_menu.use_item = self._use_menu_item
+        self.game_menu.progress = lambda: (self.level, self.xp, 30*self.level)
         self.game_menu.sync_unlocked = lambda: self.astral_sync
         self.game_menu.party_names = lambda: [member["name"] for member in getattr(self, "party", [{"name": "Retri"}]) if member.get("active", True)]
         self.game_menu.party_portrait = lambda name: self.dialogue.portrait(
@@ -639,6 +642,20 @@ class CaldronaLite:
             DialogueLine("Retri", "I'll find its source. Carefully.", RETRI_PORTRAIT,
                          portrait_region=RETRI_PORTRAIT_REGION),
         ])
+
+    def _use_menu_item(self, name, member):
+        if name != "Potion" or self.potions <= 0:
+            return "No potions left."
+        if member["hp"] <= 0:
+            return "A potion cannot revive a fainted member."
+        if member["hp"] >= member["max_hp"]:
+            return member["name"] + " already has full HP."
+        healed = min(25, member["max_hp"] - member["hp"])
+        member["hp"] += healed
+        self.potions -= 1
+        if member["name"] == "Retri":
+            self.hp = member["hp"]
+        return f"{member['name']} recovered {healed} HP."
 
     def _recruit(self, member):
         if not any(p["name"] == member["name"] for p in self.party):
