@@ -65,7 +65,7 @@ ENEMIES = (
 
 
 SHALEHORN = Enemy("Shalehorn", "shalehorn.png", 116, (14, 18), 3, 32, "charges")
-JOBS = ("Seer", "Cutpurse", "Saint Warrior")
+JOBS = ("Seer", "Cutpurse", "Saint")
 
 
 class BattleModel:
@@ -121,7 +121,7 @@ class BattleModel:
         elif action == "Guard":
             self.guarded.add(self.actor)
             member = self.party[self.actor]
-            if member.get("job") == "Saint Warrior":
+            if member.get("job") in ("Saint", "Saint Warrior"):
                 member["hp"] = min(member["max_hp"], member["hp"] + 3)
                 self.hp = self.party[0]["hp"]
             self.message = f"{member['name']} braces for the next blow."

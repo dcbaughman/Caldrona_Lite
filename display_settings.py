@@ -116,6 +116,10 @@ class ScaledCanvas(tk.Canvas):
         return super().create_rectangle(*(self._value(v) for v in (x1, y1, x2, y2)),
                                         **self._scale_options(kwargs))
 
+    def create_oval(self, x1, y1, x2, y2, **kwargs):
+        return super().create_oval(*(self._value(v) for v in (x1, y1, x2, y2)),
+                                   **self._scale_options(kwargs))
+
     def create_line(self, *coords, **kwargs):
         return super().create_line(*(self._value(v) for v in coords),
                                    **self._scale_options(kwargs))

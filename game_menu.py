@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from pathlib import Path
 from typing import Callable
 
 
@@ -12,13 +13,14 @@ class GameMenu:
     TAG = "game_menu"
     OPTIONS = (
         ("Items", "Your pack is empty for now."),
-        ("Abilities", "Retri's abilities will appear here."),
+        ("Abilities", "Discover the stone to awaken Astral Sync."),
         ("Equip", "Equipment management is coming later."),
         ("Status", "Retri is a skirter exploring Sunrest's cavern."),
         ("Formation", "Retri is the only party member right now."),
         ("Configuration", "Display settings can be changed at the title screen."),
         ("Save", "Saving will be added in a later pass."),
         ("Load", "No saved cavern journey exists yet."),
+        ("Sync", "Discover the stone to awaken Astral Sync."),
         ("Title Screen", "Leave the cavern and return to the title screen."),
     )
 
@@ -36,6 +38,8 @@ class GameMenu:
         self.roster = lambda: []
         self.sync_unlocked = lambda: False
         self.member_index = 0
+        self.sync_index = 0
+        self.sync_icons = {}
         self.feedback = ""
         self._small_portraits = {}
         self.active = False
@@ -81,20 +85,37 @@ class GameMenu:
         self.member_index = 0
         self.feedback = ""
         self.detail = self.selection
+        if self._sync_page() and self.roster():
+            current = self._current_job(self.roster()[self.member_index])
+            self.sync_index = JOBS.index(current) if current in JOBS else 0
         self.draw()
         return None
 
     def _roster_page(self):
-        return self.detail == 4 or (self.detail == 1 and self.sync_unlocked())
+        return self.detail == 4 or self._sync_page()
+
+    def _sync_page(self):
+        return self.detail == 8 or (self.detail == 1 and self.sync_unlocked())
+
+    def _current_job(self, member):
+        job = member.get("job")
+        return "Saint" if job == "Saint Warrior" else job
+
+    def _sync_icon(self, job):
+        if job not in self.sync_icons:
+            path = Path(__file__).resolve().parent / "assets" / "sync" / (job.lower() + ".png")
+            self.sync_icons[job] = tk.PhotoImage(master=self.canvas, file=str(path)).zoom(2)
+        return self.sync_icons[job]
 
     def _choose_member(self):
         members = self.roster()
         member = members[self.member_index]
-        if self.detail == 1:
-            current = member.get("job")
-            member["job"] = JOBS[(JOBS.index(current)+1) % len(JOBS)] if current in JOBS else JOBS[0]
-            self.feedback = {"Seer": "Seer strikes ignore armor.", "Cutpurse": "Earn extra gold on victory.",
-                             "Saint Warrior": "Guard restores 3 HP."}[member["job"]]
+        if self._sync_page():
+            if not self.sync_unlocked():
+                self.feedback = "Find the blue stone to awaken Sync."
+                return
+            member["job"] = JOBS[self.sync_index]
+            self.feedback = member["name"] + " synced with " + member["job"] + "."
             return
         active = [p for p in members if p.get("active", True)]
         self.feedback = ""
@@ -111,7 +132,8 @@ class GameMenu:
     def navigate(self, direction: str | None, now: float) -> None:
         if not self.active or (self.detail is not None and not self._roster_page()):
             return
-        if direction not in ("up", "down"):
+        directions = ("up", "down", "left", "right") if self._sync_page() else ("up", "down")
+        if direction not in directions:
             self.held_direction = None
             self.repeating = False
             return
@@ -120,10 +142,16 @@ class GameMenu:
             self.repeat_at = now
             self.repeating = False
         if now >= self.repeat_at:
-            step = -1 if direction == "up" else 1
-            if self._roster_page():
+            step = -1 if direction in ("up", "left") else 1
+            if self._sync_page() and direction in ("left", "right"):
+                self.sync_index = (self.sync_index + step) % len(JOBS)
+                self.feedback = ""
+            elif self._roster_page():
                 self.member_index = (self.member_index + step) % len(self.roster())
                 self.feedback = ""
+                if self._sync_page():
+                    current = self._current_job(self.roster()[self.member_index])
+                    self.sync_index = JOBS.index(current) if current in JOBS else 0
             else:
                 self.selection = (self.selection + step) % len(self.OPTIONS)
             self.draw()
@@ -131,6 +159,14 @@ class GameMenu:
             self.repeating = True
 
     def click(self, x: int, y: int) -> str | None:
+        if self.active and self._sync_page():
+            for index, (cx, cy) in enumerate(((610, 170), (752, 302), (468, 302))):
+                if abs(x-cx) <= 42 and abs(y-cy) <= 42:
+                    self.sync_index = index
+                    self._choose_member()
+                    self.draw()
+                    return None
+            return None
         if self.active and self._roster_page():
             start = max(0, self.member_index-3)
             row = (y-146)//48
@@ -226,6 +262,8 @@ class GameMenu:
                           anchor="w", fill="#ffffff", font=self.font(27), tags=tag)
             c.create_text(315, 401, text="FLOOR  1", anchor="w",
                           fill="#80eaf5", font=self.font(27), tags=tag)
+        elif self._sync_page():
+            self._draw_sync()
         elif self._roster_page():
             members = self.roster()
             count = sum(p.get("active", True) for p in members)
@@ -251,7 +289,33 @@ class GameMenu:
             c.create_text(314, 395, text="PRESS BACK TO RETURN TO THE LIST",
                           anchor="w", fill="#9adbe8", font=self.font(23), tags=tag)
 
+        controls = ("D-PAD MOVE   CROSS SELECT   CIRCLE BACK" if self._sync_page() else
+                    "D-PAD / ARROWS  MOVE     CROSS / ENTER  SELECT     CIRCLE / ESC  BACK")
         c.create_text(52, 503,
-                      text="D-PAD / ARROWS  MOVE     CROSS / ENTER  SELECT     CIRCLE / ESC  BACK",
+                      text=controls,
                       anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
         c.tag_raise(tag)
+
+    def _draw_sync(self):
+        c, tag = self.canvas, self.TAG
+        member = self.roster()[self.member_index]
+        current = self._current_job(member) or "Unbound"
+        selected = JOBS[self.sync_index]
+        descriptions = {"Seer": "Strikes ignore armor.",
+                        "Cutpurse": "Earn extra gold on victory.",
+                        "Saint": "Guard restores 3 HP."}
+        c.create_text(315, 91, text="ASTRAL SYNC", anchor="w", fill="#ffe37e", font=self.font(30, True), tags=tag)
+        c.create_text(900, 91, text="UNLOCKED" if self.sync_unlocked() else "LOCKED", anchor="e", fill="#80eaf5", font=self.font(20), tags=tag)
+        c.create_text(610, 121, text=f"▲  {member['name']}  ▼   ·   {current}", fill="#ffffff", font=self.font(22), tags=tag)
+        c.create_oval(441, 145, 779, 347, outline="#7288c4", width=3, tags=tag)
+        for index, (job, (x, y)) in enumerate(zip(JOBS, ((610, 170), (752, 302), (468, 302)))):
+            chosen = index == self.sync_index
+            c.create_rectangle(x-37, y-37, x+37, y+37, fill="#d5dfed" if chosen else "#485a96",
+                               outline="#ffe37e" if chosen else "#8799c6", width=3, tags=tag)
+            c.create_image(x, y, image=self._sync_icon(job), tags=tag)
+            c.create_text(x, y+50, text=job.upper(), fill="#ffe37e" if chosen else "#ffffff",
+                          font=self.font(21, chosen), tags=tag)
+        c.create_text(610, 248, text="◀  " + selected.upper() + "  ▶", fill="#ffe37e", font=self.font(23, True), tags=tag)
+        message = self.feedback or (descriptions[selected] if self.sync_unlocked() else "Find the blue stone to awaken Sync.")
+        c.create_text(610, 389, text=message, fill="#ffffff", font=self.font(21), tags=tag)
+        c.create_text(610, 423, text="UP / DOWN MEMBER    LEFT / RIGHT CLASS    CONFIRM TO SYNC", fill="#9adbe8", font=self.font(16), tags=tag)

@@ -666,7 +666,7 @@ class CaldronaLite:
             elif not self.astral_sync:
                 self.astral_sync = True
                 self.dialogue.show([DialogueLine("Retri", "It answers when I touch it. Three voices..."),
-                                    DialogueLine("Astral Sync", "Seer, Cutpurse and Saint Warrior are open. Choose a path in Abilities.")])
+                                    DialogueLine("Astral Sync", "Seer, Cutpurse and Saint are open. Choose a path in Sync.")])
             else:
                 self.dialogue.show([DialogueLine("", "The stone hums in time with your pulse.")])
         else:

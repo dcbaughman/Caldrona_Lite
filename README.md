@@ -75,8 +75,10 @@ Walk into the door or face it and confirm. Inside, Shalehorn stands over a blue 
 Watch the charge target and Guard with that fighter to expose its flank. Quarry Tremor hits
 all standing fighters. During Burrow, use the turn to guard or heal. First Boss plays for
 this encounter. After victory, approach the stone and confirm to unlock Astral Sync.
-Use Abilities to cycle each member's path between Seer (ignore armor), Cutpurse (bonus
-victory gold), and Saint Warrior (heal 3 HP on Guard). The southern door returns to the quarry.
+Use Sync to select a party member with up/down and cycle the class wheel with left/right.
+Confirm assigns Seer (ignore armor), Cutpurse (bonus victory gold), or Saint (heal 3 HP
+on Guard). The wheel shows the classes before the stone is found, and assignment unlocks
+afterward. The southern door returns to the quarry.
 
 Formation lets you confirm a recruited member to switch between active and reserve.
 Up to three fight at once. New recruits enter reserve when all three slots are occupied.
