@@ -31,7 +31,7 @@ class GameMenu:
         portrait: Callable[[], tk.PhotoImage | None],
     ) -> None:
         self.canvas = canvas
-        self.font = font
+        self.font = lambda size, bold=False: font(max(1, round(size * 0.88)), bold)
         self.portrait = portrait
         self.party_names = lambda: ["Retri"]
         self.party_portrait = lambda name: self.portrait() if name == "Retri" else None
@@ -114,7 +114,7 @@ class GameMenu:
 
     def _sync_icon(self, job):
         if job not in self.sync_icons:
-            path = Path(__file__).resolve().parent / "assets" / "sync" / (job.lower() + ".png")
+            path = Path(__file__).resolve().parent / "assets" / "sync" / (job.lower() + "-emblem.png")
             self.sync_icons[job] = tk.PhotoImage(master=self.canvas, file=str(path)).zoom(2)
         return self.sync_icons[job]
 
