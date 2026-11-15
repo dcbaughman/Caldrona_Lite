@@ -7,6 +7,30 @@ from battle import BattleModel, EncounterMeter, ENEMIES, MAX_HP, SAFE_STEPS
 
 
 class BattleTests(unittest.TestCase):
+    def test_potion_targets_another_member_and_cannot_revive(self):
+        party = [{"name": "Retri", "hp": 60, "max_hp": 60},
+                 {"name": "Temur", "hp": 20, "max_hp": 82},
+                 {"name": "Mira", "hp": 0, "max_hp": 50}]
+        model = BattleModel(ENEMIES[0], party=party)
+        for target in (0, 2, -1, 99):
+            self.assertFalse(model.command("Potion", target=target))
+            self.assertEqual(model.potions, 3)
+            self.assertFalse(model.pending_reply)
+        self.assertTrue(model.command("Potion", target=1))
+        self.assertEqual([p["hp"] for p in party], [60, 50, 0])
+        self.assertEqual(model.potions, 2)
+        self.assertTrue(model.pending_reply)
+
+    def test_boss_potion_targets_another_party_member(self):
+        from battle import SHALEHORN, ShalehornBattle
+        party = [{"name": "Retri", "hp": 60, "max_hp": 60},
+                 {"name": "Temur", "hp": 10, "max_hp": 82}]
+        model = ShalehornBattle(SHALEHORN, party=party)
+        model.buried = True
+        self.assertTrue(model.command("Potion", target=1))
+        self.assertEqual(party[1]["hp"], 40)
+        self.assertEqual(model.potions, 2)
+
     def test_group_targets_and_rewards(self):
         model = BattleModel([ENEMIES[0], ENEMIES[1]], rng=random.Random(2))
         model.target = 1

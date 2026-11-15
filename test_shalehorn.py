@@ -72,7 +72,11 @@ class ShalehornTests(unittest.TestCase):
         labels = {a.canvas.itemcget(i, "text") for i in a.canvas.find_withtag("battle") if a.canvas.type(i) == "text"}
         self.assertTrue({"TEMUR", "MIRA", "ORIN"} <= labels)
         self.assertNotIn("RETRI", labels)
-        a._activate()
+        for _ in range(6):
+            if a.screen != "battle":
+                break
+            a._activate()  # Review each party member's level-up changes.
+        self.assertEqual(a.screen, "battle_out")
         a._update_battle_transition(time.monotonic()+1)
         self.assertTrue(a.boss_cleared)
         a.dialogue.clear()

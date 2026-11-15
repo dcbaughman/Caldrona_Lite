@@ -44,10 +44,12 @@ the transition, then the incoming theme fades in; exploration music returns
 after battle.
 
 Battles are strictly turn-based: arrows/WASD or the PS4 D-pad select Attack,
-Guard, Potion, or Flee; Enter/Cross confirms. Escape/Circle highlights Flee
+Guard, Items, or Flee; Enter/Cross confirms. Escape/Circle highlights Flee
 without executing it. Mouse command selection also works. An enemy replies
 once after your action, and never attacks while you are choosing a command.
-Choose Items, then Potion to restore up to 30 HP; Back or Circle returns to the commands without using a turn. Guard halves the next hit, and fleeing has a 75%
+Choose Items, then Potion and a party member to restore up to 30 HP. The white
+pointer marks the selected target; Back or Circle cancels targeting without
+using a turn. Potions cannot revive fainted members. Guard halves the next hit, and fleeing has a 75%
 success chance. Retri starts with 60 HP and three potions. Victory awards gold,
 restores up to 8 HP to surviving active members, and replenishes one potion (maximum three). Defeat returns
 Retri to the entrance with full health and potions. Confirm the result screen
@@ -60,11 +62,15 @@ Each level adds 8 maximum HP for Retri or 10 for Temur, and 1 Strength.
 Every second level also adds 1 Defense, Magic, Magic Defense, Agility and maximum MP.
 After attunement, Seer gains extra Magic and MP, Sollers gains Agility and Accuracy,
 and Saint gains HP and Defense. These bonuses apply to future levels only.
-Reserve members grow with the party; fainted members remain fainted. Level and XP persist during
+Reserve members grow with the party; fainted members display their character's
+standard fainted pose across all classes and remain fainted after victory.
+Continuing after defeat restores the party.
+Level and XP persist during
 the current journey, including through defeat; saving remains a future feature.
 The results screen shows the fighters who took part and the party's shared XP and gold. A glowing LEVEL UP animation appears when he advances, while
-the supplied Caldrona Level Up track plays once for every victory. Confirm to
-return to the cavern; the travel music fades back in.
+the supplied Caldrona Level Up track plays once for every victory. On a level-up,
+confirm to review the old and new values for each party member's changed stats,
+including reserves. Confirm through those pages to return to the cavern.
 
 `battle.py` holds the encounter logic, combat model, battle UI, and transition.
 Retri and Temur have lower starting stats with their own strengths. Status shows HP,

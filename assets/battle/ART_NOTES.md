@@ -44,3 +44,11 @@ leathers, Saint wears ivory and gold with blue accents, and Seer wears violet
 and blue with cyan details. The generated originals are in `classes/source/`;
 `prepare_class_battle_art.py` fits them to each character's existing 32×32
 frame and baseline. Only the small files in `classes/` are loaded at runtime.
+
+## Temur's fainted pose
+
+Built-in imagegen used Temur's existing standing art and Retri's fainted sprite
+as references. The prompt requested a compact left-facing side pose, keeping
+Temur's dark tied hair, beard, blue clothes, fur shoulder and red ties in the
+existing low-resolution style. `temur-fainted-source.png` is the generated
+original; `prepare_faint_art.py` fits it to Retri's existing 32×32 faint cell.
