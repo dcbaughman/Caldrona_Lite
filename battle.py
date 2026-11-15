@@ -306,6 +306,12 @@ class BattleScene:
             ).zoom(2)
             for name in ("Retri", "Temur") for job in JOBS
         }
+        self.class_poses = {
+            (name, job, pose): tk.PhotoImage(master=canvas, file=str(
+                assets / "battle" / "classes" / f"{name.lower()}-{job.lower()}-{pose}.png"
+            )).zoom(2)
+            for name in ("Retri", "Temur") for job in JOBS for pose in ("guard", "fainted")
+        }
         self.backdrop = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "crystal-quarry.png"))
         self.backgrounds = [
             [tk.PhotoImage(master=canvas, file=str(assets / "battle" / pattern.format(i)))
@@ -385,7 +391,9 @@ class BattleScene:
                                           fill="#e99898" if fainted else "#ffffff")
             else:
                 images = self.fainted_sprites if fainted else self.guard_sprites if pose == "guard" else {}
-                self.canvas.itemconfigure(item, image=images.get(member["name"], self.party_sprites[i]))
+                image = self.class_poses.get((member["name"], current_job(member), pose),
+                                             images.get(member["name"], self.party_sprites[i]))
+                self.canvas.itemconfigure(item, image=image)
             self.canvas.coords(item, *self._party_position(i))
 
     def _party_position(self, index):

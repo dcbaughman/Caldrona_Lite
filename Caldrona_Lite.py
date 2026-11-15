@@ -137,6 +137,7 @@ class CaldronaLite:
         self.selection = 0
         self.notice = ""
         self.menu_items = ("PLAY", "LOAD GAME", "SETTINGS")
+        self.lab_compare = False
         self.keys: set[str] = set()
         self.pad_keys: set[str] = set()
         self.pad_buttons: set[str] = set()
@@ -151,7 +152,7 @@ class CaldronaLite:
         self.joystick = None
         self.controller_status = "NO D-PAD FOUND"
 
-        for key in ("Up", "Down", "Left", "Right", "w", "a", "s", "d", "Return", "Escape"):
+        for key in ("Up", "Down", "Left", "Right", "w", "a", "s", "d", "Return", "Escape", "t", "T", "r", "R", "c", "C"):
             self.root.bind(f"<KeyPress-{key}>", self._key_down)
             self.root.bind(f"<KeyRelease-{key}>", self._key_up)
         self.root.bind("<Button-1>", self._click)
@@ -257,6 +258,29 @@ class CaldronaLite:
 
     def _key_down(self, event: tk.Event) -> None:
         key = str(event.keysym).lower()
+        if self.screen == "sprite_lab":
+            if key in self.keys:
+                return
+            self.keys.add(key)
+            if key == "escape":
+                self._draw_menu()
+            elif key == "c":
+                self.lab_compare = not self.lab_compare
+                self._draw_sprite_lab()
+            elif key == "r":
+                selected = self.lab_index
+                self._open_sprite_lab()
+                self.lab_index = selected
+                self._draw_sprite_lab()
+            elif key in ("left", "a", "right", "d"):
+                self.lab_index = (self.lab_index + (-1 if key in ("left", "a") else 1)) % len(self.lab_sprites)
+                self._draw_sprite_lab()
+            return
+        if self.screen == "menu" and key == "t":
+            if key not in self.keys:
+                self.keys.add(key)
+                self._open_sprite_lab()
+            return
         if key in ("return", "escape"):
             if key in self.keys:
                 return
@@ -332,6 +356,52 @@ class CaldronaLite:
         if self.saved_display != self.active_display:
             self.canvas.create_text(480, 224, text="RESTART TO APPLY DISPLAY CHANGE",
                                     fill=GOLD, font=self._font(21))
+
+    def _open_sprite_lab(self) -> None:
+        # The title screen is available before the cavern creates BattleScene.
+        # Load only the preview images here, without starting or changing a game.
+        root = ASSETS / "battle"
+        self.lab_sprites = []
+        for name in ("Retri", "Temur"):
+            variants = [("Unbound", root / f"{name.lower()}-v2.png")]
+            for job in ("Sollers", "Saint", "Seer"):
+                variants.append((job, root / "classes" / f"{name.lower()}-{job.lower()}.png"))
+                variants.extend((f"{job} · {pose.title()}", root / "classes" /
+                                 f"{name.lower()}-{job.lower()}-{pose}.png")
+                                for pose in ("guard", "fainted"))
+            variants.append(("Guard", root / f"{name.lower()}-guard.png"))
+            faint = "retri-fainted-v2.png" if name == "Retri" else "temur-fainted-v1.png"
+            variants.append(("Fainted", root / faint))
+            for label, path in variants:
+                image = tk.PhotoImage(master=self.root, file=str(path)).zoom(2)
+                self.lab_sprites.append((f"{name} · {label}", image))
+        self.lab_index = 0
+        self._draw_sprite_lab()
+
+    def _draw_sprite_lab(self) -> None:
+        self.screen = "sprite_lab"
+        self._draw_frame(show_title=False)
+        name, sprite = self.lab_sprites[self.lab_index]
+        self.canvas.create_text(480, 75, text="SPRITE TEST", fill=GOLD, font=self._font(36, True))
+        self.canvas.create_text(480, 135, text=name.upper(), fill=CREAM, font=self._font(28, True))
+        self.canvas.create_rectangle(300, 175, 660, 405, fill="#202b3c", outline="#65748b", width=3)
+        # Fainted art uses the same offset as battle, aligning both feet
+        # to the same ground when comparing standing and fallen poses.
+        pose_y = 298 if name.endswith("Fainted") else 290
+        if self.lab_compare:
+            parts = name.split(" · ")
+            job = parts[1] if parts[1] in ("Sollers", "Saint", "Seer") else "Unbound"
+            standing = next(image for label, image in self.lab_sprites
+                            if label == f"{parts[0]} · {job}")
+            self.canvas.create_text(390, 208, text="STANDING", fill=MUTED, font=self._font(18))
+            self.canvas.create_text(570, 208, text="SELECTED", fill=MUTED, font=self._font(18))
+            self.canvas.create_line(330, 314, 630, 314, fill="#65748b")
+            self.canvas.create_image(390, 290, image=standing)
+            self.canvas.create_image(570, pose_y, image=sprite)
+        else:
+            self.canvas.create_image(480, pose_y, image=sprite)
+        self.canvas.create_text(480, 449, text="LEFT / RIGHT: SPRITE   C: COMPARE   R: RELOAD   ESC: TITLE", fill=MUTED, font=self._font(19))
+        self.canvas.create_text(480, 486, text=f"{self.lab_index + 1} / {len(self.lab_sprites)}", fill=GOLD, font=self._font(20))
 
     def _open_settings(self) -> None:
         self.pending_display = self.saved_display

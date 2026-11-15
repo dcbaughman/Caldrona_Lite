@@ -44,6 +44,61 @@ class BattleIntegrationTests(unittest.TestCase):
         self.assertIs(scene.party_sprites[1], scene.temur)
         scene.close()
 
+    def test_all_class_poses_keep_native_heads_and_load_in_viewer(self):
+        import pygame
+        from stats import RETRI, TEMUR, member
+        scene, canvas = self.app.battle, self.app.canvas
+        for name, base in (("Retri", RETRI), ("Temur", TEMUR)):
+            original = pygame.image.load(str(game.ASSETS / "battle" / f"{name.lower()}-guard.png"))
+            for job in ("Sollers", "Saint", "Seer"):
+                character = member(name, base)
+                character["job"] = job
+                model = BattleModel(ENEMIES[0], party=[character])
+                scene.start(model, 0)
+                model.command("Guard")
+                scene._sync_party_sprites()
+                self.assertEqual(canvas.itemcget(scene.party_items[0], "image"),
+                                 str(canvas._image(scene.class_poses[(name, job, "guard")])) )
+                character["hp"] = 0
+                scene._sync_party_sprites()
+                self.assertEqual(canvas.itemcget(scene.party_items[0], "image"),
+                                 str(canvas._image(scene.class_poses[(name, job, "fainted")])) )
+                native = pygame.image.load(str(game.ASSETS / "battle" / "classes" /
+                                               f"{name.lower()}-{job.lower()}-guard.png"))
+                self.assertEqual(native.get_size(), (32,32))
+                self.assertEqual(native.get_bounding_rect(), original.get_bounding_rect())
+                for y in range(13):
+                    for x in range(32):
+                        self.assertEqual(native.get_at((x,y)), original.get_at((x,y)))
+                scene.close()
+        self.app._draw_menu()
+        self.app._open_sprite_lab()
+        self.assertEqual(len(self.app.lab_sprites), 24)
+        for i in range(24):
+            self.app.lab_index = i
+            self.app._draw_sprite_lab()
+            self.assertTrue(any(canvas.type(item) == "image" for item in canvas.find_all()))
+
+    def test_sprite_viewer_compares_fainted_with_correct_standing_class(self):
+        from types import SimpleNamespace
+        app, canvas = self.app, self.app.canvas
+        app._draw_menu()
+        app._open_sprite_lab()
+        app.lab_index = next(i for i, (name, _) in enumerate(app.lab_sprites)
+                             if name == "Temur · Seer · Fainted")
+        app._key_down(SimpleNamespace(keysym="c"))
+        self.assertTrue(app.lab_compare)
+        images = [item for item in canvas.find_all() if canvas.type(item) == "image"]
+        self.assertEqual(len(images), 2)
+        sprites = dict(app.lab_sprites)
+        self.assertEqual(canvas.itemcget(images[0], "image"), str(canvas._image(sprites["Temur · Seer"])))
+        self.assertEqual(canvas.itemcget(images[1], "image"), str(canvas._image(sprites["Temur · Seer · Fainted"])))
+        self.assertEqual(canvas.coords(images[0]), [canvas._value(390), canvas._value(290)])
+        self.assertEqual(canvas.coords(images[1]), [canvas._value(570), canvas._value(298)])
+        app._key_up(SimpleNamespace(keysym="c"))
+        app._key_down(SimpleNamespace(keysym="c"))
+        self.assertFalse(app.lab_compare)
+
     def test_temur_uses_matching_sprite_scale_and_portraits(self):
         a = self.app
         self.assertEqual((a.temur_image.width(), a.temur_image.height()),
@@ -119,11 +174,11 @@ class BattleIntegrationTests(unittest.TestCase):
         scene.start(model, 0)
         scene.selection = 1
         scene.confirm(0)
-        self.assertEqual(canvas.itemcget(scene.party_items[0], "image"), str(canvas._image(scene.guard_sprites["Retri"])))
+        self.assertEqual(canvas.itemcget(scene.party_items[0], "image"), str(canvas._image(scene.class_poses[("Retri", "Seer", "guard")])))
         scene.update(0.7)
         scene.selection = 1
         scene.confirm(0.8)
-        self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.guard_sprites["Temur"])))
+        self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.class_poses[("Temur", "Saint", "guard")])))
         scene.update(1.5)
         self.assertFalse(model.guarded)
         for i in range(2):
@@ -131,7 +186,7 @@ class BattleIntegrationTests(unittest.TestCase):
         model.guarded.add(1)
         temur["hp"] = 0
         scene._sync_party_sprites()
-        self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.temur_fainted)))
+        self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.class_poses[("Temur", "Saint", "fainted")])))
         scene.close()
 
     def test_stone_can_be_deferred_revisited_and_opened_from_menu(self):
@@ -249,7 +304,7 @@ class BattleIntegrationTests(unittest.TestCase):
         model = BattleModel(ENEMIES[0], party=[retri, temur])
         scene.start(model, 0)
         self.assertEqual(model.actor, 1)
-        self.assertEqual(canvas.itemcget(scene.party_items[0], "image"), str(canvas._image(scene.fainted)))
+        self.assertEqual(canvas.itemcget(scene.party_items[0], "image"), str(canvas._image(scene.class_poses[("Retri", "Seer", "fainted")])))
         x, y = scene.party_positions[0]
         self.assertEqual(canvas.coords(scene.party_items[0]), [canvas._value(x), canvas._value(y+8)])
         self.assertEqual(canvas.itemcget(scene.party_items[1], "image"),
@@ -277,7 +332,7 @@ class BattleIntegrationTests(unittest.TestCase):
         scene.update(1.7)
         self.assertEqual(temur["hp"], 0)
         self.assertEqual(scene.phase, "enemy_action")
-        self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.temur_fainted)))
+        self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.class_poses[("Temur", "Saint", "fainted")])))
         self.assertEqual(canvas.itemcget(scene.party_items[0], "image"),
                          str(canvas._image(scene.class_sprites[("Retri", "Seer")])))
         scene.update(2.4)
