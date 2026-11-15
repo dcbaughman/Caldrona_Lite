@@ -12,7 +12,7 @@ from dialogue import DialogueBox, DialogueLine
 from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
                               load_display, pixel_scale, save_display)
 from game_menu import GameMenu
-from stats import RETRI, TEMUR, member
+from stats import RETRI, TEMUR, member, grow, POTION_HEAL
 from battle import (BattleModel, BattleScene, BattleTransition, EncounterMeter,
                     ENEMIES, MAX_HP, MAX_POTIONS, gain_xp, SHALEHORN, ShalehornBattle)
 
@@ -668,7 +668,7 @@ class CaldronaLite:
             return "A potion cannot revive a fainted member."
         if member["hp"] >= member["max_hp"]:
             return member["name"] + " already has full HP."
-        healed = min(250, member["max_hp"] - member["hp"])
+        healed = min(POTION_HEAL, member["max_hp"] - member["hp"])
         member["hp"] += healed
         self.potions -= 1
         if member["name"] == "Retri":
@@ -677,6 +677,7 @@ class CaldronaLite:
 
     def _recruit(self, member):
         if not any(p["name"] == member["name"] for p in self.party):
+            grow(member, 1, self.level)
             member["active"] = sum(p.get("active", True) for p in self.party) < 3
             self.party.append(member)
 
@@ -767,20 +768,21 @@ class CaldronaLite:
         model = self.battle.model
         if outcome == "victory":
             self.gold += model.gold_reward
+            old_level = self.level
             self.level, self.xp = gain_xp(self.level, self.xp, model.xp_reward)
+            for member in self.party:
+                grow(member, old_level, self.level)
             for member in model.party:
-                if member["name"] == "Retri":
-                    member["max_hp"] = MAX_HP + (self.level - 1)*50
-                member["hp"] = min(member["max_hp"], member["hp"] + 80 + (self.level-model.level)*50)
-                if member["name"] == "Retri":
-                    self.hp = member["hp"]
+                if member["hp"] > 0:
+                    member["hp"] = min(member["max_hp"], member["hp"] + 8)
+            self.hp = next((p["hp"] for p in model.party if p["name"] == "Retri"), self.party[0]["hp"])
             if isinstance(model, ShalehornBattle):
                 self.boss_cleared = self.stone_reveal = True
             self.potions = max(model.potions, min(MAX_POTIONS, model.potions + 1))
         elif outcome == "defeat":
             self.in_chamber = False
             self.x, self.y = self.cave.spawn
-            self.hp, self.potions = MAX_HP + (self.level - 1) * 50, MAX_POTIONS
+            self.hp, self.potions = self.party[0]["max_hp"], MAX_POTIONS
             for member in self.party:
                 member["hp"] = member["max_hp"]
                 if "max_mp" in member:
@@ -802,7 +804,6 @@ class CaldronaLite:
         if self.screen == "battle_in":
             enemy = [self.encounters.rng.choice(ENEMIES) for _ in range(self.encounters.rng.randint(1, 3))]
             self.party[0]["hp"] = self.hp
-            self.party[0]["max_hp"] = MAX_HP + (self.level-1)*50
             active = [p for p in self.party if p.get("active", True)][:3]
             model_type = ShalehornBattle if self.in_chamber else BattleModel
             opponents = SHALEHORN if self.in_chamber else enemy

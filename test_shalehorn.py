@@ -25,8 +25,8 @@ class ShalehornTests(unittest.TestCase):
         self.assertEqual(party[0]["hp"], 600)
         before = battle.enemy_hp
         round_of("Attack", "Attack")
-        self.assertGreaterEqual(before-battle.enemy_hp, 28)
-        self.assertEqual(battle.hits, {0: 80, 1: 80})
+        self.assertGreaterEqual(before-battle.enemy_hp, 8)
+        self.assertEqual(battle.hits, {0: 10, 1: 10})
         round_of("Attack", "Attack")
         self.assertTrue(battle.buried)
         before = battle.enemy_hp

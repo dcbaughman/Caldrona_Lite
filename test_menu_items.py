@@ -17,18 +17,18 @@ class MenuItemTests(unittest.TestCase):
         app._start_cavern()
         app.dialogue.clear()
         app._recruit({"name": "Temur", "hp": 30, "max_hp": 70})
-        app.party[0]["hp"] = app.hp = 500
+        app.party[0]["hp"] = app.hp = 40
         menu = app.game_menu
         menu.open()
         menu.activate()
         menu.activate()
         menu.activate()
-        self.assertEqual((app.hp, app.potions), (520, 2))
+        self.assertEqual((app.hp, app.potions), (60, 2))
         menu.activate()
         self.assertEqual(app.potions, 2)
         menu.navigate("down", 1)
         menu.activate()
-        self.assertEqual((app.party[1]["hp"], app.potions), (70, 1))
+        self.assertEqual((app.party[1]["hp"], app.potions), (60, 1))
         app.party[1]["hp"] = 0
         menu.activate()
         self.assertEqual(app.potions, 1)

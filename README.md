@@ -47,26 +47,27 @@ Battles are strictly turn-based: arrows/WASD or the PS4 D-pad select Attack,
 Guard, Potion, or Flee; Enter/Cross confirms. Escape/Circle highlights Flee
 without executing it. Mouse command selection also works. An enemy replies
 once after your action, and never attacks while you are choosing a command.
-Choose Items, then Potion to restore up to 250 HP; Back or Circle returns to the commands without using a turn. Guard halves the next hit, and fleeing has a 75%
-success chance. Retri starts with 520 HP and three potions. Victory awards gold,
-restores up to 80 HP, and replenishes one potion (maximum three). Defeat returns
+Choose Items, then Potion to restore up to 30 HP; Back or Circle returns to the commands without using a turn. Guard halves the next hit, and fleeing has a 75%
+success chance. Retri starts with 60 HP and three potions. Victory awards gold,
+restores up to 8 HP to surviving active members, and replenishes one potion (maximum three). Defeat returns
 Retri to the entrance with full health and potions. Confirm the result screen
 to resume exploring. These stats and rewards last for the current journey;
 saving and equipment remain future features.
 
 Victories also award experience equal to twice the enemy's gold reward. The
 next level requires 30 times the current level in XP; excess carries over.
-Each level adds 50 maximum HP and 1 attack damage. Level and XP persist during
+Each level adds 8 maximum HP for Retri or 10 for Temur, and 1 Strength.
+Every second level also adds 1 Defense, Magic, Magic Defense, Agility and maximum MP.
+Reserve members grow with the party; fainted members remain fainted. Level and XP persist during
 the current journey, including through defeat; saving remains a future feature.
 The results screen shows the fighters who took part and the party's shared XP and gold. A glowing LEVEL UP animation appears when he advances, while
 the supplied Caldrona Level Up track plays once for every victory. Confirm to
 return to the cavern; the travel music fades back in.
 
 `battle.py` holds the encounter logic, combat model, battle UI, and transition.
-Retri and Temur use the supplied Tidus and Auron starting stats. Status shows HP,
+Retri and Temur have lower starting stats with their own strengths. Status shows HP,
 MP, Strength, Defense, Magic, Magic Defense, Agility, Luck, Evasion, and Accuracy.
-The bat uses Condor's stats, the beetle uses Dingo's, and the spider has a similar
-starter profile. HP, Strength and Defense affect current combat calculations.
+The bat, beetle and spider have scaled-down starter profiles. HP, Strength and Defense affect current combat calculations.
 The other stats are tracked for future combat mechanics.
 Sprites load once and are reused; turns and transitions use the existing tick,
 without blocking waits. `prepare_battle_assets.py` is an offline asset-preparation

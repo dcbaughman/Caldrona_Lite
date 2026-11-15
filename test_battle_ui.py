@@ -63,6 +63,22 @@ class BattleIntegrationTests(unittest.TestCase):
         m.reply()
         self.assertFalse(m.pending_reply)
 
+    def test_reserve_member_grows_and_late_recruit_matches_party_level(self):
+        from stats import RETRI, TEMUR, member
+        a = self.app
+        reserve = member("Temur", TEMUR)
+        reserve["active"] = False
+        a.party.append(reserve)
+        a.xp = 20
+        a.battle.model = BattleModel(ENEMIES[0], party=[a.party[0]], level=1, xp=20)
+        a._finish_battle("victory")
+        self.assertEqual(a.level, 2)
+        self.assertEqual((reserve["max_hp"], reserve["strength"]), (92, 12))
+        self.assertEqual(a.party[0]["max_hp"], RETRI["max_hp"] + 8)
+        a.party.remove(reserve)
+        a._recruit(member("Temur", TEMUR))
+        self.assertEqual((a.party[-1]["max_hp"], a.party[-1]["strength"]), (92, 12))
+
     def test_game_over_choices(self):
         a = self.app
         for choice in (0, 1):
@@ -187,7 +203,7 @@ class BattleIntegrationTests(unittest.TestCase):
                 self.assertEqual(a.hp, MAX_HP)
             else:
                 self.assertEqual((a.x, a.y), (168, 136))
-                self.assertEqual(a.hp, 100 if outcome == "victory" else 20)
+                self.assertEqual(a.hp, 28 if outcome == "victory" else 20)
         self.assertEqual(a.gold, 8)
 
     def test_battle_layout_and_all_enemy_sprites_at_every_scale(self):
