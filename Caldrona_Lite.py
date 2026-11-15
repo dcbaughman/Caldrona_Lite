@@ -696,7 +696,8 @@ class CaldronaLite:
 
     def _recruit(self, member):
         if not any(p["name"] == member["name"] for p in self.party):
-            grow(member, 1, self.level)
+            member.setdefault("level", 1)
+            member.setdefault("xp", 0)
             member["active"] = sum(p.get("active", True) for p in self.party) < 3
             self.party.append(member)
 
@@ -804,10 +805,13 @@ class CaldronaLite:
         model = self.battle.model
         if outcome == "victory":
             self.gold += model.gold_reward
-            old_level = self.level
-            self.level, self.xp = gain_xp(self.level, self.xp, model.xp_reward)
-            for member in self.party:
-                grow(member, old_level, self.level)
+            for member in model.party:
+                old_level = member.get("level", 1)
+                level, xp = gain_xp(old_level, member.get("xp", 0), model.xp_reward)
+                grow(member, old_level, level)
+                member["level"], member["xp"] = level, xp
+            retri = next((p for p in self.party if p["name"] == "Retri"), self.party[0])
+            self.level, self.xp = retri.get("level", 1), retri.get("xp", 0)
             for member in model.party:
                 if member["hp"] > 0:
                     member["hp"] = min(member["max_hp"], member["hp"] + 8)

@@ -384,6 +384,9 @@ class GameMenu:
             hint = "Select an item." if not self.item_targeting else "UP/DOWN target · CONFIRM use · BACK items"
         else:
             level, xp, needed = self.progress()
+            if "level" in member:
+                level, xp = member["level"], member.get("xp", 0)
+                needed = 30 * level
             job = self._current_job(member) or "Unbound"
             c.create_text(320, 140, text=f"{member['name']}  ▲▼    LV {level}   XP {xp}/{needed}", anchor="w", fill="#ffffff", font=self.font(21), tags=tag)
             values = (("HP", f"{member['hp']}/{member['max_hp']}"), ("MP", f"{member.get('mp', 0)}/{member.get('max_mp', 0)}"),

@@ -13,12 +13,12 @@ RETRI_HP_PER_LEVEL = 8
 
 def member(name, base):
     result = {"name": name, **base}
-    result.update(hp=base["max_hp"], mp=base["max_mp"])
+    result.update(hp=base["max_hp"], mp=base["max_mp"], level=1, xp=0)
     return result
 
 
 def grow(member, old_level, new_level):
-    """Apply each shared level once, including to reserve party members."""
+    """Apply a member’s individual level gains."""
     for level in range(old_level + 1, new_level + 1):
         job = current_job(member)
         hp_gain = (10 if member["name"] == "Temur" else RETRI_HP_PER_LEVEL) + (2 if job == "Saint" else 0)

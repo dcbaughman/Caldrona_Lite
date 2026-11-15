@@ -122,7 +122,7 @@ class BattleModel:
         self.effect = action
         if action == "Attack":
             armor = 0 if current_job(self.party[self.actor]) == "Seer" else self.enemy.armor
-            strength = self.party[self.actor].get("strength", RETRI["strength"] + self.level - 1)
+            strength = self.party[self.actor].get("strength", RETRI["strength"] + self.party[self.actor].get("level", self.level) - 1)
             damage = max(1, self.rng.randint(max(1, strength-2), strength+2) - armor)
             self.damage = damage
             self.enemy_hp = max(0, self.enemy_hp - damage)
@@ -295,6 +295,10 @@ class BattleScene:
         self.temur = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "temur-v2.png")).zoom(2)
         self.temur_fainted = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "temur-fainted-v1.png")).zoom(2)
         self.fainted_sprites = {"Retri": self.fainted, "Temur": self.temur_fainted}
+        self.guard_sprites = {
+            name: tk.PhotoImage(master=canvas, file=str(assets / "battle" / f"{name.lower()}-guard.png")).zoom(2)
+            for name in ("Retri", "Temur")
+        }
         self.class_sprites = {
             (name, job): tk.PhotoImage(
                 master=canvas,
@@ -357,6 +361,7 @@ class BattleScene:
                 item = c.create_image(x, y, image=image, tags=self.TAG)
             self.party_items.append(item)
         self.party_fainted = [None] * len(model.party)
+        self.party_pose = [None] * len(model.party)
         self._sync_party_sprites()
         self.hero_item = self.party_items[0]
         self._frame(18, 320, 942, 382)
@@ -366,19 +371,21 @@ class BattleScene:
         self.draw_status()
 
     def _sync_party_sprites(self):
-        """Keep the standing/fainted pose consistent with each member's HP."""
+        """Show fainting first, then guarding, otherwise the class pose."""
         for i, member in enumerate(self.model.party):
             fainted = member["hp"] <= 0
-            if self.party_fainted[i] == fainted:
+            pose = "fainted" if fainted else "guard" if i in self.model.guarded else "standing"
+            if self.party_pose[i] == pose:
                 continue
-            self.party_fainted[i] = fainted
+            self.party_pose[i], self.party_fainted[i] = pose, fainted
             item = self.party_items[i]
             if self.party_sprites[i] is None:
-                self.canvas.itemconfigure(item, text=member["name"] + (" (KO)" if fainted else ""),
+                suffix = " (KO)" if fainted else " (GUARD)" if pose == "guard" else ""
+                self.canvas.itemconfigure(item, text=member["name"] + suffix,
                                           fill="#e99898" if fainted else "#ffffff")
             else:
-                image = self.fainted_sprites.get(member["name"], self.party_sprites[i]) if fainted else self.party_sprites[i]
-                self.canvas.itemconfigure(item, image=image)
+                images = self.fainted_sprites if fainted else self.guard_sprites if pose == "guard" else {}
+                self.canvas.itemconfigure(item, image=images.get(member["name"], self.party_sprites[i]))
             self.canvas.coords(item, *self._party_position(i))
 
     def _party_position(self, index):
@@ -514,6 +521,7 @@ class BattleScene:
                 return None
             action = self.COMMANDS[self.selection]
             if self.model.command(action):
+                self._sync_party_sprites()
                 self.item_menu, self.selection = False, 2 if action == "Potion" else self.selection
                 self.phase = "hero_action"
                 self.phase_at = now
@@ -614,9 +622,7 @@ class BattleScene:
         if self.model.outcome:
             self.phase = "result"
             self.model.message = {
-                "victory": (f"Victory! {self.model.xp_reward} XP, {self.model.enemy.gold} gold."
-                            + (f" Level {gain_xp(self.model.level, self.model.xp, self.model.xp_reward)[0]}!"
-                               if gain_xp(self.model.level, self.model.xp, self.model.xp_reward)[0] > self.model.level else "")),
+                "victory": f"Victory! {self.model.xp_reward} XP, {self.model.gold_reward} gold.",
                 "defeat": "Retri retreats to the entrance to recover.",
                 "fled": "Escaped safely. Continue exploring.",
             }[self.model.outcome]
@@ -640,28 +646,28 @@ class BattleScene:
 
     def _victory_screen(self, now):
         c, m = self.canvas, self.model
-        level, xp = gain_xp(m.level, m.xp, m.xp_reward)
         self.result_at = now
         self.level_item = None
         self.result_page = -1
         self.level_pages = []
-        if level > m.level:
-            roster = self.level_roster() if self.level_roster else m.party
-            fields = (
+        fields = (
                 ("MAX HP", "max_hp", 0), ("MAX MP", "max_mp", 0),
                 ("STRENGTH", "strength", 8), ("DEFENSE", "defense", 0),
                 ("MAGIC", "magic", 0), ("MAGIC DEF", "magic_defense", 0),
                 ("AGILITY", "agility", 0), ("LUCK", "luck", 0),
                 ("EVASION", "evasion", 0), ("ACCURACY", "accuracy", 0),
             )
-            for member in roster:
-                projected = dict(member)
-                grow(projected, m.level, level)
-                changes = [(label, member.get(key, default), projected.get(key, default))
-                           for label, key, default in fields
-                           if member.get(key, default) != projected.get(key, default)]
-                self.level_pages.append((member["name"], member.get("active", True),
-                                         m.level, level, changes))
+        for member in m.party:
+            old_level = member.get("level", m.level)
+            level, xp = gain_xp(old_level, member.get("xp", m.xp), m.xp_reward)
+            if level <= old_level:
+                continue
+            projected = dict(member)
+            grow(projected, old_level, level)
+            changes = [(label, member.get(key, default), projected.get(key, default))
+                       for label, key, default in fields
+                       if member.get(key, default) != projected.get(key, default)]
+            self.level_pages.append((member["name"], True, old_level, level, changes))
         c.delete(self.TAG)
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
         self._frame(35, 28, 925, 106)
@@ -679,6 +685,8 @@ class BattleScene:
         for i, member in enumerate(m.party):
             y = 243 + i * row_height
             name = member["name"]
+            old_level = member.get("level", m.level)
+            level, xp = gain_xp(old_level, member.get("xp", m.xp), m.xp_reward)
             if name not in self.reward_portraits:
                 portrait = self.member_portrait(name) if self.member_portrait else None
                 if portrait is not None:
@@ -690,7 +698,7 @@ class BattleScene:
             text(405, y, f"LV {level}", 25)
             text(565, y, f"EXP {xp}/{xp_threshold(level)}", 23)
             text(565, y+26, f"NEXT LV  {xp_threshold(level)-xp}", 17, "#80eaf5")
-        if level > m.level:
+        if self.level_pages:
             self.level_item = text(712, 65, "LEVEL UP!", 32, "#ffe48a")
         text(65, 483, "ENTER / CROSS TO VIEW STAT GAINS" if self.level_pages
              else "ENTER / CROSS TO CONTINUE", 25)

@@ -92,21 +92,47 @@ class BattleIntegrationTests(unittest.TestCase):
         m.reply()
         self.assertFalse(m.pending_reply)
 
-    def test_reserve_member_grows_and_late_recruit_matches_party_level(self):
+    def test_reserve_keeps_experience_and_new_recruits_start_at_level_one(self):
         from stats import RETRI, TEMUR, member
         a = self.app
         reserve = member("Temur", TEMUR)
         reserve["active"] = False
         a.party.append(reserve)
-        a.xp = 20
+        a.party[0]["xp"] = 20
+        before = dict(reserve)
         a.battle.model = BattleModel(ENEMIES[0], party=[a.party[0]], level=1, xp=20)
         a._finish_battle("victory")
         self.assertEqual(a.level, 2)
-        self.assertEqual((reserve["max_hp"], reserve["strength"]), (92, 12))
+        self.assertEqual(reserve, before)
         self.assertEqual(a.party[0]["max_hp"], RETRI["max_hp"] + 8)
         a.party.remove(reserve)
         a._recruit(member("Temur", TEMUR))
-        self.assertEqual((a.party[-1]["max_hp"], a.party[-1]["strength"]), (92, 12))
+        self.assertEqual((a.party[-1]["level"], a.party[-1]["xp"], a.party[-1]["max_hp"]),
+                         (1, 0, TEMUR["max_hp"]))
+
+    def test_guard_poses_follow_guard_state_and_fainting(self):
+        from stats import RETRI, TEMUR, member
+        scene, canvas = self.app.battle, self.app.canvas
+        retri, temur = member("Retri", RETRI), member("Temur", TEMUR)
+        retri["job"], temur["job"] = "Seer", "Saint"
+        model = BattleModel(ENEMIES[0], party=[retri, temur])
+        scene.start(model, 0)
+        scene.selection = 1
+        scene.confirm(0)
+        self.assertEqual(canvas.itemcget(scene.party_items[0], "image"), str(canvas._image(scene.guard_sprites["Retri"])))
+        scene.update(0.7)
+        scene.selection = 1
+        scene.confirm(0.8)
+        self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.guard_sprites["Temur"])))
+        scene.update(1.5)
+        self.assertFalse(model.guarded)
+        for i in range(2):
+            self.assertEqual(canvas.itemcget(scene.party_items[i], "image"), str(canvas._image(scene.party_sprites[i])))
+        model.guarded.add(1)
+        temur["hp"] = 0
+        scene._sync_party_sprites()
+        self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.temur_fainted)))
+        scene.close()
 
     def test_stone_can_be_deferred_revisited_and_opened_from_menu(self):
         a = self.app
@@ -192,6 +218,7 @@ class BattleIntegrationTests(unittest.TestCase):
     def test_victory_screen_levels_and_awards_once(self):
         a = self.app
         a._play_music = Mock()
+        a.party[0]["xp"] = 20
         a.xp = 20
         a._begin_battle(time.monotonic())
         a._update_battle_transition(time.monotonic() + 1)
@@ -275,6 +302,7 @@ class BattleIntegrationTests(unittest.TestCase):
         scene, canvas = self.app.battle, self.app.canvas
         retri, temur, reserve = member("Retri", RETRI), member("Temur", TEMUR), member("Retri", RETRI)
         retri["job"], temur["job"], reserve["job"] = "Saint", "Sollers", "Seer"
+        retri["xp"], temur["xp"] = 29, 0
         reserve["name"], reserve["active"], reserve["hp"] = "Mira", False, 0
         roster = [retri, temur, reserve]
         before = [dict(p) for p in roster]
@@ -286,9 +314,9 @@ class BattleIntegrationTests(unittest.TestCase):
         scene.phase = "result"
         scene._victory_screen(0)
         self.assertEqual(roster, before)
-        self.assertEqual(len(scene.level_pages), 3)
+        self.assertEqual(len(scene.level_pages), 2)
         expected_roster = []
-        for i, character in enumerate(before):
+        for i, character in enumerate(before[:2]):
             self.assertIsNone(scene.confirm(i + 1))
             name, active, old_level, new_level, changes = scene.level_pages[i]
             expected = dict(character)
@@ -316,7 +344,7 @@ class BattleIntegrationTests(unittest.TestCase):
             for key in ("max_hp", "max_mp", "strength", "defense", "magic",
                         "magic_defense", "agility", "luck", "evasion", "accuracy"):
                 self.assertEqual(actual[key], expected[key], (actual["name"], key))
-        self.assertEqual(reserve["hp"], 0)
+        self.assertEqual(reserve, before[2])
         scene.close()
 
     def test_party_wide_boss_attack_displays_all_fainted_members(self):
