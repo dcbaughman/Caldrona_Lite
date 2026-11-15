@@ -107,7 +107,11 @@ class ScaledCanvas(tk.Canvas):
             scaled["image"] = self._image(scaled["image"])
         if "font" in scaled and isinstance(scaled["font"], tuple):
             family, size, *rest = scaled["font"]
-            scaled["font"] = (family, max(8, self._value(size)), *rest)
+            # Negative sizes are pixel sizes, so a pixel font stays on its grid.
+            if size < 0:
+                scaled["font"] = (family, min(-8, self._value(size)), *rest)
+            else:
+                scaled["font"] = (family, max(8, self._value(size)), *rest)
         if "width" in scaled and isinstance(scaled["width"], (int, float)):
             scaled["width"] = max(1, self._value(scaled["width"]))
         return scaled
