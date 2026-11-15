@@ -107,7 +107,7 @@ class SyncMenuTests(unittest.TestCase):
         self.scene.start(self.party, 0, reveal=False)
         images = [i for i in self.canvas.find_withtag(self.scene.TAG)
                   if self.canvas.type(i) == "image"]
-        self.assertEqual(len(images), 5)  # Stone, selected silhouette, three existing emblems.
+        self.assertEqual(len(images), 14)  # Nine sky tiles, stone, silhouette, three emblems.
         self.assertIn(str(self.scene.silhouettes["Seer"]),
                       [self.canvas.itemcget(i, "image") for i in images])
         for item in self.canvas.find_withtag(self.scene.TAG):
@@ -122,4 +122,22 @@ class SyncMenuTests(unittest.TestCase):
         self.scene.draw()
         images = [i for i in self.canvas.find_withtag(self.scene.TAG)
                   if self.canvas.type(i) == "image"]
-        self.assertEqual(len(images), 4)  # No class silhouette for leaving unattuned.
+        self.assertEqual(len(images), 13)  # No class silhouette for leaving unattuned.
+
+    def test_stars_twinkle_without_rebuilding_the_screen(self):
+        self.scene.start(self.party, 0, reveal=False)
+        star, _, _ = self.scene.twinkle_items[0]
+        self.scene.update(0)
+        initial = self.canvas.itemcget(star, "fill")
+        self.scene.update(0.36)
+        self.assertNotEqual(self.canvas.itemcget(star, "fill"), initial)
+        self.assertEqual(self.scene.phase, "choose")
+        self.scene.navigate("down", 1)
+        self.scene.update(1.4)
+        self.assertEqual(self.scene.selection, 1)
+        self.assertTrue(self.canvas.type(self.scene.twinkle_items[0][0]))
+
+    def test_stone_frames_have_transparent_outer_corners(self):
+        for stone in self.scene.stones:
+            self.assertTrue(stone.transparency_get(0, 0))
+            self.assertTrue(stone.transparency_get(stone.width()-1, stone.height()-1))

@@ -15,6 +15,16 @@ class AstralScene:
     def __init__(self, canvas, font, assets: Path):
         self.canvas, self.font = canvas, font
         folder = assets / "astral"
+        self.sky = tk.PhotoImage(master=canvas, file=str(folder / "starfield.png"))
+        # Smaller pieces avoid large temporary Tk images at fractional fullscreen scales.
+        self.sky_tiles = []
+        for row in range(3):
+            for col in range(3):
+                x, y = col * 320, row * 180
+                width, height = min(321, 960-x), min(181, 540-y)
+                tile = tk.PhotoImage(master=canvas, width=width, height=height)
+                tile.tk.call(tile, "copy", self.sky, "-from", x, y, x+width, y+height)
+                self.sky_tiles.append((x, y, tile))
         self.stones = [tk.PhotoImage(master=canvas, file=str(folder / f"stone-{i}.png")).zoom(2)
                        for i in range(3)]
         self.silhouettes = {job: tk.PhotoImage(master=canvas, file=str(folder / (job.lower() + ".png")))
@@ -24,7 +34,11 @@ class AstralScene:
         rng = random.Random(731)
         self.stars = [(rng.randrange(35, 925), rng.randrange(24, 514),
                        rng.choice(("#375c9a", "#608fca", "#9ecbea")))
-                      for _ in range(55)]
+                      for _ in range(28)]
+        self.twinkle_stars = [(rng.randrange(40, 920), rng.randrange(30, 510),
+                               rng.randrange(4)) for _ in range(14)]
+        self.twinkle_items = []
+        self.twinkle_step = None
         self.active = False
 
     def start(self, party, now, reveal=True):
@@ -47,11 +61,18 @@ class AstralScene:
 
     def _background(self):
         c, tag = self.canvas, self.TAG
-        c.create_rectangle(0, 0, 960, 540, fill="#080f2b", outline="", tags=tag)
+        for x, y, tile in self.sky_tiles:
+            c.create_image(x, y, image=tile, anchor="nw", tags=tag)
         c.create_rectangle(15, 15, 945, 525, outline="#bc9a5a", width=3, tags=tag)
         c.create_rectangle(21, 21, 939, 519, outline="#355d9d", width=2, tags=tag)
         for x, y, color in self.stars:
             c.create_rectangle(x, y, x+2, y+2, fill=color, outline="", tags=tag)
+        self.twinkle_items = []
+        self.twinkle_step = None
+        for x, y, offset in self.twinkle_stars:
+            horizontal = c.create_line(x-3, y, x+3, y, fill="#7295c6", tags=tag)
+            vertical = c.create_line(x, y-3, x, y+3, fill="#7295c6", tags=tag)
+            self.twinkle_items.append((horizontal, vertical, offset))
 
     def draw(self):
         c, tag = self.canvas, self.TAG
@@ -126,6 +147,14 @@ class AstralScene:
         if index != self.stone_index:
             self.stone_index = index
             self.canvas.itemconfigure(self.stone_item, image=self.stones[index])
+        step = int(max(0.0, now - self.started) / 0.35)
+        if step != self.twinkle_step:
+            self.twinkle_step = step
+            colors = ("#35537f", "#7295c6", "#c5edff", "#7295c6")
+            for horizontal, vertical, offset in self.twinkle_items:
+                color = colors[(step + offset) % len(colors)]
+                self.canvas.itemconfigure(horizontal, fill=color)
+                self.canvas.itemconfigure(vertical, fill=color)
 
     def navigate(self, direction, now):
         if self.phase == "reveal":
