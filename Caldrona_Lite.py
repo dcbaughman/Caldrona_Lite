@@ -3,9 +3,12 @@ from __future__ import annotations
 import ctypes
 import math
 import os
+import subprocess
+import sys
 import time
 import tkinter as tk
 import tkinter.font as tkfont
+from collections import OrderedDict
 from pathlib import Path
 
 from dialogue import DialogueBox, DialogueLine
@@ -33,14 +36,194 @@ CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
 BATTLE_MUSIC = ASSETS / "audio" / "cavern-battle.mp3"
 VICTORY_MUSIC = ASSETS / "audio" / "caldrona-level-up.mp3"
 GAME_OVER_MUSIC = ASSETS / "audio" / "caldrona-game-over.mp3"
+# Title theme from the main game's assets/music/gold.wav, encoded at 128 kbps.
+TITLE_MUSIC = ASSETS / "audio" / "gold.mp3"
+TITLE_FADE_IN_MS = 1500
+TITLE_FADE_OUT_MS = 700
 RETRI_PORTRAIT = ASSETS / "portraits" / "retri-v2.png"
 RETRI_PORTRAIT_REGION = None
 TEMUR_PORTRAIT = ASSETS / "portraits" / "temur.png"
 INK = "#101722"
-PANEL = "#202b3c"
 GOLD = "#f0d28c"
 MUTED = "#a7b2c2"
 CREAM = "#fff1cf"
+# Home-menu palette from the main game's MainMenu.
+MENU_INK = "#f6edcf"
+MENU_GOLD = "#d9b873"
+MENU_MUTED = "#96a1bd"
+MENU_W, MENU_H = 960, 540
+# Same panel metrics as the main home menu, shortened for Lite's three rows.
+MENU_PANEL_TOP = 216
+MENU_ROW_OFFSET = 38
+MENU_ROW_STRIDE = 40
+SETTINGS_PANEL_TOP = 148
+SETTINGS_ROW_OFFSET = 68
+SETTINGS_ROW_STRIDE = 40
+
+
+# Shown labels only. menu_items stays PLAY, LOAD GAME, SETTINGS in that order.
+MENU_LABELS = {
+    "PLAY": "NEW JOURNEY",
+    "LOAD GAME": "CONTINUE",
+    "SETTINGS": "SETTINGS",
+}
+
+
+def _register_bundled_fonts() -> list[str]:
+    """Make the bundled pixel fonts visible before Tk starts."""
+    handles: list[str] = []
+    fonts = ROOT / "fonts"
+    files = ("VT323-Regular.ttf", "PressStart2P-Regular.ttf")
+    if sys.platform == "win32" and hasattr(ctypes, "windll"):
+        add_font = ctypes.windll.gdi32.AddFontResourceExW
+        add_font.argtypes = (ctypes.c_wchar_p, ctypes.c_uint, ctypes.c_void_p)
+        add_font.restype = ctypes.c_int
+        for filename in files:
+            path = fonts / filename
+            if path.exists() and add_font(str(path), 0x10, None):
+                handles.append(str(path))
+        return handles
+    dest = Path.home() / ".local" / "share" / "fonts" / "caldrona-lite"
+    try:
+        dest.mkdir(parents=True, exist_ok=True)
+        changed = False
+        for filename in files:
+            source = fonts / filename
+            if not source.exists():
+                continue
+            target = dest / filename
+            data = source.read_bytes()
+            if not target.exists() or target.read_bytes() != data:
+                target.write_bytes(data)
+                changed = True
+        if changed:
+            subprocess.run(["fc-cache", "-f", str(dest)], check=False,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        pass
+    return handles
+
+
+def _menu_row_y(index: int) -> int:
+    return MENU_PANEL_TOP + MENU_ROW_OFFSET + index * MENU_ROW_STRIDE
+
+
+def _settings_row_y(index: int) -> int:
+    return SETTINGS_PANEL_TOP + SETTINGS_ROW_OFFSET + index * SETTINGS_ROW_STRIDE
+
+
+class TitleBackdrop:
+    """Animated Caldrona title landscape, ported from the main game's TitleScreen.
+
+    Artwork stays on the 960×540 logical canvas. Background frames are 384 wide,
+    so they are enlarged with Tk's integer nearest-neighbor zoom (ceil(960/384) = 3).
+    """
+
+    DURATION = 12.0
+    SIZES = (256, 384, 576, 768, 960)
+    WATER = ((181, 155), (191, 159), (194, 166), (199, 174), (209, 183), (217, 193), (220, 200))
+    STARS = ((47, 32), (118, 21), (156, 47), (242, 25), (303, 44))
+
+    def __init__(self, root: tk.Misc, art: Path) -> None:
+        self.root = root
+        self.art = art
+        self.menu_age = 0.0
+        self.last_tick = time.monotonic()
+        self.scaled: OrderedDict[tuple[str, int], tk.PhotoImage] = OrderedDict()
+        self.logos: OrderedDict[tuple[int, int], tk.PhotoImage] = OrderedDict()
+        self.scale: int | None = None
+
+    def advance(self, now: float) -> None:
+        dt = max(0.0, min(0.25, now - self.last_tick))
+        self.last_tick = now
+        self.menu_age += dt
+
+    def sky(self) -> tuple[str, int]:
+        # Home menu: hold each sky, then blend toward the next over the last 1.5s.
+        stage = (3 + int(self.menu_age / 10)) % 4
+        blend = round(max(0.0, (self.menu_age % 10 - 8.5) / 1.5) * 15)
+        return f"sky-{stage}-{min(15, blend)}", stage
+
+    def image(self, name: str, scale: int) -> tk.PhotoImage | None:
+        if self.scale != scale:
+            self.scaled.clear()
+            self.scale = scale
+        key = (name, scale)
+        if key not in self.scaled:
+            path = self.art / f"{name}.png"
+            if not path.is_file():
+                return None
+            source = tk.PhotoImage(master=self.root, file=str(path))
+            self.scaled[key] = source.zoom(scale, scale) if scale > 1 else source
+            if len(self.scaled) > 24:
+                self.scaled.popitem(last=False)
+        self.scaled.move_to_end(key)
+        return self.scaled[key]
+
+    def logo(self, width: int, alpha: int) -> tk.PhotoImage | None:
+        key = (width, alpha)
+        if key not in self.logos:
+            path = self.art / f"logo-{width}-{alpha}.png"
+            if not path.is_file():
+                return None
+            self.logos[key] = tk.PhotoImage(master=self.root, file=str(path))
+            if len(self.logos) > 24:
+                self.logos.popitem(last=False)
+        self.logos.move_to_end(key)
+        return self.logos[key]
+
+    def draw(self, canvas: tk.Canvas, full_logo: bool = True) -> None:
+        w, h = MENU_W, MENU_H
+        canvas.create_rectangle(0, 0, w, h, fill="#060b19", outline="")
+        scale = max(1, math.ceil(w / 384))
+        name, stage = self.sky()
+        image = self.image(name, scale)
+        age = self.DURATION + self.menu_age
+        left, top = 0, 0
+        if image is not None:
+            margin = max(0, (image.width() - w) / 2)
+            left = round(-margin + math.sin(age * 0.14) * min(margin, 8 * scale))
+            top = (h - image.height()) // 2
+            canvas.create_image(left, top, image=image, anchor="nw", tags="title_sky")
+            water_color = "#f6bd75" if stage == 3 else "#c0daf4"
+            for n, (x, y) in enumerate(self.WATER):
+                drift = math.sin(age * 1.3 + n) * 1.2
+                if math.sin(age * 2 + n) > 0.15:
+                    canvas.create_line(
+                        left + (x + drift) * scale, top + y * scale,
+                        left + (x + drift + 3) * scale, top + y * scale,
+                        fill=water_color, width=max(1, scale), tags="title_water",
+                    )
+            if stage >= 2:
+                for n, (x, y) in enumerate(self.STARS):
+                    light = (math.sin(age * 1.5 + n) + 1) / 2
+                    if light > 0.55:
+                        color = "#ffe0a8" if stage == 3 else "#d8e9ff"
+                        canvas.create_rectangle(
+                            left + x * scale, top + y * scale,
+                            left + (x + 1) * scale, top + (y + 1) * scale,
+                            fill=color, outline="", tags="title_star",
+                        )
+        if not full_logo:
+            return
+        cap = min(w - 52, h * 0.93)
+        width = max(n for n in self.SIZES if n <= cap)
+        # Settled home-menu wordmark (the main game uses alpha step 15 after the reveal).
+        logo = self.logo(width, 15)
+        y = h * 0.21
+        if logo is None:
+            canvas.create_text(w / 2, y, text="CALDRONA", fill=MENU_GOLD,
+                               font=("Press Start 2P", -16), tags="title_logo")
+            return
+        canvas.create_image(w / 2, y, image=logo, anchor="center", tags="title_logo")
+        for n, dx in enumerate((-0.29, -0.12, 0.08, 0.29)):
+            twinkle = max(0.0, math.sin(age * 2 + n * 1.7))
+            if twinkle > 0.8:
+                x = w / 2 + width * dx
+                sy = y + logo.height() * 0.36
+                r = 2 + twinkle * 2
+                canvas.create_line(x - r, sy, x + r, sy, fill="#fff2ba", width=1, tags="title_glint")
+                canvas.create_line(x, sy - r, x, sy + r, fill="#fff2ba", width=1, tags="title_glint")
 
 
 class CavernInstance:
@@ -89,6 +272,7 @@ class CaldronaLite:
     """A low-cost retro menu and single-character cavern exploration slice."""
 
     def __init__(self) -> None:
+        self._font_handles = _register_bundled_fonts()
         self.root = tk.Tk()
         self.root.title("Caldrona Lite")
         self.root.resizable(False, False)
@@ -112,8 +296,6 @@ class CaldronaLite:
             background="#09090c", highlightthickness=0, borderwidth=0,
         )
         self.canvas.pack(expand=True)
-        self._font_handles: list[str] = []
-        self._load_font()
         self._init_controller()
         self.dialogue = DialogueBox(self.canvas, self.root, self._font)
         self.dialogue.register_portrait("Retri", RETRI_PORTRAIT, RETRI_PORTRAIT_REGION)
@@ -136,8 +318,14 @@ class CaldronaLite:
         self.screen = "menu"
         self.selection = 0
         self.notice = ""
+        self.notice_message = ""
         self.menu_items = ("PLAY", "LOAD GAME", "SETTINGS")
         self.lab_compare = False
+        self.title_art = TitleBackdrop(self.root, ASSETS / "title")
+        self.menu_anim_at = 0.0
+        self._pending_music: tuple[Path, int, int, float] | None = None
+        self._music_bed: str | None = None
+        self._menu_font_family: str | None = None
         self.keys: set[str] = set()
         self.pad_keys: set[str] = set()
         self.pad_buttons: set[str] = set()
@@ -158,23 +346,22 @@ class CaldronaLite:
         self.root.bind("<Button-1>", self._click)
         self.root.protocol("WM_DELETE_WINDOW", self._close)
         self._draw_menu()
+        self._start_title_music()
         self.tick_after = self.root.after(FRAME_MS, self._tick)
         self.root.mainloop()
-
-    def _load_font(self) -> None:
-        if not hasattr(ctypes, "windll"):
-            return
-        add_font = ctypes.windll.gdi32.AddFontResourceExW
-        add_font.argtypes = (ctypes.c_wchar_p, ctypes.c_uint, ctypes.c_void_p)
-        add_font.restype = ctypes.c_int
-        for filename in ("VT323-Regular.ttf", "PressStart2P-Regular.ttf"):
-            path = ROOT / "fonts" / filename
-            if path.exists() and add_font(str(path), 0x10, None):
-                self._font_handles.append(str(path))
 
     def _font(self, size: int, bold: bool = False) -> tuple[str, int, str]:
         family = "VT323" if "VT323" in tkfont.families(self.root) else "Consolas"
         return family, size, "bold" if bold else "normal"
+
+    def _pixel_font(self, pixels: int, family: str = "Press Start 2P") -> tuple[str, int]:
+        """Pixel size, not points, so Press Start 2P and VT323 stay on the grid."""
+        if self._menu_font_family is None:
+            self._menu_font_family = ""
+            self._font_families = set(tkfont.families(self.root))
+        if family not in self._font_families:
+            family = "VT323" if "VT323" in self._font_families else "Courier New"
+        return family, -abs(pixels)
 
     def _init_controller(self) -> None:
         self.pygame = None
@@ -330,32 +517,56 @@ class CaldronaLite:
             self.canvas.create_rectangle(258, 202, 702, 207,
                                          fill="#65748b", outline="")
 
+    def _draw_title_scene(self, show_title: bool = True) -> None:
+        self.canvas.delete("all")
+        self.canvas.configure(background="#060b19")
+        self.title_art.draw(self.canvas, full_logo=show_title)
+        if not show_title:
+            self.canvas.create_text(MENU_W / 2, 34, text="CALDRONA", fill=MENU_GOLD,
+                                   font=self._pixel_font(16))
+
+    def _menu_panel(self, x1: float, y1: float, x2: float, y2: float) -> None:
+        c = self.canvas
+        c.create_rectangle(x1 + 5, y1 + 6, x2 + 5, y2 + 6, fill="#080c1c", outline="")
+        c.create_rectangle(x1, y1, x2, y2, fill="#17203d", outline=MENU_GOLD, width=2)
+        c.create_rectangle(x1 + 5, y1 + 5, x2 - 5, y2 - 5, outline="#586080")
+        for x in (x1, x2):
+            for y in (y1, y2):
+                c.create_rectangle(x - 2, y - 2, x + 2, y + 2, fill=MENU_GOLD, outline="")
+
+    def _menu_footer(self, hint: str, status: str = "", *, alert: bool = False) -> None:
+        c = self.canvas
+        c.create_rectangle(0, MENU_H - 72, MENU_W, MENU_H, fill="#060b19", outline="", tags="menu_footer")
+        c.create_text(MENU_W / 2, MENU_H - 46, text=hint, fill="#c7ccdc", font=self._pixel_font(8))
+        c.create_text(28, MENU_H - 22, text=status or "© CALDRONA", anchor="w",
+                      fill=MENU_GOLD if alert else MENU_MUTED, font=self._pixel_font(8))
+
     def _draw_menu(self) -> None:
         self.screen = "menu"
         self.root.title("Caldrona Lite")
-        self._draw_frame()
+        self._draw_title_scene()
+        top = MENU_PANEL_TOP
+        bottom = top + MENU_ROW_OFFSET + (len(self.menu_items) - 1) * MENU_ROW_STRIDE + 36
+        self._menu_panel(MENU_W / 2 - 182, top, MENU_W / 2 + 182, bottom)
         for index, label in enumerate(self.menu_items):
-            y = 260 + index * 64
+            y = _menu_row_y(index)
             active = index == self.selection
             self.canvas.create_rectangle(
-                297, y-23, 663, y+25,
-                fill="#33435a" if active else PANEL,
-                outline="#edc873" if active else "#364357",
-                width=4,
+                MENU_W / 2 - 159, y - 19, MENU_W / 2 + 159, y + 19,
+                fill="#263153" if active else "#17203d", outline="",
             )
             if active:
-                self.canvas.create_text(328, y, text="▶", fill=GOLD,
-                                        font=self._font(34, True))
-            self.canvas.create_text(480, y, text=label,
-                                    fill=CREAM if active else MUTED,
-                                    font=self._font(36, True))
-        self.canvas.create_text(480, 464, text="D-PAD / ARROWS · CROSS / ENTER SELECT",
-                                fill=MUTED, font=self._font(25))
-        self.canvas.create_text(480, 488, text="ESC / CIRCLE BACK",
-                                fill=MUTED, font=self._font(22))
-        if self.saved_display != self.active_display:
-            self.canvas.create_text(480, 224, text="RESTART TO APPLY DISPLAY CHANGE",
-                                    fill=GOLD, font=self._font(21))
+                self.canvas.create_text(MENU_W / 2 - 148, y, text=">", fill=MENU_GOLD,
+                                        font=self._pixel_font(8))
+            self.canvas.create_text(
+                MENU_W / 2, y, text=MENU_LABELS[label],
+                fill=MENU_GOLD if active else MENU_INK, font=self._pixel_font(16),
+            )
+        status = "RESTART TO APPLY DISPLAY CHANGE" if self.saved_display != self.active_display else ""
+        self._menu_footer(
+            "ARROWS MOVE    PUSH ENTER    ESC BACK",
+            status, alert=bool(status),
+        )
 
     def _open_sprite_lab(self) -> None:
         # The title screen is available before the cavern creates BattleScene.
@@ -412,10 +623,7 @@ class CaldronaLite:
 
     def _draw_settings(self) -> None:
         self.screen = "settings"
-        self._draw_frame(show_title=False)
-        self.canvas.create_text(480, 150, text="DISPLAY SETTINGS", fill=GOLD,
-                                font=self._font(38, True))
-        self.canvas.create_rectangle(258, 195, 702, 200, fill="#65748b", outline="")
+        self._draw_title_scene(show_title=False)
         rows = (
             ("MODE", self.pending_display.mode.upper()),
             ("WINDOW SIZE", f"{self.pending_display.width} x {self.pending_display.height}"
@@ -424,36 +632,43 @@ class CaldronaLite:
              else "RESTART REQUIRED" if self.saved_display != self.active_display
              else "NO CHANGE"),
         )
+        top = SETTINGS_PANEL_TOP
+        bottom = top + SETTINGS_ROW_OFFSET + (len(rows) - 1) * SETTINGS_ROW_STRIDE + 36
+        self._menu_panel(MENU_W / 2 - 182, top, MENU_W / 2 + 182, bottom)
+        self.canvas.create_text(MENU_W / 2, top + 28, text="DISPLAY SETTINGS", fill=MENU_GOLD,
+                                font=self._pixel_font(8))
         for index, (label, value) in enumerate(rows):
-            y = 273 + index * 64
+            y = _settings_row_y(index)
             active = index == self.settings_selection
-            self.canvas.create_rectangle(178, y - 25, 782, y + 25,
-                                         fill="#33435a" if active else PANEL,
-                                         outline="#edc873" if active else "#364357",
-                                         width=3)
+            self.canvas.create_rectangle(
+                MENU_W / 2 - 159, y - 16, MENU_W / 2 + 159, y + 16,
+                fill="#263153" if active else "#17203d", outline="",
+            )
             if active:
-                self.canvas.create_text(204, y, text="▶", anchor="w", fill=GOLD,
-                                        font=self._font(27, True))
-            self.canvas.create_text(250, y, text=label, anchor="w", fill=CREAM,
-                                    font=self._font(27, active))
-            self.canvas.create_text(746, y, text=value, anchor="e",
-                                    fill=GOLD if active else MUTED,
-                                    font=self._font(27, active))
-        self.canvas.create_text(480, 451,
-                                text="UP / DOWN SELECT · LEFT / RIGHT CHANGE · ENTER APPLY",
-                                fill=MUTED, font=self._font(21))
-        self.canvas.create_text(480, 490,
-                                text=self.settings_notice or "WINDOWED SIZES ARE 4:3 · ESC TO RETURN",
-                                fill=GOLD if self.settings_notice else MUTED,
-                                font=self._font(21))
+                self.canvas.create_text(MENU_W / 2 - 148, y, text=">", fill=MENU_GOLD,
+                                        font=self._pixel_font(8))
+            self.canvas.create_text(MENU_W / 2 - 132, y, text=label, anchor="w",
+                                    fill=MENU_GOLD if active else MENU_INK,
+                                    font=self._pixel_font(20, "VT323"))
+            self.canvas.create_text(MENU_W / 2 + 143, y, text=value, anchor="e",
+                                    fill=MENU_GOLD if active else MENU_INK,
+                                    font=self._pixel_font(20, "VT323"))
+        self._menu_footer(
+            "ARROWS MOVE    LEFT RIGHT    PUSH ENTER",
+            self.settings_notice or "4:3 WINDOW    ESC BACK",
+            alert=bool(self.settings_notice),
+        )
 
     def _draw_notice(self, message: str) -> None:
         self.screen = "notice"
-        self._draw_frame()
-        self.canvas.create_text(480, 300, text=message, fill=CREAM,
-                                font=self._font(30), width=740)
-        self.canvas.create_text(480, 388, text="ENTER / CROSS TO CONTINUE",
-                                fill=GOLD, font=self._font(26))
+        self.notice_message = message
+        self._draw_title_scene()
+        self._menu_panel(MENU_W / 2 - 220, 220, MENU_W / 2 + 220, 400)
+        self.canvas.create_text(MENU_W / 2, 286, text=message, fill=MENU_INK,
+                                font=self._pixel_font(22, "VT323"), width=400)
+        self.canvas.create_text(MENU_W / 2, 352, text="PUSH ENTER",
+                                fill=MENU_GOLD, font=self._pixel_font(8))
+        self._menu_footer("ESC BACK")
 
     def _activate(self) -> None:
         if self.screen in ("faint", "cave_shake"):
@@ -602,15 +817,52 @@ class CaldronaLite:
     def _leave_cavern(self) -> None:
         self.dialogue.clear()
         self.game_menu.close()
-        self._stop_cavern_music()
+        self._queue_title_music()
         self.keys.clear()
         self.pad_keys.clear()
         self._draw_menu()
 
     def _start_cavern_music(self) -> None:
+        self._music_bed = "cavern"
         self._play_music(CAVERN_MUSIC)
 
+    def _start_title_music(self) -> None:
+        self._music_bed = "title"
+        self._play_music(TITLE_MUSIC, fade_ms=TITLE_FADE_IN_MS)
+
+    def _music_busy(self) -> bool:
+        return (self.pygame is not None and self.pygame.mixer.get_init()
+                and self.pygame.mixer.music.get_busy())
+
+    def _queue_title_music(self) -> None:
+        """Let the cavern theme finish fading, then fade Gold back in."""
+        if self._music_busy():
+            self.pygame.mixer.music.fadeout(350)
+            self._pending_music = (TITLE_MUSIC, -1, TITLE_FADE_IN_MS, time.monotonic() + 0.35)
+            self._music_bed = "pending"
+            return
+        self._start_title_music()
+
+    def _begin_gameplay_music(self) -> None:
+        """Fade Gold out, then start the cavern theme with its existing fade-in."""
+        if self._music_bed == "title" and self._music_busy():
+            self.pygame.mixer.music.fadeout(TITLE_FADE_OUT_MS)
+            self._pending_music = (CAVERN_MUSIC, -1, 700, time.monotonic() + TITLE_FADE_OUT_MS / 1000)
+            self._music_bed = "pending"
+            return
+        self._start_cavern_music()
+
+    def _flush_pending_music(self, now: float) -> None:
+        pending = self._pending_music
+        if pending is None or now < pending[3]:
+            return
+        path, loops, fade_ms, _when = pending
+        self._pending_music = None
+        self._music_bed = "title" if path == TITLE_MUSIC else "cavern"
+        self._play_music(path, loops=loops, fade_ms=fade_ms)
+
     def _play_music(self, path: Path, loops: int = -1, fade_ms: int = 700) -> None:
+        self._pending_music = None
         if self.pygame is None or not path.is_file():
             return
         try:
@@ -648,21 +900,24 @@ class CaldronaLite:
             return
         if self.screen == "settings":
             for index in range(3):
-                if 178 <= x <= 782 and abs(y - (273 + index * 64)) <= 25:
+                row = _settings_row_y(index)
+                if MENU_W / 2 - 159 <= x <= MENU_W / 2 + 159 and abs(y - row) <= 16:
                     self.settings_selection = index
                     self._activate()
                     return
         if self.screen != "menu":
             return
-        index = round((y - 260) / 64)
-        if (0 <= index < len(self.menu_items) and 297 <= x <= 663
-                and abs(y - (260 + index * 64)) <= 25):
-            self.selection = index
-            self._activate()
+        for index in range(len(self.menu_items)):
+            row = _menu_row_y(index)
+            if MENU_W / 2 - 159 <= x <= MENU_W / 2 + 159 and abs(y - row) <= 19:
+                self.selection = index
+                self._activate()
+                return
 
     def _start_cavern(self) -> None:
         self.screen = "game"
         self.root.title("Caldrona Lite · Cavern")
+        self.canvas.configure(background=INK)
         self.canvas.delete("all")
         self.cave = CavernInstance()
         self.x, self.y = self.cave.spawn
@@ -738,7 +993,7 @@ class CaldronaLite:
                                 font=self._font(17), text="D-PAD / WASD TO WALK · ESC / OPTIONS FOR MENU",
                                 tags=("hud",))
         self._update_world(force=True)
-        self._start_cavern_music()
+        self._begin_gameplay_music()
         self.dialogue.show([
             DialogueLine("Retri", "That sound again. It came from inside this cave.",
                          RETRI_PORTRAIT, thought=True,
@@ -1029,6 +1284,7 @@ class CaldronaLite:
 
     def _tick(self) -> None:
         now = time.monotonic()
+        self._flush_pending_music(now)
         self._scan_controller(now)
         self.pad_keys = self._dpad()
         buttons = self._controller_buttons()
@@ -1132,6 +1388,16 @@ class CaldronaLite:
                 if self.walk_frame != 1:
                     self.walk_frame = 1
                     self._update_world()
+        if self.screen in ("menu", "settings", "notice"):
+            self.title_art.advance(now)
+            if now >= self.menu_anim_at:
+                self.menu_anim_at = now + 0.04
+                if self.screen == "menu":
+                    self._draw_menu()
+                elif self.screen == "settings":
+                    self._draw_settings()
+                else:
+                    self._draw_notice(self.notice_message)
         self.tick_after = self.root.after(FRAME_MS, self._tick)
 
     def _close(self) -> None:

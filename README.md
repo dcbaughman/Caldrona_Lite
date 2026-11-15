@@ -1,6 +1,6 @@
 # Caldrona Lite
 
-A separate, lightweight retro experiment for Caldrona. It opens at a main menu with Play, Load Game, and Settings. Play enters the first cavern instance; Load Game currently reports that no save exists yet.
+A separate, lightweight retro experiment for Caldrona. It opens at a main menu labeled NEW JOURNEY, CONTINUE, and SETTINGS. NEW JOURNEY starts the first cavern; CONTINUE reports that no save exists yet; SETTINGS opens display settings.
 
 Display settings are available only from the title screen. Choose fullscreen or a 4:3 window size that fits the desktop, then select Apply. The choice is saved to `display_settings.json` and takes effect only after closing and restarting the game. The 16:9 game picture stays proportional inside a 4:3 window, with dark letterboxing; fullscreen scales the pixel art to fit the desktop.
 
@@ -26,7 +26,9 @@ The cavern uses a fixed 320×180 logical view enlarged 3×, connected rooms, dir
 
 A treasure chest sits in the first cavern room. Face it and press Enter or Cross to collect one potion; the opened chest remains empty for the current journey.
 
-The supplied Cavern Travel track plays on a loop in the cavern, fades in on Play, and fades out when returning to the menu. The menu stays silent.
+The title menu uses the main Caldrona home screen: the four-sky castle landscape, embroidered CALDRONA wordmark, and navy-and-gold panel. Menu commands use the bundled Press Start 2P pixel font. Settings rows and the load-game notice use VT323. The landscape cycles through daylight, sunset, crescent night, and the orange moon, with moving water, stars, and wordmark glints. Background frames are 384 pixels wide and are enlarged 3× with nearest-neighbor zoom so they stay crisp on the 960×540 picture.
+
+Gold, the main game's title theme, is stored as `assets/audio/gold.mp3` (128 kbps, encoded from the supplied wav). It loops on the menu, settings, and the load-game notice. It fades in when the menu opens and fades out when NEW JOURNEY starts, then Cavern Travel fades in as before. Returning to the menu fades Gold back in. The supplied Cavern Travel track still loops in the cavern and fades out on the way back to the menu.
 
 ### Cavern battles
 
@@ -112,5 +114,11 @@ This project reuses three existing Ipi assets, copied into this project:
 - assets/cobble_floor.png — cavern floor tile
 - assets/wall_brick.png — cavern wall tile
 - assets/audio/cavern-travel.mp3 — cavern exploration music
+
+The title menu reuses the main Caldrona title, copied byte-for-byte from https://github.com/dcbaughman/Caldrona:
+
+- assets/title/sky-*.png — from assets/caldrona-title/sky-*.png (day, sunset, crescent night, and orange-moon blends)
+- assets/title/logo-384-*.png — from assets/caldrona-title/logo-384-*.png (384-wide wordmark; the home menu shows alpha step 15)
+- assets/audio/gold.mp3 — encoded at 128 kbps from assets/music/gold.wav (title theme, about 150 seconds, looped)
 
 The bundled VT323 and Press Start 2P fonts are from Google Fonts, with their SIL Open Font Licenses in fonts/. This project has its own local Git repository, separate from the full game in PycharmProjects/Ipi.
