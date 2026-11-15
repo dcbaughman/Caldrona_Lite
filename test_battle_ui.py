@@ -15,6 +15,35 @@ def no_controller(app):
 
 
 class BattleIntegrationTests(unittest.TestCase):
+    def test_battle_sprites_follow_each_members_class(self):
+        from stats import RETRI, TEMUR, member
+        scene = self.app.battle
+        retri, temur = member("Retri", RETRI), member("Temur", TEMUR)
+        for job in ("Sollers", "Saint", "Seer"):
+            retri["job"] = temur["job"] = job
+            scene.start(BattleModel(ENEMIES[0], party=[retri, temur]), 0)
+            self.assertIs(scene.party_sprites[0], scene.class_sprites[("Retri", job)])
+            self.assertIs(scene.party_sprites[1], scene.class_sprites[("Temur", job)])
+            for sprite, reference in zip(scene.party_sprites, (scene.hero, scene.temur)):
+                self.assertEqual((sprite.width(), sprite.height()), (scene.hero.width(), scene.hero.height()))
+                def visible_rows(image):
+                    return [y for y in range(image.height())
+                            if any(not image.transparency_get(x, y) for x in range(image.width()))]
+                self.assertEqual((min(visible_rows(sprite)), max(visible_rows(sprite))),
+                                 (min(visible_rows(reference)), max(visible_rows(reference))))
+            scene.close()
+        retri["job"], temur["job"] = "Cutpurse", "Saint"
+        scene.start(BattleModel(ENEMIES[0], party=[retri, temur]), 0)
+        self.assertIs(scene.party_sprites[0], scene.class_sprites[("Retri", "Sollers")])
+        self.assertIs(scene.party_sprites[1], scene.class_sprites[("Temur", "Saint")])
+        scene.close()
+        del retri["job"]
+        del temur["job"]
+        scene.start(BattleModel(ENEMIES[0], party=[retri, temur]), 0)
+        self.assertIs(scene.party_sprites[0], scene.hero)
+        self.assertIs(scene.party_sprites[1], scene.temur)
+        scene.close()
+
     def test_temur_uses_matching_sprite_scale_and_portraits(self):
         a = self.app
         self.assertEqual((a.temur_image.width(), a.temur_image.height()),

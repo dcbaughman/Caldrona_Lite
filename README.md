@@ -88,6 +88,7 @@ confirm to review it. The confirmation defaults to Go Back: select Bind only whe
 ready. Each member's choice is permanent for the current journey. Select Leave Unattuned
 or press Back to decide later, then return to the stone or use Sync in the menu.
 Seer ignores armor, Sollers earns bonus victory gold, and Saint restores 3 HP on Guard.
+Retri and Temur appear in class-specific outfits during battles after attunement.
 The southern door returns to the quarry. Saving a journey is not yet implemented.
 
 Formation lets you confirm a recruited member to switch between active and reserve.

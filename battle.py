@@ -286,6 +286,13 @@ class BattleScene:
         self.hero = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-v2.png")).zoom(2)
         self.fainted = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "retri-fainted-v2.png")).zoom(2)
         self.temur = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "temur-v2.png")).zoom(2)
+        self.class_sprites = {
+            (name, job): tk.PhotoImage(
+                master=canvas,
+                file=str(assets / "battle" / "classes" / f"{name.lower()}-{job.lower()}.png"),
+            ).zoom(2)
+            for name in ("Retri", "Temur") for job in JOBS
+        }
         self.backdrop = tk.PhotoImage(master=canvas, file=str(assets / "battle" / "crystal-quarry.png"))
         self.backgrounds = [
             [tk.PhotoImage(master=canvas, file=str(assets / "battle" / pattern.format(i)))
@@ -327,7 +334,10 @@ class BattleScene:
         self.enemy_item = self.enemy_items[0]
         self.party_positions = [(738 + 36*i, 255 - 66*i) for i in range(len(model.party))]
         sprites = {"Retri": self.hero, "Temur": self.temur}
-        self.party_sprites = [sprites.get(p["name"]) for p in model.party]
+        self.party_sprites = [
+            self.class_sprites.get((p["name"], current_job(p)), sprites.get(p["name"]))
+            for p in model.party
+        ]
         self.party_items = []
         for (x, y), image, member in zip(self.party_positions, self.party_sprites, model.party):
             if image is None:
