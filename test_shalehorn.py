@@ -79,12 +79,18 @@ class ShalehornTests(unittest.TestCase):
         a.x, a.y, a.direction = 70.5*game.TILE, 15.5*game.TILE, "up"
         a._activate()
         self.assertTrue(a.astral_sync)
-        a.dialogue.clear()
+        self.assertEqual(a.screen, "astral")
+        self.assertEqual(a.astral_scene.phase, "reveal")
+        a._activate()  # Finish the stone reveal.
+        a._activate()  # Review Seer for Retri.
+        self.assertEqual(a.astral_scene.phase, "confirm")
+        a.astral_scene.navigate("left", 1)
+        a._activate()  # Confirm the permanent choice.
+        self.assertEqual(a.party[0]["job"], "Seer")
+        a._back()
         menu.open()
         menu.selection = 1
-        menu.activate()
-        menu.activate()
-        self.assertEqual(a.party[0]["job"], "Seer")
+        self.assertEqual(menu.activate(), "sync")
         menu.close()
         a.x, a.y, a.direction = 70.5*game.TILE, 20.5*game.TILE, "down"
         a._activate()

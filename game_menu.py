@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable
 
 
-from battle import JOBS
+from classes import JOBS, EMBLEMS, DESCRIPTIONS, current_job
 
 
 class GameMenu:
@@ -82,6 +82,8 @@ class GameMenu:
     def activate(self) -> str | None:
         if not self.active:
             return None
+        if self.detail is None and self.selection in (1, 8) and self.sync_unlocked():
+            return "sync"
         if self._roster_page():
             self._choose_member()
             self.draw()
@@ -109,12 +111,11 @@ class GameMenu:
         return self.detail == 8 or (self.detail == 1 and self.sync_unlocked())
 
     def _current_job(self, member):
-        job = member.get("job")
-        return "Saint" if job == "Saint Warrior" else job
+        return current_job(member)
 
     def _sync_icon(self, job):
         if job not in self.sync_icons:
-            path = Path(__file__).resolve().parent / "assets" / "sync" / (job.lower() + "-emblem.png")
+            path = Path(__file__).resolve().parent / "assets" / "sync" / EMBLEMS[job]
             self.sync_icons[job] = tk.PhotoImage(master=self.canvas, file=str(path)).zoom(2)
         return self.sync_icons[job]
 
@@ -137,8 +138,7 @@ class GameMenu:
             if not self.sync_unlocked():
                 self.feedback = "Find the blue stone to awaken Sync."
                 return
-            member["job"] = JOBS[self.sync_index]
-            self.feedback = member["name"] + " synced with " + member["job"] + "."
+            self.feedback = "Open Sync to choose a permanent path."
             return
         active = [p for p in members if p.get("active", True)]
         self.feedback = ""
@@ -349,9 +349,7 @@ class GameMenu:
         member = self.roster()[self.member_index]
         current = self._current_job(member) or "Unbound"
         selected = JOBS[self.sync_index]
-        descriptions = {"Seer": "Strikes ignore armor.",
-                        "Cutpurse": "Earn extra gold on victory.",
-                        "Saint": "Guard restores 3 HP."}
+        descriptions = DESCRIPTIONS
         c.create_text(315, 91, text="ASTRAL SYNC", anchor="w", fill="#ffe37e", font=self.font(30, True), tags=tag)
         c.create_text(900, 91, text="UNLOCKED" if self.sync_unlocked() else "LOCKED", anchor="e", fill="#80eaf5", font=self.font(20), tags=tag)
         c.create_text(610, 121, text=f"▲  {member['name']}  ▼   ·   {current}", fill="#ffffff", font=self.font(22), tags=tag)

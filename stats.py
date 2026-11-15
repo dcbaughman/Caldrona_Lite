@@ -1,4 +1,5 @@
 """Starting statistics for the first party and cavern creatures."""
+from classes import current_job
 
 RETRI = {"max_hp": 60, "max_mp": 8, "strength": 8, "defense": 2,
          "magic": 3, "magic_defense": 3, "agility": 8, "luck": 8,
@@ -19,7 +20,8 @@ def member(name, base):
 def grow(member, old_level, new_level):
     """Apply each shared level once, including to reserve party members."""
     for level in range(old_level + 1, new_level + 1):
-        hp_gain = 10 if member["name"] == "Temur" else RETRI_HP_PER_LEVEL
+        job = current_job(member)
+        hp_gain = (10 if member["name"] == "Temur" else RETRI_HP_PER_LEVEL) + (2 if job == "Saint" else 0)
         member["max_hp"] += hp_gain
         if member["hp"] > 0:
             member["hp"] += hp_gain
@@ -29,3 +31,18 @@ def grow(member, old_level, new_level):
                 member[stat] = member.get(stat, 0) + 1
             member["max_mp"] = member.get("max_mp", 0) + 1
             member["mp"] = min(member["max_mp"], member.get("mp", 0) + 1)
+        if job == "Seer":
+            member["magic"] = member.get("magic", 0) + 1
+            member["max_mp"] = member.get("max_mp", 0) + 1
+            member["mp"] = min(member["max_mp"], member.get("mp", 0) + 1)
+            if level % 2 == 0:
+                member["magic_defense"] = member.get("magic_defense", 0) + 1
+        elif job == "Sollers":
+            member["agility"] = member.get("agility", 0) + 1
+            if level % 2 == 0:
+                member["strength"] += 1
+            else:
+                member["accuracy"] = member.get("accuracy", 0) + 1
+        elif job == "Saint":
+            stat = "defense" if level % 2 == 0 else "magic_defense"
+            member[stat] = member.get(stat, 0) + 1

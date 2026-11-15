@@ -6,6 +6,7 @@ from pathlib import Path
 import random
 import tkinter as tk
 from stats import RETRI, RETRI_HP_PER_LEVEL, POTION_HEAL
+from classes import JOBS, current_job
 
 # Tune encounters here. Only successful tile moves call EncounterMeter.step().
 ENCOUNTER_CHANCE = 0.08
@@ -75,7 +76,6 @@ ENEMIES = (
 
 
 SHALEHORN = Enemy("Shalehorn", "shalehorn.png", 150, (16, 22), 4, 32, "charges", strength=14, defense=4)
-JOBS = ("Seer", "Cutpurse", "Saint")
 
 
 class BattleModel:
@@ -94,7 +94,7 @@ class BattleModel:
         self.max_hp = MAX_HP + (level - 1) * RETRI_HP_PER_LEVEL
         self.gold_reward = sum(foe.gold for foe in self.enemies)
         self.xp_reward = self.gold_reward * 2
-        if any(p.get("job") == "Cutpurse" for p in self.party):
+        if any(current_job(p) == "Sollers" for p in self.party):
             self.gold_reward += len(self.enemies) * 2
         self.rng = rng if rng is not None else random.Random()
         self.outcome = None
@@ -121,7 +121,7 @@ class BattleModel:
             return False
         self.effect = action
         if action == "Attack":
-            armor = 0 if self.party[self.actor].get("job") == "Seer" else self.enemy.armor
+            armor = 0 if current_job(self.party[self.actor]) == "Seer" else self.enemy.armor
             strength = self.party[self.actor].get("strength", RETRI["strength"] + self.level - 1)
             damage = max(1, self.rng.randint(max(1, strength-2), strength+2) - armor)
             self.damage = damage
@@ -132,7 +132,7 @@ class BattleModel:
         elif action == "Guard":
             self.guarded.add(self.actor)
             member = self.party[self.actor]
-            if member.get("job") in ("Saint", "Saint Warrior"):
+            if current_job(member) == "Saint":
                 member["hp"] = min(member["max_hp"], member["hp"] + 3)
                 self.hp = self.party[0]["hp"]
             self.message = f"{member['name']} braces for the next blow."

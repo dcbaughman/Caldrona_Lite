@@ -79,6 +79,35 @@ class BattleIntegrationTests(unittest.TestCase):
         a._recruit(member("Temur", TEMUR))
         self.assertEqual((a.party[-1]["max_hp"], a.party[-1]["strength"]), (92, 12))
 
+    def test_stone_can_be_deferred_revisited_and_opened_from_menu(self):
+        a = self.app
+        a.boss_cleared = True
+        a.x, a.y, a.direction = 70.5*game.TILE, 15.5*game.TILE, "up"
+        a._activate()
+        self.assertEqual((a.screen, a.astral_scene.phase), ("astral", "reveal"))
+        a._activate()
+        a.astral_scene.selection = 3
+        a._activate()
+        self.assertEqual(a.screen, "game")
+        self.assertNotIn("job", a.party[0])
+        a._activate()
+        self.assertEqual((a.screen, a.astral_scene.phase), ("astral", "choose"))
+        a._back()
+        a.game_menu.open()
+        a.game_menu.selection = 8
+        a._activate()
+        self.assertEqual((a.screen, a.astral_scene.phase), ("astral", "choose"))
+        self.assertNotIn("job", a.party[0])
+
+    def test_walking_into_stone_after_boss_opens_reveal(self):
+        a = self.app
+        a.boss_cleared = True
+        a.in_chamber = True
+        a.x, a.y = 70.5 * game.TILE, 15.5 * game.TILE
+        a.keys = {"up"}
+        self.tick()
+        self.assertEqual((a.screen, a.astral_scene.phase), ("astral", "reveal"))
+
     def test_game_over_choices(self):
         a = self.app
         for choice in (0, 1):

@@ -58,6 +58,8 @@ Victories also award experience equal to twice the enemy's gold reward. The
 next level requires 30 times the current level in XP; excess carries over.
 Each level adds 8 maximum HP for Retri or 10 for Temur, and 1 Strength.
 Every second level also adds 1 Defense, Magic, Magic Defense, Agility and maximum MP.
+After attunement, Seer gains extra Magic and MP, Sollers gains Agility and Accuracy,
+and Saint gains HP and Defense. These bonuses apply to future levels only.
 Reserve members grow with the party; fainted members remain fainted. Level and XP persist during
 the current journey, including through defeat; saving remains a future feature.
 The results screen shows the fighters who took part and the party's shared XP and gold. A glowing LEVEL UP animation appears when he advances, while
@@ -80,11 +82,13 @@ The timber door in the north wall of the northeastern quarry room leads to Astra
 Walk into the door or face it and confirm. Inside, Shalehorn stands over a blue stone.
 Watch the charge target and Guard with that fighter to expose its flank. Quarry Tremor hits
 all standing fighters. During Burrow, use the turn to guard or heal. First Boss plays for
-this encounter. After victory, approach the stone and confirm to unlock Astral Sync.
-Use Sync to select a party member with up/down and cycle the class wheel with left/right.
-Confirm assigns Seer (ignore armor), Cutpurse (bonus victory gold), or Saint (heal 3 HP
-on Guard). The wheel shows the classes before the stone is found, and assignment unlocks
-afterward. The southern door returns to the quarry.
+this encounter. After victory, approach or face the stone to see its reveal and open
+Astral Sync. Use left/right to choose a party member, up/down to choose a path, and
+confirm to review it. The confirmation defaults to Go Back: select Bind only when
+ready. Each member's choice is permanent for the current journey. Select Leave Unattuned
+or press Back to decide later, then return to the stone or use Sync in the menu.
+Seer ignores armor, Sollers earns bonus victory gold, and Saint restores 3 HP on Guard.
+The southern door returns to the quarry. Saving a journey is not yet implemented.
 
 Formation lets you confirm a recruited member to switch between active and reserve.
 Up to three fight at once. New recruits enter reserve when all three slots are occupied.

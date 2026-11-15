@@ -9,6 +9,7 @@ import tkinter.font as tkfont
 from pathlib import Path
 
 from dialogue import DialogueBox, DialogueLine
+from astral_scene import AstralScene
 from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
                               load_display, pixel_scale, save_display)
 from game_menu import GameMenu
@@ -387,6 +388,9 @@ class CaldronaLite:
     def _activate(self) -> None:
         if self.screen in ("faint", "cave_shake"):
             return
+        if self.screen == "astral":
+            self._finish_astral(self.astral_scene.confirm())
+            return
         if self.screen == "game_over":
             self.canvas.delete("game_over")
             if self.game_over_selection == 0:
@@ -415,8 +419,12 @@ class CaldronaLite:
                     self.temur_story = "joined"
                     self._recruit(member("Temur", TEMUR))
                     self.canvas.itemconfigure(self.temur_item, state="hidden")
-            elif self.game_menu.active and self.game_menu.activate() == "title":
-                self._leave_cavern()
+            elif self.game_menu.active:
+                action = self.game_menu.activate()
+                if action == "title":
+                    self._leave_cavern()
+                elif action == "sync":
+                    self._open_astral(reveal=False)
             elif not self.game_menu.active:
                 if not self._interact_quarry() and not self._interact_temur():
                     self._interact_chest()
@@ -492,6 +500,9 @@ class CaldronaLite:
     def _back(self) -> None:
         if self.screen in ("faint", "game_over", "cave_shake"):
             return
+        if self.screen == "astral":
+            self._finish_astral(self.astral_scene.back())
+            return
         if self.screen == "battle":
             self.battle.back()
             return
@@ -547,6 +558,9 @@ class CaldronaLite:
 
     def _click(self, event: tk.Event) -> None:
         x, y = self.canvas.logical_x(event.x), self.canvas.logical_y(event.y)
+        if self.screen == "astral":
+            self._finish_astral(self.astral_scene.click(x, y))
+            return
         if self.screen == "battle":
             outcome = self.battle.click(x, y, time.monotonic())
             if outcome:
@@ -556,8 +570,11 @@ class CaldronaLite:
             self._activate()
             return
         if self.screen == "game" and self.game_menu.active:
-            if self.game_menu.click(int(x), int(y)) == "title":
+            action = self.game_menu.click(int(x), int(y))
+            if action == "title":
                 self._leave_cavern()
+            elif action == "sync":
+                self._open_astral(reveal=False)
             return
         if self.screen == "settings":
             for index in range(3):
@@ -609,6 +626,7 @@ class CaldronaLite:
         self.temur_tile = (10, 7)
         self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur-world-v4.png")).zoom(SCALE)
         self.in_chamber = self.boss_intro = self.boss_cleared = self.astral_sync = False
+        self._stone_step_latch = False
         self.stone_reveal = False
         self.outer_door, self.inner_door, self.stone_tile = (49, 4), (70, 21), (70, 14)
         self.quarry_objects = []
@@ -681,6 +699,24 @@ class CaldronaLite:
             member["active"] = sum(p.get("active", True) for p in self.party) < 3
             self.party.append(member)
 
+    def _open_astral(self, reveal=False):
+        if not hasattr(self, "astral_scene"):
+            self.astral_scene = AstralScene(self.canvas, self._font, ASSETS)
+        if self.game_menu.active:
+            self.game_menu.close()
+        self.keys.clear()
+        self.held_direction = None
+        self._astral_direction_armed = False
+        self.screen = "astral"
+        self.astral_scene.start(self.party, time.monotonic(), reveal=reveal)
+
+    def _finish_astral(self, result):
+        if result == "close":
+            self.screen = "game"
+            self.keys.clear()
+            self.held_direction = None
+            self.next_step_at = time.monotonic() + 0.25
+
     def _interact_quarry(self):
         dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
         tile = (int(self.x // TILE) + dx, int(self.y // TILE) + dy)
@@ -699,12 +735,11 @@ class CaldronaLite:
         elif tile == self.stone_tile:
             if not self.boss_cleared:
                 self._meet_shalehorn()
-            elif not self.astral_sync:
-                self.astral_sync = True
-                self.dialogue.show([DialogueLine("Retri", "It answers when I touch it. Three voices..."),
-                                    DialogueLine("Astral Sync", "Seer, Cutpurse and Saint are open. Choose a path in Sync.")])
             else:
-                self.dialogue.show([DialogueLine("", "The stone hums in time with your pulse.")])
+                first_contact = not self.astral_sync
+                self.astral_sync = True
+                self._stone_step_latch = True
+                self._open_astral(reveal=first_contact)
         else:
             return False
         return True
@@ -978,6 +1013,11 @@ class CaldronaLite:
             elif previous_phase != "result" and self.battle.phase == "result" and self.battle.model.outcome == "defeat":
                 self.screen, self.faint_started = "faint", now
                 self._play_music(GAME_OVER_MUSIC, loops=0, fade_ms=200)
+        elif self.screen == "astral":
+            if direction is None:
+                self._astral_direction_armed = True
+            self.astral_scene.navigate(direction if self._astral_direction_armed else None, now)
+            self.astral_scene.update(now)
         elif self.screen == "game" and self.game_menu.active:
             self.game_menu.navigate(direction, now)
         elif self.screen == "game" and not self.dialogue.active:
@@ -996,8 +1036,12 @@ class CaldronaLite:
                     nx, ny = self.x + dx * TILE, self.y + dy * TILE
                     if (int(nx // TILE), int(ny // TILE)) in (self.outer_door, self.inner_door):
                         self._interact_quarry()
+                    elif (int(nx // TILE), int(ny // TILE)) == self.stone_tile and self.boss_cleared:
+                        if not self._stone_step_latch:
+                            self._interact_quarry()
                     elif self.cave.walkable(nx, ny) and (int(nx // TILE), int(ny // TILE)) not in (self.chest_tile, self.stone_tile) and (self.temur_story == "joined" or (int(nx // TILE), int(ny // TILE)) != self.temur_tile):
                         self.x, self.y = nx, ny
+                        self._stone_step_latch = False
                         self.walk_frame = 0 if self.walk_frame == 2 else 2
                         self._update_world()
                         if not self.in_chamber and self.encounters.step():
@@ -1009,6 +1053,7 @@ class CaldronaLite:
                     self.next_step_at = now + STEP_INTERVAL
             else:
                 self.held_direction = None
+                self._stone_step_latch = False
                 if self.walk_frame != 1:
                     self.walk_frame = 1
                     self._update_world()
