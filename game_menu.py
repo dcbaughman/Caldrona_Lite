@@ -7,6 +7,7 @@ from typing import Callable
 
 
 from classes import JOBS, EMBLEMS, DESCRIPTIONS, current_job
+from item_slots import SlotGlint, draw_item_slot
 from items import icon_file, item_by_name
 
 
@@ -48,6 +49,10 @@ class GameMenu:
         self.item_targeting = False
         self.feedback = ""
         self._item_icons = {}
+        self._slot_boxes = []
+        self.hover_index = None
+        self._motion_id = None
+        self.glint = SlotGlint(canvas)
         self._small_portraits = {}
         self.active = False
         self.selection = 0
@@ -62,9 +67,14 @@ class GameMenu:
         self.detail = None
         self.held_direction = None
         self.repeat_at = 0.0
+        self._bind_motion()
         self.draw()
 
     def close(self) -> None:
+        self.glint.stop()
+        self.hover_index = None
+        self._slot_boxes = []
+        self._unbind_motion()
         self.canvas.delete(self.TAG)
         self.active = False
         self.detail = None
@@ -198,12 +208,13 @@ class GameMenu:
                     return None
             return None
         if self.active and self.detail == 0:
-            if not self.item_targeting and 315 <= x <= 590:
-                index = self._visible_item_start() + (y-131)//38
-                if 0 <= index < len(self.inventory()):
-                    self.item_index = index
-                    self._choose_member()
-                    self.draw()
+            if not self.item_targeting:
+                for index, (x1, y1, x2, y2) in self._slot_boxes:
+                    if x1 <= x <= 590 and y1 <= y <= y2:
+                        self.item_index = index
+                        self._choose_member()
+                        self.draw()
+                        break
             elif self.item_targeting and 590 <= x <= 905:
                 index = max(0, self.member_index-3) + (y-131)//38
                 if 0 <= index < len(self.roster()):
@@ -256,6 +267,7 @@ class GameMenu:
         c = self.canvas
         tag = self.TAG
         c.delete(tag)
+        self._slot_boxes = []
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=tag)
         self._frame(28, 44, 274, 458)
         self._frame(284, 44, 932, 458)
@@ -345,6 +357,7 @@ class GameMenu:
                       text=controls,
                       anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
         c.tag_raise(tag)
+        self._sync_glint()
 
     def _draw_sync(self):
         c, tag = self.canvas, self.TAG
@@ -378,20 +391,22 @@ class GameMenu:
             items = list(self.inventory().items())
             if items:
                 self.item_index %= len(items)
+            if self.hover_index is not None and self.hover_index >= len(items):
+                self.hover_index = None
             start = self._visible_item_start()
+            self._slot_boxes = []
             for row, (name, count) in enumerate(items[start:start+4]):
                 index = start + row
-                y = 150 + row * 38
+                y = 150 + row * 46
                 icon = self._item_icon(name)
-                text_x = 366 if icon is not None else 320
-                if icon is not None:
-                    c.create_image(338, y, image=icon, tags=tag)
+                box = draw_item_slot(c, 338, y, icon, tag)
+                self._slot_boxes.append((index, box))
                 marker = "▶ " if index == self.item_index and not self.item_targeting else "   "
-                c.create_text(text_x, y, text=marker + f"{name}  x{count}", anchor="w", fill="#ffffff", font=self.font(23), tags=tag)
+                c.create_text(372, y, text=marker + f"{name}  x{count}", anchor="w", fill="#ffffff", font=self.font(23), tags=tag)
             if items and not self.item_targeting and not self.feedback:
                 selected = item_by_name(items[self.item_index][0])
                 if selected is not None:
-                    c.create_text(320, 328, text=selected.description, anchor="nw", width=560,
+                    c.create_text(320, 340, text=selected.description, anchor="nw", width=560,
                                   fill="#c5d8e4", font=self.font(18), tags=tag)
             if self.item_targeting:
                 start = max(0, self.member_index-3)
@@ -416,6 +431,47 @@ class GameMenu:
             c.create_text(320, 380, text=f"SYNC  {job}", anchor="w", fill="#80eaf5", font=self.font(19), tags=tag)
             hint = "UP/DOWN choose member · BACK return"
         c.create_text(320, 399, text=self.feedback or hint, anchor="w", width=570, fill="#9adbe8", font=self.font(21), tags=tag)
+
+    def _bind_motion(self):
+        if self._motion_id is None:
+            self._motion_id = self.canvas.bind("<Motion>", self._on_motion, add="+")
+
+    def _unbind_motion(self):
+        if self._motion_id is not None:
+            self.canvas.unbind("<Motion>", self._motion_id)
+            self._motion_id = None
+
+    def _event_point(self, event):
+        canvas = self.canvas
+        if hasattr(canvas, "logical_x"):
+            return canvas.logical_x(event.x), canvas.logical_y(event.y)
+        return event.x, event.y
+
+    def _on_motion(self, event):
+        if not self.active or self.detail != 0:
+            return
+        x, y = self._event_point(event)
+        hover = None
+        for index, (x1, y1, x2, y2) in self._slot_boxes:
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                hover = index
+                break
+        if hover == self.hover_index:
+            return
+        self.hover_index = hover
+        self._sync_glint()
+
+    def _sync_glint(self):
+        if not self.active or self.detail != 0 or not self._slot_boxes:
+            self.hover_index = None
+            self.glint.stop()
+            return
+        index = self.hover_index if self.hover_index is not None else self.item_index
+        box = next((bounds for slot, bounds in self._slot_boxes if slot == index), None)
+        if box is None:
+            self.glint.stop()
+        else:
+            self.glint.play(box)
 
     def _visible_item_start(self):
         count = len(self.inventory())
