@@ -5,8 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 import random
 import tkinter as tk
-from stats import RETRI, RETRI_HP_PER_LEVEL, POTION_HEAL, grow
+from stats import RETRI, RETRI_HP_PER_LEVEL, grow
 from classes import JOBS, current_job
+from items import failure_message, get_item, success_message, use_item
 
 # Tune encounters here. Only successful tile moves call EncounterMeter.step().
 ENCOUNTER_CHANCE = 0.08
@@ -80,7 +81,7 @@ SHALEHORN = Enemy("Shalehorn", "shalehorn.png", 150, (16, 22), 4, 32, "charges",
 
 class BattleModel:
     """No clock advances a turn: a command, then one enemy reply."""
-    def __init__(self, enemy, hp=MAX_HP, potions=MAX_POTIONS, rng=None, level=1, xp=0, party=None):
+    def __init__(self, enemy, hp=MAX_HP, potions=MAX_POTIONS, rng=None, level=1, xp=0, party=None, inventory=None):
         self.enemies = list(enemy) if isinstance(enemy, (list, tuple)) else [enemy]
         self.health = [foe.hp for foe in self.enemies]
         self.target = 0
@@ -90,6 +91,7 @@ class BattleModel:
         self.actor = next((i for i, member in enumerate(self.party) if member["hp"] > 0), 0)
         self.defender = 0
         self.potions = potions
+        self.inventory = inventory if inventory is not None else {}
         self.level, self.xp = level, xp
         self.max_hp = MAX_HP + (level - 1) * RETRI_HP_PER_LEVEL
         self.gold_reward = sum(foe.gold for foe in self.enemies)
@@ -116,7 +118,7 @@ class BattleModel:
     def enemy_hp(self, value):
         self.health[self.target] = value
 
-    def command(self, action, target=None):
+    def command(self, action, target=None, item_id=None):
         if self.outcome or self.pending_reply:
             return False
         self.effect = action
@@ -145,17 +147,41 @@ class BattleModel:
                 self.message = "Choose a party member."
                 return False
             member = self.party[target]
-            if member["hp"] <= 0:
-                self.message = "A potion cannot revive a fainted member."
+            result = use_item("potion", member)
+            if not result.ok:
+                if result.reason == "fainted":
+                    self.message = "A potion cannot revive a fainted member."
+                elif result.reason == "full_hp":
+                    self.message = f"{member['name']} is already at full health."
+                else:
+                    self.message = "Choose a party member."
                 return False
-            if member["hp"] >= member["max_hp"]:
-                self.message = f"{member['name']} is already at full health."
-                return False
-            healed = min(POTION_HEAL, member["max_hp"] - member["hp"])
-            member["hp"] += healed
             self.hp = self.party[0]["hp"]
             self.potions -= 1
-            self.message = f"{member['name']} recovers {healed} HP."
+            self.message = f"{member['name']} recovers {result.healed} HP."
+        elif action == "Use":
+            if item_id == "potion":
+                return self.command("Potion", target=target)
+            try:
+                item = get_item(item_id) if item_id else None
+            except KeyError:
+                item = None
+            count = self.inventory.get(item_id, 0) if item_id else 0
+            if item is None or not item.effect or count <= 0:
+                self.message = "No items left. Choose another action."
+                return False
+            target = self.actor if target is None else target
+            if not isinstance(target, int) or not 0 <= target < len(self.party):
+                self.message = "Choose a party member."
+                return False
+            member = self.party[target]
+            result = use_item(item.id, member)
+            if not result.ok:
+                self.message = failure_message(result, item, member)
+                return False
+            self.inventory[item_id] = count - 1
+            self.hp = self.party[0]["hp"]
+            self.message = success_message(result, member, battle=True)
         elif action == "Flee":
             if self.rng.random() < 0.75:
                 self.outcome = "fled"
@@ -219,14 +245,14 @@ class ShalehornBattle(BattleModel):
                 "Its flank is exposed! Tremor incoming." if self.exposed else "Its foreclaws rise. Tremor incoming.",
                 "Shalehorn digs at the shale.", "Underground! Brace for its return.")[self.move_index]
 
-    def command(self, action, target=None):
+    def command(self, action, target=None, item_id=None):
         if action == "Attack" and self.buried and not self.pending_reply and not self.outcome:
             self.damage = 0
             self.effect = "miss"
             self.pending_reply = True
             self.message = "Your strike finds only loose shale."
             return True
-        accepted = super().command(action, target=target)
+        accepted = super().command(action, target=target, item_id=item_id)
         if accepted and action == "Attack" and self.exposed:
             self.enemy_hp = max(0, self.enemy_hp - self.damage)
             self.damage *= 2
@@ -337,6 +363,7 @@ class BattleScene:
         self.model = model
         self.selection = 0
         self.item_menu = False
+        self.chosen_item = "potion"
         self.ally_target = 0
         self.phase = "command"
         self.held = None
@@ -424,7 +451,10 @@ class BattleScene:
         c.create_text(40, 350, text=m.message, anchor="w", fill="#ffffff", font=self.font(23), tags=tags)
         if isinstance(m, ShalehornBattle) and self.phase in ("command", "target", "ally_target"):
             c.create_text(480, 65, text=m.tell(), fill="#ffe37e", font=self.font(24, True), tags=tags)
-        commands = (f"Potion x{m.potions}", "Back") if self.item_menu else self.COMMANDS
+        if self.item_menu:
+            commands = tuple(f"{name} x{count}" for name, count, _item in self._item_entries()) + ("Back",)
+        else:
+            commands = self.COMMANDS
         for i, command in enumerate(commands):
             x, y = self._command_position(i)
             if i == self.selection and self.phase == "command":
@@ -449,9 +479,27 @@ class BattleScene:
             c.create_text(912, y, text=hp_text,
                           anchor="e", fill=color, font=self.font(20), tags=tags)
 
+    def _item_entries(self):
+        """Owned consumables. Potion stays first so the existing item row is unchanged."""
+        entries = [("Potion", self.model.potions, "potion")]
+        for item_id, count in self.model.inventory.items():
+            if item_id == "potion" or count <= 0:
+                continue
+            try:
+                item = get_item(item_id)
+            except KeyError:
+                continue
+            if item.effect:
+                entries.append((item.name, count, item.id))
+        return entries
+
     def _command_position(self, index):
         if self.item_menu:
-            return 60, 435 + index * 43
+            count = len(self._item_entries()) + 1
+            if count <= 2:
+                return 60, 435 + index * 43
+            gap = 96 // (count - 1)
+            return 48, 418 + index * gap
         return 60 + (index % 2) * 126, 435 + (index // 2) * 43
 
     def navigate(self, direction, now):
@@ -463,7 +511,8 @@ class BattleScene:
                 step = -1 if direction in ("left", "up") else 1
                 if self.phase == "ally_target":
                     self.ally_target = (self.ally_target + step) % len(self.model.party)
-                    self.model.message = "Choose who receives the Potion."
+                    label = "Potion" if self.chosen_item == "potion" else get_item(self.chosen_item).name
+                    self.model.message = f"Choose who receives the {label}."
                 else:
                     for _ in self.model.enemies:
                         self.model.target = (self.model.target + step) % len(self.model.enemies)
@@ -480,8 +529,9 @@ class BattleScene:
             self.held = direction
             self.repeat_at = now
         if now >= self.repeat_at:
-            step = {"up": -2, "down": 2, "left": -1, "right": 1}[direction]
-            self.selection = (self.selection + (1 if self.item_menu else step)) % (2 if self.item_menu else 4)
+            step = 1 if self.item_menu else {"up": -2, "down": 2, "left": -1, "right": 1}[direction]
+            limit = len(self._item_entries()) + 1 if self.item_menu else 4
+            self.selection = (self.selection + step) % limit
             self.repeat_at = now + 0.22
             self.draw_status()
 
@@ -498,7 +548,11 @@ class BattleScene:
             self.draw_status()
             return None
         if self.phase == "ally_target":
-            if self.model.command("Potion", target=self.ally_target):
+            if self.chosen_item == "potion":
+                accepted = self.model.command("Potion", target=self.ally_target)
+            else:
+                accepted = self.model.command("Use", target=self.ally_target, item_id=self.chosen_item)
+            if accepted:
                 self.item_menu, self.selection = False, 2
                 self.phase, self.phase_at = "hero_action", now
             self.draw_status()
@@ -514,17 +568,21 @@ class BattleScene:
                 self.item_menu, self.selection = True, 0
                 self.draw_status()
                 return None
-            if self.item_menu and self.selection == 1:
+            entries = self._item_entries()
+            if self.item_menu and self.selection == len(entries):
                 self.item_menu, self.selection = False, 2
                 self.draw_status()
                 return None
             if self.item_menu:
-                if not self.model.potions:
-                    self.model.message = "No potions left. Choose another action."
+                _name, count, item_id = entries[self.selection]
+                self.chosen_item = item_id
+                if count <= 0:
+                    self.model.message = "No potions left. Choose another action." if item_id == "potion" else "None left. Choose another action."
                 else:
                     self.ally_target = self.model.actor
                     self.phase, self.held = "ally_target", None
-                    self.model.message = "Choose who receives the Potion."
+                    label = "Potion" if item_id == "potion" else get_item(item_id).name
+                    self.model.message = f"Choose who receives the {label}."
                 self.draw_status()
                 return None
             action = self.COMMANDS[self.selection]
@@ -571,7 +629,8 @@ class BattleScene:
         if self.phase == "result":
             return self.confirm(now)
         if self.phase == "command":
-            for i in range(2 if self.item_menu else 4):
+            span = len(self._item_entries()) + 1 if self.item_menu else 4
+            for i in range(span):
                 tx, ty = self._command_position(i)
                 if tx-25 <= x <= tx+100 and abs(y-ty) < 19:
                     self.selection = i

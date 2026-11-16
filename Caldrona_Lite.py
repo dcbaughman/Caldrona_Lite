@@ -16,7 +16,8 @@ from astral_scene import AstralScene
 from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
                               load_display, pixel_scale, save_display)
 from game_menu import GameMenu
-from stats import RETRI, TEMUR, member, grow, POTION_HEAL
+from stats import RETRI, TEMUR, member, grow
+from items import failure_message, get_item, item_by_name, success_message, use_item
 from battle import (BattleModel, BattleScene, BattleTransition, EncounterMeter,
                     ENEMIES, MAX_HP, MAX_POTIONS, gain_xp, SHALEHORN, ShalehornBattle)
 
@@ -304,8 +305,9 @@ class CaldronaLite:
             self.canvas, self._font,
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
+        self.supplies = {}
         self.game_menu.roster = lambda: self.party
-        self.game_menu.inventory = lambda: {"Potion": self.potions}
+        self.game_menu.inventory = self._pack_view
         self.game_menu.use_item = self._use_menu_item
         self.game_menu.progress = lambda: (self.level, self.xp, 30*self.level)
         self.game_menu.sync_unlocked = lambda: self.astral_sync
@@ -945,6 +947,7 @@ class CaldronaLite:
         self.player_frames = self._load_player()
         self.encounters = EncounterMeter()
         self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
+        self.supplies = {}
         self.level, self.xp = 1, 0
         self.party = [member("Retri", RETRI)]
         self.temur_story = "waiting"
@@ -1005,19 +1008,46 @@ class CaldronaLite:
                          portrait_region=RETRI_PORTRAIT_REGION),
         ])
 
+    def _pack_view(self):
+        """Potion stays first. Its count is the existing potion counter."""
+        rows = {"Potion": getattr(self, "potions", 0)}
+        for item_id, count in getattr(self, "supplies", {}).items():
+            if item_id == "potion" or count <= 0:
+                continue
+            try:
+                item = get_item(item_id)
+            except KeyError:
+                continue
+            rows[item.name] = count
+        return rows
+
     def _use_menu_item(self, name, member):
-        if name != "Potion" or self.potions <= 0:
-            return "No potions left."
-        if member["hp"] <= 0:
-            return "A potion cannot revive a fainted member."
-        if member["hp"] >= member["max_hp"]:
-            return member["name"] + " already has full HP."
-        healed = min(POTION_HEAL, member["max_hp"] - member["hp"])
-        member["hp"] += healed
-        self.potions -= 1
+        item = item_by_name(name)
+        if name == "Potion" or (item is not None and item.id == "potion"):
+            if self.potions <= 0:
+                return "No potions left."
+            result = use_item("potion", member)
+            if not result.ok:
+                if result.reason == "fainted":
+                    return "A potion cannot revive a fainted member."
+                if result.reason == "full_hp":
+                    return member["name"] + " already has full HP."
+                return "No potions left."
+            self.potions -= 1
+            if member["name"] == "Retri":
+                self.hp = member["hp"]
+            return f"{member['name']} recovered {result.healed} HP."
+        if item is None:
+            return "Item unavailable."
+        if self.supplies.get(item.id, 0) <= 0:
+            return f"No {name} left."
+        result = use_item(item.id, member)
+        if not result.ok:
+            return failure_message(result, item, member)
+        self.supplies[item.id] -= 1
         if member["name"] == "Retri":
             self.hp = member["hp"]
-        return f"{member['name']} recovered {healed} HP."
+        return success_message(result, member)
 
     def _recruit(self, member):
         if not any(p["name"] == member["name"] for p in self.party):
@@ -1173,7 +1203,8 @@ class CaldronaLite:
             model_type = ShalehornBattle if self.in_chamber else BattleModel
             opponents = SHALEHORN if self.in_chamber else enemy
             self.battle.start(model_type(opponents, active[0]["hp"], self.potions,
-                                        level=self.level, xp=self.xp, party=active), now)
+                                        level=self.level, xp=self.xp, party=active,
+                                        inventory=self.supplies), now)
             self.screen = "battle"
             self._play_music(ASSETS / "audio" / "first-boss.mp3" if self.in_chamber else BATTLE_MUSIC)
         else:

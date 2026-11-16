@@ -7,6 +7,7 @@ from typing import Callable
 
 
 from classes import JOBS, EMBLEMS, DESCRIPTIONS, current_job
+from items import icon_file, item_by_name
 
 
 class GameMenu:
@@ -46,6 +47,7 @@ class GameMenu:
         self.item_index = 0
         self.item_targeting = False
         self.feedback = ""
+        self._item_icons = {}
         self._small_portraits = {}
         self.active = False
         self.selection = 0
@@ -197,7 +199,7 @@ class GameMenu:
             return None
         if self.active and self.detail == 0:
             if not self.item_targeting and 315 <= x <= 590:
-                index = (y-131)//38
+                index = self._visible_item_start() + (y-131)//38
                 if 0 <= index < len(self.inventory()):
                     self.item_index = index
                     self._choose_member()
@@ -374,8 +376,23 @@ class GameMenu:
         c.create_text(315, 96, text=heading, anchor="w", fill="#ffe37e", font=self.font(30, True), tags=tag)
         if self.detail == 0:
             items = list(self.inventory().items())
-            for i, (name, count) in enumerate(items[:4]):
-                c.create_text(320, 150+i*38, text=("▶ " if i == self.item_index and not self.item_targeting else "   ") + f"{name}  x{count}", anchor="w", fill="#ffffff", font=self.font(23), tags=tag)
+            if items:
+                self.item_index %= len(items)
+            start = self._visible_item_start()
+            for row, (name, count) in enumerate(items[start:start+4]):
+                index = start + row
+                y = 150 + row * 38
+                icon = self._item_icon(name)
+                text_x = 366 if icon is not None else 320
+                if icon is not None:
+                    c.create_image(338, y, image=icon, tags=tag)
+                marker = "▶ " if index == self.item_index and not self.item_targeting else "   "
+                c.create_text(text_x, y, text=marker + f"{name}  x{count}", anchor="w", fill="#ffffff", font=self.font(23), tags=tag)
+            if items and not self.item_targeting and not self.feedback:
+                selected = item_by_name(items[self.item_index][0])
+                if selected is not None:
+                    c.create_text(320, 328, text=selected.description, anchor="nw", width=560,
+                                  fill="#c5d8e4", font=self.font(18), tags=tag)
             if self.item_targeting:
                 start = max(0, self.member_index-3)
                 for row, target in enumerate(members[start:start+4]):
@@ -399,3 +416,24 @@ class GameMenu:
             c.create_text(320, 380, text=f"SYNC  {job}", anchor="w", fill="#80eaf5", font=self.font(19), tags=tag)
             hint = "UP/DOWN choose member · BACK return"
         c.create_text(320, 399, text=self.feedback or hint, anchor="w", width=570, fill="#9adbe8", font=self.font(21), tags=tag)
+
+    def _visible_item_start(self):
+        count = len(self.inventory())
+        if count <= 4:
+            return 0
+        return min(max(0, self.item_index - 3), count - 4)
+
+    def _item_icon(self, name):
+        item = item_by_name(name)
+        if item is None:
+            return None
+        path = icon_file(item)
+        key = str(path)
+        if key not in self._item_icons:
+            if not path.is_file():
+                return None
+            try:
+                self._item_icons[key] = tk.PhotoImage(master=self.canvas, file=key)
+            except tk.TclError:
+                return None
+        return self._item_icons[key]

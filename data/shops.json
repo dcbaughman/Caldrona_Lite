@@ -1,0 +1,18 @@
+{
+  "default": [
+    "minor_potion",
+    "potion",
+    "greater_potion",
+    "elixir",
+    "antidote",
+    "revive",
+    "minor_ether",
+    "ether",
+    "greater_ether",
+    "mana_elixir",
+    "hearth_bread",
+    "trail_meal",
+    "travel_rations",
+    "field_bandages"
+  ]
+}
