@@ -320,6 +320,7 @@ class CaldronaLite:
             self.canvas, self._font,
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
+        self.supplies = {}
         self.game_menu.roster = lambda: self.party
         self.game_menu.inventory = self._supply_inventory
         self.game_menu.use_item = self._use_menu_item

@@ -233,14 +233,14 @@ class ShalehornBattle(BattleModel):
                 "Its flank is exposed! Tremor incoming." if self.exposed else "Its foreclaws rise. Tremor incoming.",
                 "Shalehorn digs at the shale.", "Underground! Brace for its return.")[self.move_index]
 
-    def command(self, action, target=None):
+    def command(self, action, target=None, item_id=None):
         if action == "Attack" and self.buried and not self.pending_reply and not self.outcome:
             self.damage = 0
             self.effect = "miss"
             self.pending_reply = True
             self.message = "Your strike finds only loose shale."
             return True
-        accepted = super().command(action, target=target)
+        accepted = super().command(action, target=target, item_id=item_id)
         if accepted and action == "Attack" and self.exposed:
             self.enemy_hp = max(0, self.enemy_hp - self.damage)
             self.damage *= 2
@@ -355,6 +355,7 @@ class BattleScene:
         self.model = model
         self.selection = 0
         self.item_menu = False
+        self.chosen_item = "potion"
         self.ally_target = 0
         self.phase = "command"
         self.held = None
@@ -469,6 +470,20 @@ class BattleScene:
             hp_text = f"HP {member['hp']} / {stat_value(member, 'max_hp')}" + ("  KO" if member["hp"] <= 0 else "")
             c.create_text(912, y, text=hp_text,
                           anchor="e", fill=color, font=self.font(20), tags=tags)
+
+    def _item_entries(self):
+        """Owned consumables. Potion stays first so the existing item row is unchanged."""
+        entries = [("Potion", self.model.potions, "potion")]
+        for item_id, count in self.model.inventory.items():
+            if item_id == "potion" or count <= 0:
+                continue
+            try:
+                item = get_item(item_id)
+            except KeyError:
+                continue
+            if item.effect:
+                entries.append((item.name, count, item.id))
+        return entries
 
     def _command_position(self, index):
         if self.item_menu:
