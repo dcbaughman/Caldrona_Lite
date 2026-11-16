@@ -7,6 +7,7 @@ from unittest.mock import patch
 import Caldrona_Lite as game
 from battle import BattleModel, ENEMIES
 from display_settings import DisplayConfig
+from item_slots import BLACK, GOLD, GLINT_TAG, SLOT_TAG, SlotGlint, draw_item_slot
 from items import CATALOG, BY_NAME, icon_file, use_item
 from shops import get_shop_stock, shop_lists
 from stats import POTION_HEAL
@@ -170,6 +171,123 @@ class MenuIconTests(unittest.TestCase):
         self.assertIsNone(app.party[0]["status"])
         self.assertEqual(app.supplies["antidote"], 0)
         self.assertEqual(app.potions, 3)
+
+
+def _after_alive(canvas, after_id):
+    try:
+        canvas.tk.call("after", "info", after_id)
+    except tk.TclError:
+        return False
+    return True
+
+
+class SlotFrameTests(unittest.TestCase):
+    def test_glint_follows_one_slot_and_cancels_on_stop(self):
+        root = tk.Tk()
+        root.withdraw()
+        canvas = tk.Canvas(root, width=120, height=80)
+        self.addCleanup(root.destroy)
+        first = draw_item_slot(canvas, 24, 24, None)
+        second = draw_item_slot(canvas, 80, 24, None)
+        wells = [item for item in canvas.find_withtag(SLOT_TAG)
+                 if canvas.type(item) == "rectangle" and canvas.itemcget(item, "fill") == BLACK]
+        golds = [item for item in canvas.find_withtag(SLOT_TAG)
+                 if canvas.type(item) == "rectangle" and canvas.itemcget(item, "fill") == GOLD]
+        self.assertEqual(len(wells), 2)
+        self.assertEqual(len(golds), 2)
+        glint = SlotGlint(canvas)
+        glint.play(first)
+        started = glint.after_id
+        self.assertIsNotNone(started)
+        self.assertGreater(len(canvas.find_withtag(GLINT_TAG)), 0)
+        glint.play(second)
+        self.assertFalse(_after_alive(canvas, started))
+        self.assertIsNotNone(glint.after_id)
+        self.assertNotEqual(glint.after_id, started)
+        moved = glint.after_id
+        glint.stop()
+        self.assertIsNone(glint.after_id)
+        self.assertFalse(_after_alive(canvas, moved))
+        self.assertEqual(canvas.find_withtag(GLINT_TAG), ())
+
+    def test_menu_frames_every_icon_and_hover_cancels_on_leave_and_close(self):
+        def no_controller(app):
+            app.pygame = app.controller_api = None
+        with patch.object(tk.Tk, "mainloop"), patch.object(game.CaldronaLite, "_init_controller", no_controller), patch.object(game, "load_display", return_value=DisplayConfig()):
+            app = game.CaldronaLite()
+        self.addCleanup(app._close)
+        app.root.withdraw()
+        app._start_cavern()
+        app.dialogue.clear()
+        app.supplies["antidote"] = 1
+        app.supplies["ether"] = 1
+        menu = app.game_menu
+        menu.open()
+        menu.activate()
+        wells = [item for item in app.canvas.find_withtag(SLOT_TAG)
+                 if app.canvas.type(item) == "rectangle" and app.canvas.itemcget(item, "fill") == BLACK]
+        self.assertEqual(len(wells), 3)
+        self.assertEqual(len(menu._slot_boxes), 3)
+        selected = menu.glint.after_id
+        self.assertTrue(_after_alive(app.canvas, selected))
+        menu.navigate("down", 1)
+        self.assertEqual(menu.item_index, 1)
+        self.assertFalse(_after_alive(app.canvas, selected))
+        self.assertTrue(_after_alive(app.canvas, menu.glint.after_id))
+        hovered = menu._slot_boxes[0][1]
+        menu._on_motion(type("Event", (), {"x": hovered[0] + 4, "y": hovered[1] + 4})())
+        self.assertEqual(menu.hover_index, 0)
+        hover_id = menu.glint.after_id
+        self.assertIsNotNone(hover_id)
+        self.assertGreater(len(app.canvas.find_withtag(GLINT_TAG)), 0)
+        menu._on_motion(type("Event", (), {"x": 10, "y": 10})())
+        self.assertIsNone(menu.hover_index)
+        self.assertFalse(_after_alive(app.canvas, hover_id))
+        self.assertTrue(_after_alive(app.canvas, menu.glint.after_id))
+        menu.close()
+        self.assertIsNone(menu.glint.after_id)
+        self.assertFalse(_after_alive(app.canvas, hover_id))
+        self.assertEqual(app.canvas.find_withtag(GLINT_TAG), ())
+        self.assertFalse(menu.active)
+
+    def test_battle_item_list_uses_the_same_frame_and_cancels_on_close(self):
+        def no_controller(app):
+            app.pygame = app.controller_api = None
+        with patch.object(tk.Tk, "mainloop"), patch.object(game.CaldronaLite, "_init_controller", no_controller), patch.object(game, "load_display", return_value=DisplayConfig()):
+            app = game.CaldronaLite()
+        self.addCleanup(app._close)
+        app.root.withdraw()
+        app._start_cavern()
+        app.dialogue.clear()
+        scene = app.battle
+        scene.start(BattleModel(ENEMIES[0], inventory={"antidote": 1}), 0)
+        scene.selection = 2
+        scene.confirm(0)
+        wells = [item for item in app.canvas.find_withtag(SLOT_TAG)
+                 if app.canvas.type(item) == "rectangle" and app.canvas.itemcget(item, "fill") == BLACK]
+        self.assertEqual(len(wells), 2)
+        self.assertEqual(len(scene._slot_boxes), 2)
+        running = scene.glint.after_id
+        self.assertTrue(_after_alive(app.canvas, running))
+        other = scene._slot_boxes[1][1]
+        scene._on_motion(type("Event", (), {"x": other[0] + 3, "y": other[1] + 3})())
+        self.assertEqual(scene.hover_index, 1)
+        self.assertFalse(_after_alive(app.canvas, running))
+        hover_id = scene.glint.after_id
+        scene._on_motion(type("Event", (), {"x": 1, "y": 1})())
+        self.assertIsNone(scene.hover_index)
+        self.assertFalse(_after_alive(app.canvas, hover_id))
+        scene.start(BattleModel(ENEMIES[0], inventory={
+            "antidote": 1, "ether": 1, "elixir": 1, "revive": 1,
+        }), 1)
+        scene.selection = 2
+        scene.confirm(1)
+        boxes = [box for _index, box in scene._slot_boxes]
+        self.assertEqual(len(boxes), 2)
+        self.assertLessEqual(boxes[0][3], boxes[1][1])
+        scene.close()
+        self.assertIsNone(scene.glint.after_id)
+        self.assertEqual(app.canvas.find_withtag(GLINT_TAG), ())
 
 
 if __name__ == "__main__":

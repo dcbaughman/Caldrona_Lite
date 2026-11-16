@@ -1667,6 +1667,10 @@ class CaldronaLite:
         self.tick_after = self.root.after(FRAME_MS, self._tick)
 
     def _close(self) -> None:
+        if getattr(self, "game_menu", None) is not None:
+            self.game_menu.close()
+        if getattr(self, "battle", None) is not None:
+            self.battle.close()
         if hasattr(self, "tick_after"):
             self.root.after_cancel(self.tick_after)
         if self.pygame is not None:

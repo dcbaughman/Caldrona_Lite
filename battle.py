@@ -343,6 +343,11 @@ class BattleScene:
         self.background_index = None
         self.model = None
         self.level_roster = None
+        self._item_icons = {}
+        self._slot_boxes = []
+        self.hover_index = None
+        self._motion_id = None
+        self.glint = SlotGlint(canvas)
 
     def start(self, model, now):
         if not self.background_bag:
@@ -361,6 +366,9 @@ class BattleScene:
         self.held = None
         self.repeat_at = 0.0
         self.phase_at = now
+        self.hover_index = None
+        self._slot_boxes = []
+        self._bind_motion()
         c = self.canvas
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
         self.glow_started = now
@@ -448,7 +456,14 @@ class BattleScene:
         if self.item_menu:
             commands = tuple(f"{name} x{m.supply_count(name)}" for name in SUPPLIES) + ("Back",)
         for i, command in enumerate(commands):
-            x, y = self._command_position(i)
+            position = self._command_position(i)
+            if position is None:
+                continue
+            x, y = position
+            if self.item_menu and i < len(entries):
+                icon = self._item_icon(entries[i][2])
+                box = draw_item_slot(c, x - 38, y, icon, *tags)
+                self._slot_boxes.append((i, box))
             if i == self.selection and self.phase == "command":
                 c.create_text(x-12, y, text="▶", anchor="e", fill="#ffffff",
                               font=self.font(16, True), tags=tags)
@@ -470,6 +485,10 @@ class BattleScene:
             hp_text = f"HP {member['hp']} / {stat_value(member, 'max_hp')}" + ("  KO" if member["hp"] <= 0 else "")
             c.create_text(912, y, text=hp_text,
                           anchor="e", fill=color, font=self.font(20), tags=tags)
+        if self.item_menu and self.phase == "command":
+            self._sync_glint()
+        else:
+            self.glint.stop()
 
     def _item_entries(self):
         """Owned consumables. Potion stays first so the existing item row is unchanged."""
@@ -489,6 +508,62 @@ class BattleScene:
         if self.item_menu:
             return 60, 417 + index * 29
         return 60 + (index % 2) * 126, 435 + (index // 2) * 43
+
+    def _item_window_start(self):
+        entries = len(self._item_entries())
+        if entries <= 2:
+            return 0
+        if self.selection >= entries:
+            return entries - 2
+        return min(max(0, self.selection - 1), entries - 2)
+
+    def _item_icon(self, item_id):
+        item = get_item(item_id)
+        path = icon_file(item)
+        key = str(path)
+        if key not in self._item_icons:
+            self._item_icons[key] = tk.PhotoImage(master=self.canvas, file=key)
+        return self._item_icons[key]
+
+    def _bind_motion(self):
+        if self._motion_id is None:
+            self._motion_id = self.canvas.bind("<Motion>", self._on_motion, add="+")
+
+    def _unbind_motion(self):
+        if self._motion_id is not None:
+            self.canvas.unbind("<Motion>", self._motion_id)
+            self._motion_id = None
+
+    def _event_point(self, event):
+        canvas = self.canvas
+        if hasattr(canvas, "logical_x"):
+            return canvas.logical_x(event.x), canvas.logical_y(event.y)
+        return event.x, event.y
+
+    def _on_motion(self, event):
+        if self.model is None or not self.item_menu or self.phase != "command":
+            return
+        x, y = self._event_point(event)
+        hover = None
+        for index, (x1, y1, x2, y2) in self._slot_boxes:
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                hover = index
+                break
+        if hover == self.hover_index:
+            return
+        self.hover_index = hover
+        self._sync_glint()
+
+    def _sync_glint(self):
+        if not self.item_menu or self.phase != "command" or not self._slot_boxes:
+            self.glint.stop()
+            return
+        index = self.hover_index if self.hover_index is not None else self.selection
+        box = next((bounds for slot, bounds in self._slot_boxes if slot == index), None)
+        if box is None:
+            self.glint.stop()
+        else:
+            self.glint.play(box)
 
     def navigate(self, direction, now):
         if self.phase in ("target", "ally_target"):
@@ -781,6 +856,10 @@ class BattleScene:
                       anchor="w", fill="#ffffff", font=self.font(21), tags=self.TAG)
 
     def close(self):
+        self.glint.stop()
+        self.hover_index = None
+        self._slot_boxes = []
+        self._unbind_motion()
         self.canvas.delete(self.TAG)
 
 
