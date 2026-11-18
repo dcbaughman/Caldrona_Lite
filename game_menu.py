@@ -1,12 +1,13 @@
 """Lightweight in-game menu with reusable retro panels and D-pad navigation."""
 from __future__ import annotations
 
+import time
 import tkinter as tk
 from pathlib import Path
 from typing import Callable
 
 
-from abilities import attuned_stone, class_abilities, is_usable, learned_abilities, remember
+from abilities import attuned_stone, class_abilities, frame_at, learned_abilities, variant_for
 from classes import JOBS, EMBLEMS, DESCRIPTIONS, current_job
 from equipment import (SLOTS, SLOT_LABELS, STAT_LABELS, available_count, can_wear,
                        equip, item_for, owned_items, preview_value, stat_value, worn_id)
@@ -78,6 +79,7 @@ class GameMenu:
         self.draw()
 
     def close(self) -> None:
+        self._stop_kit_timers()
         self.glint.stop()
         self.hover_index = None
         self._slot_boxes = []
@@ -98,6 +100,7 @@ class GameMenu:
             self.draw()
             return
         if self.detail is not None:
+            self._stop_kit_timers()
             self.detail = None
             self.draw()
         else:
@@ -116,8 +119,8 @@ class GameMenu:
             self._choose_member()
             self.draw()
             return None
-        if self._equip_page():
-            self._equip_selected()
+        if self._kit_page():
+            self._confirm_kit()
             self.draw()
             return None
         if self.detail is not None:
@@ -133,6 +136,9 @@ class GameMenu:
         self.equip_focus = "category"
         self.feedback = ""
         self.detail = self.selection
+        if self.detail == 2:
+            self.kit_tab = "gear"
+            self._preview_key = None
         if self._sync_page() and self.roster():
             current = self._current_job(self.roster()[self.member_index])
             self.sync_index = JOBS.index(current) if current in JOBS else 0
@@ -142,14 +148,8 @@ class GameMenu:
     def _roster_page(self):
         return self.detail in (0, 3, 4) or self._sync_page()
 
-    def _equip_page(self):
+    def _kit_page(self):
         return self.detail == 2
-
-    def _ability_page(self):
-        return self.detail == 1 and not self._sync_page()
-
-    def _gear_page(self):
-        return self._equip_page() or self._ability_page()
 
     def _sync_page(self):
         return self.detail == 8 or (self.detail == 1 and self.sync_unlocked())
@@ -178,8 +178,6 @@ class GameMenu:
             return
         if self.detail == 3:
             return
-        if self._ability_page():
-            return
         if self._sync_page():
             if not self.sync_unlocked():
                 self.feedback = "Find the blue stone to awaken Sync."
@@ -204,7 +202,7 @@ class GameMenu:
             return
         if not self.active or (self.detail is not None and not self._roster_page()):
             return
-        directions = ("up", "down", "left", "right") if self._sync_page() or self._gear_page() else ("up", "down")
+        directions = ("up", "down", "left", "right") if self._sync_page() or self._kit_page() else ("up", "down")
         if direction not in directions:
             self.held_direction = None
             self.repeating = False
@@ -218,8 +216,8 @@ class GameMenu:
             if self._sync_page() and direction in ("left", "right"):
                 self.sync_index = (self.sync_index + step) % len(JOBS)
                 self.feedback = ""
-            elif self._gear_page():
-                self._move_gear(direction, step)
+            elif self._kit_page():
+                self._move_kit(direction, step)
             elif self._roster_page():
                 if self.detail == 0 and not self.item_targeting:
                     items = list(self.inventory())
@@ -276,6 +274,24 @@ class GameMenu:
                 self.member_index = start+row
                 self._choose_member()
                 self.draw()
+            return None
+        if self.active and self._kit_page():
+            if 620 <= x <= 720 and 78 <= y <= 108:
+                self.kit_tab, self.item_index, self._preview_key = "gear", 0, None
+                self._stop_kit_timers()
+                self.draw()
+            elif 740 <= x <= 840 and 78 <= y <= 108:
+                self.kit_tab, self.item_index, self._preview_key = "arts", 0, None
+                self._stop_kit_timers()
+                self.draw()
+            else:
+                for index, (x1, y1, x2, y2) in self._slot_boxes:
+                    if x1 <= x <= x2 and y1 <= y <= y2:
+                        self.item_index = index
+                        self._preview_key = None
+                        self._confirm_kit()
+                        self.draw()
+                        break
             return None
         if not self.active:
             return None
@@ -572,10 +588,8 @@ class GameMenu:
                           anchor="w", fill="#ffffff", font=self.font(27), tags=tag)
             c.create_text(315, 401, text="FLOOR  1", anchor="w",
                           fill="#80eaf5", font=self.font(27), tags=tag)
-        elif self._ability_page():
-            self._draw_abilities()
-        elif self._equip_page():
-            self._draw_equip()
+        elif self._kit_page():
+            self._draw_kit()
         elif self.detail in (0, 3):
             self._draw_items_or_status()
         elif self._sync_page():
@@ -701,7 +715,7 @@ class GameMenu:
         return event.x, event.y
 
     def _on_motion(self, event):
-        if not self.active or self.detail != 0:
+        if not self.active or self.detail not in (0, 2):
             return
         x, y = self._event_point(event)
         hover = None
@@ -715,7 +729,7 @@ class GameMenu:
         self._sync_glint()
 
     def _sync_glint(self):
-        if not self.active or self.detail != 0 or not self._slot_boxes:
+        if not self.active or self.detail not in (0, 2) or not self._slot_boxes:
             self.hover_index = None
             self.glint.stop()
             return
@@ -732,177 +746,295 @@ class GameMenu:
             return 0
         return min(max(0, self.item_index - 3), count - 4)
 
-    def _move_gear(self, direction, step):
-        members = self.roster()
-        if not members:
-            return
-        if self._equip_page() and direction in ("left", "right"):
-            self.equip_slot = 0 if direction == "left" else 1
+    def _stop_kit_timers(self):
+        if self._fx_after is not None:
+            try:
+                self.canvas.after_cancel(self._fx_after)
+            except tk.TclError:
+                pass
+            self._fx_after = None
+
+    def _move_kit(self, direction, step):
+        if direction in ("left", "right"):
+            self.kit_tab = "gear" if direction == "left" else "arts"
             self.item_index = 0
-        elif self._ability_page() and direction in ("left", "right"):
-            self.member_index = (self.member_index + step) % len(members)
-            self.item_index = 0
+            self.hover_index = None
+            self._preview_key = None
+            self._stop_kit_timers()
         else:
-            rows = self._equip_rows() if self._equip_page() else self._ability_rows()
+            rows = self._kit_rows()
             if rows:
                 self.item_index = (self.item_index + step) % len(rows)
+                self.hover_index = None
+                self._preview_key = None
         self.feedback = ""
 
-    def _slot_name(self):
-        return OFFHAND if self.equip_slot else MAIN_HAND
+    def _kit_member(self):
+        members = self.roster()
+        if not members:
+            return None
+        self.member_index %= len(members)
+        return members[self.member_index]
 
-    def _equip_rows(self):
-        member = self.roster()[self.member_index]
-        slot = self._slot_name()
+    def _pack_gear(self):
         rows = []
-        if member.get(slot):
-            rows.append(("remove", None))
-        supplies = self.supplies()
-        for item_id, count in supplies.items():
+        for item_id, count in self.supplies().items():
             if count <= 0:
+                continue
+            if item_id == SPELLBOOK.id:
+                rows.append(SPELLBOOK)
                 continue
             try:
                 item = get_item(item_id)
             except KeyError:
                 continue
-            if slot == OFFHAND and item.category != "offhand":
-                continue
-            if slot == MAIN_HAND and (item.weapon is None or item.category == "offhand"):
-                continue
-            rows.append(("equip", item))
+            if item.weapon is not None and item.category == "weapon":
+                rows.append(item)
         return rows
 
-    def _equip_selected(self):
-        members = self.roster()
-        if not members:
-            self.feedback = "No one is here."
+    def _kit_rows(self):
+        if self.kit_tab == "arts":
+            member = self._kit_member()
+            if member is None:
+                return []
+            return list(class_abilities(self._current_job(member)))
+        return [("slot", MAIN_HAND), ("slot", OFFHAND), *[("item", item) for item in self._pack_gear()]]
+
+    def _confirm_kit(self):
+        if self.kit_tab != "gear":
             return
-        rows = self._equip_rows()
-        if not rows:
-            self.feedback = "No gear in the pack for this slot."
+        member = self._kit_member()
+        rows = self._kit_rows()
+        if member is None or not rows:
+            self.feedback = "Nothing to equip."
             return
         self.item_index %= len(rows)
-        kind, item = rows[self.item_index]
-        member = members[self.member_index]
-        slot = self._slot_name()
+        kind, payload = rows[self.item_index]
         supplies = self.supplies()
-        if kind == "remove":
-            _ok, reason = unequip(member, supplies, slot)
-            self.feedback = f"{member['name']} clears the {slot} slot." if reason == "removed" else "That slot is empty."
-        else:
-            ok, reason = equip(member, item.id, supplies, slot)
-            if ok:
-                self.feedback = f"{member['name']} equips {item.name}."
-            elif reason == "wrong_class":
-                job = current_job(member) or "Unbound"
-                classes = ", ".join(item.weapon.classes) if item.weapon else ""
-                self.feedback = f"{job} cannot equip {item.name}. ({classes})"
-            elif reason == "not_offhand":
-                self.feedback = f"{item.name} does not fit the off-hand."
-            elif reason == "not_owned":
-                self.feedback = "That is not in the pack."
-            else:
-                self.feedback = f"{item.name} does not fit the main hand."
-        if member.get(slot):
-            remember(member)
-
-    def _ability_rows(self):
-        member = self.roster()[self.member_index]
-        job = current_job(member)
-        return list(class_abilities(job))
-
-    def _draw_equip(self):
-        c, tag = self.canvas, self.TAG
-        members = self.roster()
-        if not members:
-            c.create_text(315, 170, text="No one is here.", anchor="w", fill="#ffffff", font=self.font(22), tags=tag)
+        if kind == "slot":
+            ok, reason = unequip(member, supplies, payload)
+            label = "off hand" if payload == OFFHAND else "weapon"
+            self.feedback = f"{member['name']} clears the {label}." if ok else "That slot is empty."
             return
-        self.member_index %= len(members)
-        member = members[self.member_index]
-        job = current_job(member) or "Unbound"
-        slot = self._slot_name()
-        c.create_text(315, 96, text="EQUIP", anchor="w", fill="#ffe37e", font=self.font(30, True), tags=tag)
-        c.create_text(315, 132, text=f"{member['name']}   {job}   LV {member.get('level', 1)}",
-                      anchor="w", fill="#ffffff", font=self.font(20), tags=tag)
-        for index, (key, label) in enumerate(((MAIN_HAND, "WEAPON"), (OFFHAND, "OFFHAND"))):
-            held = equipped(member, key)
-            name = held.name if held else "Empty"
-            mark = "▶ " if index == self.equip_slot else "  "
-            c.create_text(315, 168 + index * 28, text=f"{mark}{label}  {name}", anchor="w",
-                          fill="#ffe37e" if index == self.equip_slot else "#ffffff",
-                          font=self.font(18), tags=tag)
-        held = equipped(member, slot)
-        if held and held.weapon:
-            profile = held.weapon
-            reach = profile.reach
-            c.create_text(315, 230,
-                          text=f"Suggested ATK {profile.atk}  SPD {profile.spd}  REACH {reach}  PEN {profile.pen}",
-                          anchor="w", fill="#c5d8e4", font=self.font(16), tags=tag)
-            c.create_text(315, 252, text="Those numbers are not applied in battle.",
-                          anchor="w", fill="#9adbe8", font=self.font(15), tags=tag)
-            if profile.weapon_type == "spellbook":
-                c.create_text(315, 274, text="Magic bonus is stored and not applied.",
-                              anchor="w", fill="#9adbe8", font=self.font(15), tags=tag)
-        rows = self._equip_rows()
+        slot = OFFHAND if payload.category == "offhand" else MAIN_HAND
+        ok, reason = equip(member, payload.id, supplies, slot)
+        if ok:
+            self.feedback = f"{member['name']} equips {payload.name}."
+        elif reason == "wrong_class":
+            job = self._current_job(member) or "Unbound"
+            classes = ", ".join(payload.weapon.classes)
+            self.feedback = f"{job} cannot equip {payload.name}. ({classes})"
+        else:
+            self.feedback = f"{payload.name} stays in the pack."
+
+    def _draw_kit(self):
+        c, tag = self.canvas, self.TAG
+        member = self._kit_member()
+        self._slot_boxes = []
+        c.create_text(315, 92, text="EQUIP", anchor="w", fill="#ffe37e", font=self.font(28, True), tags=tag)
+        for index, (key, label) in enumerate((("gear", "GEAR"), ("arts", "ARTS"))):
+            x = 620 + index * 120
+            chosen = self.kit_tab == key
+            c.create_rectangle(x, 78, x + 100, 108, fill="#d4a441" if chosen else "#1e235f",
+                               outline="#ffe37e" if chosen else "#8d6230", width=2, tags=tag)
+            c.create_text(x + 50, 93, text=label, fill="#1a1408" if chosen else "#ffe37e",
+                          font=self.font(16, True), tags=tag)
+        if member is None:
+            c.create_text(315, 180, text="No one is here.", anchor="w", fill="#ffffff", font=self.font(20), tags=tag)
+            return
+        job = self._current_job(member) or "Unbound"
+        c.create_text(315, 128, text=f"{member['name']}   {job}   LV {member.get('level', 1)}",
+                      anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
+        if self.kit_tab == "gear":
+            self._draw_gear(member)
+        else:
+            self._draw_arts(member)
+
+    def _gear_icon(self, item):
+        if item is None or item.category == "offhand":
+            return None
+        return self._item_icon(item.name)
+
+    def _draw_gear(self, member):
+        c, tag = self.canvas, self.TAG
+        rows = self._kit_rows()
         if rows:
             self.item_index %= len(rows)
-        c.create_text(315, 304, text="PACK", anchor="w", fill="#ffe37e", font=self.font(18, True), tags=tag)
-        for row, (kind, item) in enumerate(rows[:4]):
-            selected = row == self.item_index
-            if kind == "remove":
-                label = "Put away"
-            else:
-                ok, _reason = can_equip(member, item.id, slot)
-                label = item.name if ok else f"{item.name}  (locked)"
-            c.create_text(320, 332 + row * 24, text=("▶ " if selected else "  ") + label, anchor="w",
-                          fill="#ffe37e" if selected else "#ffffff", font=self.font(16), tags=tag)
-        c.create_text(315, 430, text=self.feedback or "LEFT/RIGHT slot  ·  UP/DOWN pack  ·  CONFIRM equips",
-                      anchor="w", width=570, fill="#9adbe8", font=self.font(15), tags=tag)
+        for index, (key, label) in enumerate(((MAIN_HAND, "WEAPON"), (OFFHAND, "OFF HAND"))):
+            held = equipped(member, key)
+            y = 178 + index * 58
+            icon = self._gear_icon(held)
+            box = draw_item_slot(c, 348, y, icon, tag)
+            self._slot_boxes.append((index, box))
+            mark = "▶ " if self.item_index == index else "  "
+            name = held.name if held else "Empty"
+            c.create_text(380, y - 8, text=mark + label, anchor="w", fill="#ffe37e", font=self.font(14), tags=tag)
+            c.create_text(380, y + 12, text=name, anchor="w", fill="#ffffff", font=self.font(16), tags=tag)
+        held = equipped(member, MAIN_HAND)
+        if held and held.weapon and held.category != "offhand":
+            profile = held.weapon
+            c.create_text(560, 178, text=f"ATK {profile.atk}  SPD {profile.spd}  REACH {profile.reach}  PEN {profile.pen}",
+                          anchor="w", fill="#c5d8e4", font=self.font(13), tags=tag)
+            c.create_text(560, 198, text="Suggested. Not applied in battle.", anchor="w",
+                          fill="#9adbe8", font=self.font(12), tags=tag)
+        c.create_text(315, 292, text="PACK", anchor="w", fill="#ffe37e", font=self.font(16, True), tags=tag)
+        pack = rows[2:]
+        pack_index = max(0, self.item_index - 2)
+        start = 0 if len(pack) <= 3 else min(max(0, pack_index - 2), len(pack) - 3)
+        for row, (kind, item) in enumerate(pack[start:start + 3]):
+            index = 2 + start + row
+            y = 330 + row * 36
+            icon = self._gear_icon(item)
+            box = draw_item_slot(c, 348, y, icon, tag)
+            self._slot_boxes.append((index, box))
+            allowed, _reason = can_equip(member, item.id, OFFHAND if item.category == "offhand" else MAIN_HAND)
+            if not allowed:
+                x1, y1, x2, y2 = box
+                c.create_rectangle(x1 + 4, y1 + 4, x2 - 4, y2 - 4, fill="#08090c", stipple="gray50",
+                                   outline="", tags=tag)
+            mark = "▶ " if self.item_index == index else "  "
+            color = "#ffffff" if allowed else "#8ea0b8"
+            suffix = "" if allowed else "   " + " · ".join(item.weapon.classes)
+            c.create_text(380, y, text=mark + item.name + suffix, anchor="w", fill=color, font=self.font(15), tags=tag)
+        c.create_text(315, 430, text=self.feedback or "LEFT/RIGHT tab   UP/DOWN choose   CONFIRM equips",
+                      anchor="w", fill="#9adbe8", font=self.font(14), tags=tag)
 
-    def _draw_abilities(self):
+    def _ability_icon(self, ability, member):
+        variant = variant_for(ability, member)
+        path = variant.frames[0]
+        key = ("ability", str(path))
+        if key not in self._item_icons:
+            image = tk.PhotoImage(master=self.canvas, file=str(path))
+            while image.width() > 32 or image.height() > 32:
+                image = image.subsample(2, 2)
+            self._item_icons[key] = image
+        return self._item_icons[key]
+
+    def _draw_arts(self, member):
         c, tag = self.canvas, self.TAG
-        members = self.roster()
-        if not members:
-            c.create_text(315, 170, text="No one is here.", anchor="w", fill="#ffffff", font=self.font(22), tags=tag)
-            return
-        self.member_index %= len(members)
-        member = members[self.member_index]
-        job = current_job(member) or "Unbound"
         stone = attuned_stone(member)
-        c.create_text(315, 91, text="ABILITIES", anchor="w", fill="#ffe37e", font=self.font(30, True), tags=tag)
-        c.create_text(315, 126, text=f"{member['name']}   {job}   LV {member.get('level', 1)}   STONE {stone}",
-                      anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
-        rows = self._ability_rows()
+        tone = "blue" if stone == "first_stone" else "gray"
+        c.create_text(700, 128, text=f"STONE {stone} · {tone}", anchor="e", fill="#80eaf5", font=self.font(14), tags=tag)
+        rows = self._kit_rows()
         learned = {ability.id for ability in learned_abilities(member)}
         if not rows:
-            c.create_text(315, 180, text="Bind a class at the stone to learn abilities.",
-                          anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
-        if rows:
-            self.item_index %= len(rows)
-        for row, ability in enumerate(rows):
+            c.create_text(315, 190, text="Bind a class at Astral Sync. This page stays beside it.",
+                          anchor="w", width=560, fill="#ffffff", font=self.font(16), tags=tag)
+            return
+        self.item_index %= len(rows)
+        unseen = tuple(ability.id for ability in rows if ability.id in learned and ability.id not in member.get("seen_abilities", ()))
+        if unseen and self._flourish_ids != unseen:
+            self._flourish_ids = unseen
+            self._flourish_t0 = time.monotonic()
+        for index, ability in enumerate(rows):
+            y = 176 + index * 52
+            icon = self._ability_icon(ability, member)
+            box = draw_item_slot(c, 348, y, icon, tag)
+            self._slot_boxes.append((index, box))
             known = ability.id in learned
-            usable = known and is_usable(member, ability)
             if not known:
-                state = f"Lv {ability.learn_level}"
-                color = "#8ea0b8"
-            elif not usable:
-                state = "needs a sword"
-                color = "#ffffff"
-            else:
-                state = "ready"
-                color = "#ffffff"
-            selected = row == self.item_index
-            c.create_text(320, 168 + row * 36,
-                          text=("▶ " if selected else "  ") + f"{ability.name}    {state}    MP {ability.mp_cost}",
-                          anchor="w", fill="#ffe37e" if selected else color, font=self.font(18), tags=tag)
-        if rows:
-            chosen = rows[self.item_index]
-            c.create_text(315, 330, text=chosen.description, anchor="nw", width=560,
-                          fill="#c5d8e4", font=self.font(16), tags=tag)
-        c.create_text(315, 400, text="Costs and power are suggestions. Battle does not apply them yet.",
-                      anchor="w", width=570, fill="#9adbe8", font=self.font(15), tags=tag)
-        c.create_text(315, 428, text=self.feedback or "UP/DOWN ability  ·  LEFT/RIGHT member",
-                      anchor="w", fill="#9adbe8", font=self.font(15), tags=tag)
+                x1, y1, x2, y2 = box
+                c.create_rectangle(x1 + 4, y1 + 4, x2 - 4, y2 - 4, fill="#08090c", stipple="gray50",
+                                   outline="", tags=tag)
+                c.create_text(348, y + 22, text=f"LV {ability.learn_level}", fill="#ffe37e",
+                              font=self.font(11, True), tags=tag)
+            mark = "▶ " if index == self.item_index else "  "
+            state = "ready" if known else f"LV {ability.learn_level}"
+            color = "#ffe37e" if index == self.item_index else ("#ffffff" if known else "#8ea0b8")
+            c.create_text(380, y - 8, text=mark + ability.name, anchor="w", fill=color, font=self.font(16), tags=tag)
+            c.create_text(380, y + 12, text=state, anchor="w", fill="#9adbe8", font=self.font(13), tags=tag)
+            if ability.id in self._flourish_ids:
+                self._paint_flourish(box, tag)
+        chosen = rows[self.item_index]
+        c.create_text(315, 368, text=chosen.description, anchor="nw", width=560,
+                      fill="#c5d8e4", font=self.font(13), tags=tag)
+        c.create_rectangle(690, 160, 890, 340, fill="#08090c", outline="#d4a441", width=3, tags=tag)
+        c.create_text(790, 176, text="PREVIEW", fill="#ffe37e", font=self.font(12), tags=tag)
+        self._paint_preview(chosen, member)
+        self._arm_preview()
+        c.create_text(315, 432, text="LEFT gear   RIGHT arts   UP/DOWN ability",
+                      anchor="w", fill="#9adbe8", font=self.font(14), tags=tag)
+        if not self._flourish_ids:
+            return
+        if time.monotonic() - self._flourish_t0 > 0.7:
+            seen = list(member.get("seen_abilities", ()))
+            for ability_id in self._flourish_ids:
+                if ability_id not in seen:
+                    seen.append(ability_id)
+            member["seen_abilities"] = seen
+            self._flourish_ids = ()
+
+    def _paint_flourish(self, box, tag):
+        elapsed = time.monotonic() - self._flourish_t0
+        if elapsed > 0.7:
+            return
+        x1, y1, x2, y2 = box
+        cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+        radius = 8 + elapsed * 36
+        for index in range(8):
+            angle = elapsed * 9 + index * 0.8
+            dx = radius * (1 if index % 2 == 0 else 0.72)
+            # A tiny gold spark, not a recolor of the ability art.
+            px = cx + dx * (1 if index < 4 else -1) * (0.4 + (index % 3) * 0.2)
+            py = cy + (index - 3.5) * (radius / 5)
+            color = ("#ffffff", "#ffe37e", "#d4a441")[index % 3]
+            self.canvas.create_rectangle(px, py, px + 3, py + 3, fill=color, outline="", tags=(tag, "ability_flourish"))
+
+    def _preview_image(self, path):
+        key = ("preview", str(path))
+        if key not in self._item_icons:
+            image = tk.PhotoImage(master=self.canvas, file=str(path))
+            while image.width() > 112 or image.height() > 112:
+                image = image.subsample(2, 2)
+            self._item_icons[key] = image
+        return self._item_icons[key]
+
+    def _paint_preview(self, ability, member):
+        variant = variant_for(ability, member)
+        if self._preview_key != ability.id:
+            self._preview_key = ability.id
+            self._preview_t0 = time.monotonic()
+        elapsed = (time.monotonic() - self._preview_t0) * 1000
+        if variant.total_ms:
+            elapsed %= variant.total_ms
+        path = frame_at(variant, elapsed)
+        image = self._preview_image(path)
+        self.canvas.create_image(790, 250, image=image, tags=(self.TAG, "ability_preview"))
+        known = ability.id in {item.id for item in learned_abilities(member)}
+        if not known:
+            self.canvas.create_rectangle(734, 194, 846, 306, fill="#08090c", stipple="gray50",
+                                         outline="", tags=(self.TAG, "ability_preview"))
+
+    def _arm_preview(self):
+        if self._fx_after is not None:
+            return
+        self._fx_after = self.canvas.after(40, self._tick_preview)
+
+    def _tick_preview(self):
+        self._fx_after = None
+        if not self.active or not self._kit_page() or self.kit_tab != "arts":
+            return
+        member = self._kit_member()
+        rows = self._kit_rows()
+        if member is None or not rows:
+            return
+        self.canvas.delete("ability_preview")
+        self.canvas.delete("ability_flourish")
+        self.item_index %= len(rows)
+        ability = rows[self.item_index]
+        self._paint_preview(ability, member)
+        if self._flourish_ids:
+            for index, row in enumerate(rows):
+                if row.id in self._flourish_ids and index < len(self._slot_boxes):
+                    self._paint_flourish(self._slot_boxes[index][1], self.TAG)
+            if time.monotonic() - self._flourish_t0 > 0.7:
+                seen = list(member.get("seen_abilities", ()))
+                for ability_id in self._flourish_ids:
+                    if ability_id not in seen:
+                        seen.append(ability_id)
+                member["seen_abilities"] = seen
+                self._flourish_ids = ()
+        self._fx_after = self.canvas.after(40, self._tick_preview)
 
     def _item_icon(self, name):
         item = item_by_name(name)

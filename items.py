@@ -16,7 +16,7 @@ when that value is ``"poison"``.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from stats import POTION_HEAL
@@ -120,8 +120,6 @@ _ROWS = (
     _item("minor_ether", "Minor Ether", "consumable",
           "A slim blue vial. Restores a little MP.", 30,
           "potions/minor_mana_potion.png", effect={"kind": "restore_mp", "amount": 4}),
-    # The starter pack calls this flask "Mana Potion". It stays Ether so the
-    # 8 MP tier is not entered twice. The cave-exit shop maps that pack name here.
     _item("ether", "Ether", "consumable",
           "A blue flask. Restores MP.", 60,
           "potions/mana_potion.png", effect={"kind": "restore_mp", "amount": 8}),
@@ -131,11 +129,6 @@ _ROWS = (
     _item("mana_elixir", "Mana Elixir", "consumable",
           "A gold-collared blue flask. Restores all MP.", 200,
           "potions/elixir_mana.png", effect={"kind": "restore_mp", "full": True}),
-    # Pack suggestion was heal 15. The catalog already heals 10, and that amount
-    # stays so bandages do not get stronger in this pass.
-    _item("field_bandages", "Field Bandages", "consumable",
-          "A linen roll. Restores a little HP.", 25,
-          "goods/field_bandages.png", effect={"kind": "heal", "amount": 10}),
     _item("hearth_bread", "Hearth Bread", "food",
           "A loaf from the hearth. Restores a little HP.", 6,
           "food/hearth_bread.png", effect={"kind": "heal", "amount": 8}),
@@ -148,10 +141,14 @@ _ROWS = (
     _item("river_trout", "River Trout", "food",
           "A fresh catch. Restores a little HP.", 10,
           "food/river_trout.png", effect={"kind": "heal", "amount": 12}),
+    _gear("practice_sword", "Practice Sword", "weapon",
+          "A blunt wooden trainer.", 30, "weapons/practice_sword.png"),
     _gear("bronze_saber", "Bronze Saber", "weapon",
           "A curved bronze saber from Sunrest Arms.", 80, "weapons/bronze_saber.png"),
     _gear("wayfarer_spear", "Wayfarer Spear", "weapon",
           "A traveler's spear from Sunrest Arms.", 140, "weapons/wayfarer_spear.png"),
+    _gear("sunsteel_blade", "Sunsteel Blade", "weapon",
+          "A sunsteel blade from Sunrest Arms.", 240, "weapons/sunsteel_blade.png"),
     _gear("wood_axe", "Wood Axe", "tool",
           "An axe for timber.", 45, "weapons/wood_axe.png"),
     _gear("pickaxe", "Pickaxe", "tool",
@@ -235,25 +232,37 @@ _ROWS = (
           1, "currency/gil_coin.png"),
 )
 
-def _starter_weapons():
-    """The 46 starter-pack weapons. Prices and stats are the pack's suggestions."""
+def _profile_from_row(row):
+    stats = row["suggested_stats"]
+    return WeaponProfile(
+        atk=int(stats["ATK"]),
+        spd=int(stats["SPD"]),
+        reach=stats["REACH"],
+        pen=int(stats["PEN"]),
+        magic_bonus=int(row.get("suggested_magic_bonus") or 0),
+        tier=int(row["suggested_tier"]),
+        classes=tuple(row["classes"]),
+        weapon_type=row["weapon_type"],
+        basic_attack_fx=row.get("basic_attack_fx") or None,
+        notes=row.get("notes") or "",
+    )
+
+
+def _starter_weapons(existing_ids):
+    """Pack weapons that are not already in the catalog.
+
+    Practice Sword and Sunsteel Blade keep their existing name, price, text,
+    and icon. Their suggested stats are attached later and do not replace those.
+    """
     path = ROOT / "data" / "weapons_manifest.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     weapons = []
+    profiles = {}
     for row in data["weapons"]:
-        stats = row["suggested_stats"]
-        profile = WeaponProfile(
-            atk=int(stats["ATK"]),
-            spd=int(stats["SPD"]),
-            reach=stats["REACH"],
-            pen=int(stats["PEN"]),
-            magic_bonus=int(row.get("suggested_magic_bonus") or 0),
-            tier=int(row["suggested_tier"]),
-            classes=tuple(row["classes"]),
-            weapon_type=row["weapon_type"],
-            basic_attack_fx=row.get("basic_attack_fx") or None,
-            notes=row.get("notes") or "",
-        )
+        profile = _profile_from_row(row)
+        profiles[row["id"]] = profile
+        if row["id"] in existing_ids:
+            continue
         weapons.append(_gear(
             row["id"], row["name"], "weapon",
             profile.notes or row["name"],
@@ -261,25 +270,14 @@ def _starter_weapons():
             f"weapons/{row['id']}.png",
             weapon=profile,
         ))
-    return tuple(weapons)
+    return tuple(weapons), profiles
 
 
-def _spellbook():
-    """Saint off-hand stub. No picture is shipped. The bonus is not applied."""
-    # TODO(Caleb): set suggested magic bonus. Battle and heals do not read it.
-    profile = WeaponProfile(
-        atk=0, spd=0, reach=0, pen=0, magic_bonus=0, tier=0,
-        classes=("Saint",), weapon_type="spellbook", basic_attack_fx=None,
-        notes="Off-hand only. Art comes later. Magic bonus is not applied.",
-    )
-    return _gear(
-        "spellbook", "Spellbook", "offhand",
-        "A Saint's off-hand book. The picture is not drawn yet.",
-        0, "", weapon=profile, placeholder=True,
-    )
-
-
-_ALL_ITEMS = (*_ROWS, *_starter_weapons(), _spellbook())
+_NEW_WEAPONS, _WEAPON_PROFILES = _starter_weapons({item.id for item in _ROWS})
+_ALL_ITEMS = tuple(
+    replace(item, weapon=_WEAPON_PROFILES[item.id]) if item.id in _WEAPON_PROFILES else item
+    for item in (*_ROWS, *_NEW_WEAPONS)
+)
 CATALOG: dict[str, Item] = {item.id: item for item in _ALL_ITEMS}
 BY_NAME: dict[str, Item] = {item.name: item for item in _ALL_ITEMS}
 

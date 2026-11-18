@@ -128,6 +128,10 @@ class ArtHashTests(unittest.TestCase):
             self.assertEqual(item.category, "weapon")
             self.assertEqual(item.icon, f"weapons/{row['id']}.png")
             self.assertEqual(item.buy_price, row["suggested_price_gold"])
+            if row["id"] == "practice_sword":
+                self.assertEqual(item.description, "A blunt wooden trainer.")
+            if row["id"] == "sunsteel_blade":
+                self.assertEqual(item.description, "A sunsteel blade from Sunrest Arms.")
             self.assertEqual(item.weapon.classes, tuple(row["classes"]))
             self.assertEqual(item.weapon.tier, row["suggested_tier"])
             stats = row["suggested_stats"]
@@ -187,13 +191,14 @@ class ClassGateTests(unittest.TestCase):
         self.assertNotIn("bronze_mace", party[0].get("abilities", []))
 
     def test_saint_offhand_accepts_a_placeholder_spellbook(self):
-        book = CATALOG["spellbook"]
+        from equipment import SPELLBOOK
+        book = SPELLBOOK
+        self.assertNotIn("spellbook", CATALOG)
         self.assertTrue(book.placeholder_icon)
-        self.assertEqual(book.icon, "")
         self.assertEqual(book.category, "offhand")
         self.assertEqual(book.weapon.weapon_type, "spellbook")
         self.assertEqual(book.weapon.classes, ("Saint",))
-        self.assertFalse(icon_file(book).is_file())
+        self.assertEqual(book.weapon.magic_bonus, 0)
         self.assertEqual(list(ROOT.joinpath("assets").rglob("*spellbook*")), [])
 
         saint = {"name": "Retri", "job": "Saint", "level": 1, "magic": 3}
@@ -332,8 +337,7 @@ class ShopStockTests(unittest.TestCase):
             "yew_seer_wand", "hazel_divining_rod", "bronze_astrolabe_rod",
             "bronze_purse_knife", "bronze_knife", "bronze_throwing_knife",
             "bronze_weighted_cosh", "whitewood_mending_wand", "linen_bound_cudgel",
-            "pale_ash_crook", "bronze_mace", "potion", "ether", "field_bandages",
-            "antidote", "torch",
+            "pale_ash_crook", "bronze_mace", "potion", "ether",
         ])
         for item in stock:
             self.assertIn(item.id, CATALOG)
@@ -343,48 +347,84 @@ class ShopStockTests(unittest.TestCase):
         self.assertEqual(CAVE_EXIT_NAME_TO_ID["Mana Potion"], "ether")
         self.assertEqual(CATALOG["ether"].name, "Ether")
         self.assertEqual(CATALOG["ether"].effect["amount"], 8)
-        self.assertEqual(CATALOG["field_bandages"].effect["amount"], 10)
         self.assertEqual(prices["ether"], 30)
-        self.assertEqual(prices["field_bandages"], 25)
         self.assertEqual(prices["potion"], 15)
         self.assertEqual(CATALOG["potion"].buy_price, 40)
-        self.assertNotIn("spellbook", {item.id for item in stock})
+        self.assertEqual(CATALOG["ether"].buy_price, 60)
+        sold = {item.id for item in stock}
+        self.assertNotIn("spellbook", sold)
+        self.assertNotIn("field_bandages", CATALOG)
+        self.assertNotIn("antidote", sold)
+        self.assertNotIn("torch", sold)
+        self.assertIn("antidote", CATALOG)
+        self.assertIn("torch", CATALOG)
 
 
-class BattleFrameTests(unittest.TestCase):
-    def test_attack_plays_gray_then_blue_strike_frames(self):
+class ExistingDataTests(unittest.TestCase):
+    """Rows and icons that already existed stay on their old values."""
+
+    def test_catalog_commit_icons_and_prices_are_unchanged(self):
+        import subprocess
+        catalog = "54aba1736e58c4dbb5d417d096c3c1ad12370732"
+        self.assertEqual(CATALOG["practice_sword"].buy_price, 30)
+        self.assertEqual(CATALOG["practice_sword"].description, "A blunt wooden trainer.")
+        self.assertEqual(CATALOG["sunsteel_blade"].buy_price, 240)
+        self.assertEqual(CATALOG["sunsteel_blade"].description, "A sunsteel blade from Sunrest Arms.")
+        self.assertEqual(CATALOG["ether"].buy_price, 60)
+        self.assertEqual(CATALOG["ether"].effect["amount"], 8)
+        self.assertNotIn("field_bandages", CATALOG)
+        self.assertEqual(CATALOG["potion"].buy_price, 40)
+        self.assertEqual(CATALOG["bronze_saber"].buy_price, 80)
+        self.assertIsNone(CATALOG["bronze_saber"].weapon)
+        for relative in (
+            "assets/items/weapons/bronze_saber.png",
+            "assets/items/weapons/wayfarer_spear.png",
+            "assets/items/potions/health_potion.png",
+            "assets/items/potions/mana_potion.png",
+            "assets/items/goods/torch.png",
+        ):
+            previous = subprocess.check_output(["git", "show", f"{catalog}:{relative}"])
+            self.assertEqual((ROOT / relative).read_bytes(), previous, relative)
+        pack = json.loads((ROOT / "data" / "weapon_art_sha256.json").read_text(encoding="utf-8"))
+        for name in ("practice_sword.png", "sunsteel_blade.png"):
+            path = ROOT / "assets" / "items" / "weapons" / name
+            self.assertEqual(_sha256(path), pack[f"weapons/{name}"]["sha256"])
+        self.assertEqual(BattleScene.COMMANDS, ("Attack", "Guard", "Items", "Flee"))
+
+    def test_equip_page_shows_gates_and_arts_preview_without_taking_sync(self):
+        from game_menu import GameMenu
         root = tk.Tk()
         root.withdraw()
         self.addCleanup(root.destroy)
         canvas = ScaledCanvas(root, 12)
         font = lambda size, bold=False: ("TkDefaultFont", size, "bold" if bold else "normal")
-        scene = BattleScene(canvas, font, ROOT / "assets")
-        person = self_member()
-        model = BattleModel(ENEMIES[0], party=[person], rng=random.Random(1))
-        scene.start(model, 0)
-        scene.confirm(0)
-        scene.confirm(0)
-        scene.update(0.08)
-        self.assertIn("frames_unattuned", str(scene.fx_path))
-        self.assertGreater(model.damage, 0)
-        scene.close()
-
-        person["attuned_stone"] = "first_stone"
-        fresh = BattleModel(ENEMIES[0], party=[person], rng=random.Random(1))
-        scene.start(fresh, 1)
-        scene.confirm(1)
-        scene.confirm(1)
-        scene.update(1.08)
-        self.assertIn("frames_first_stone", str(scene.fx_path))
-        scene.close()
-
-
-def self_member():
-    person = member("Retri", RETRI)
-    person["job"] = "Saint"
-    person["weapon"] = "practice_sword"
-    remember(person)
-    return person
+        person = member("Retri", RETRI)
+        person["job"] = "Saint"
+        person["level"] = 3
+        supplies = {"bronze_mace": 1, "yew_seer_wand": 1, "spellbook": 1}
+        menu = GameMenu(canvas, font, lambda: None)
+        menu.roster = lambda: [person]
+        menu.supplies = lambda: supplies
+        menu.sync_unlocked = lambda: True
+        menu.open()
+        menu.selection = 1
+        self.assertEqual(menu.activate(), "sync")
+        menu.selection = 2
+        menu.activate()
+        labels = [canvas.itemcget(item, "text") for item in canvas.find_withtag(menu.TAG)
+                  if canvas.type(item) == "text"]
+        self.assertTrue(any("Bronze Mace" in text for text in labels))
+        self.assertTrue(any("Yew Seer Wand" in text and "Seer" in text for text in labels))
+        self.assertTrue(any("OFF HAND" in text for text in labels))
+        menu.navigate("right", 1)
+        self.assertEqual(menu.kit_tab, "arts")
+        labels = [canvas.itemcget(item, "text") for item in canvas.find_withtag(menu.TAG)
+                  if canvas.type(item) == "text"]
+        self.assertTrue(any("Sanctuary" in text for text in labels))
+        self.assertTrue(any(text == "LV 5" for text in labels))
+        self.assertTrue(canvas.find_withtag("ability_preview"))
+        menu.close()
+        self.assertIsNone(menu._fx_after)
 
 
 if __name__ == "__main__":

@@ -12,8 +12,7 @@
     "mana_elixir",
     "hearth_bread",
     "trail_meal",
-    "travel_rations",
-    "field_bandages"
+    "travel_rations"
   ],
   "cave_exit_merchant": [
     "yew_seer_wand",
@@ -28,9 +27,6 @@
     "pale_ash_crook",
     "bronze_mace",
     "potion",
-    "ether",
-    "field_bandages",
-    "antidote",
-    "torch"
+    "ether"
   ]
 }

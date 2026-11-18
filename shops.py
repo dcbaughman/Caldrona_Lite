@@ -22,13 +22,11 @@ STOCK_PATH = ROOT / "data" / "shops.json"
 CAVE_EXIT_STOCK_PATH = ROOT / "data" / "cave_exit_merchant_stock.json"
 
 # The pack's "Mana Potion" is the existing Ether (mana_potion.png, 8 MP).
-# Field Bandages already exists as field_bandages. Neither is added twice.
+# The stall sells that flask and the existing Potion. Antidote and Torch stay
+# in the catalog and are not on this stall.
 CAVE_EXIT_NAME_TO_ID = {
     "Potion": "potion",
     "Mana Potion": "ether",
-    "Antidote": "antidote",
-    "Field Bandages": "field_bandages",
-    "Torch": "torch",
 }
 
 
@@ -44,8 +42,9 @@ def cave_exit_prices() -> dict[str, int]:
     data = json.loads(CAVE_EXIT_STOCK_PATH.read_text(encoding="utf-8"))
     prices = {row["id"]: int(row["price_gold_suggested"]) for row in data["weapons"]}
     for row in data["consumables"]:
-        item_id = CAVE_EXIT_NAME_TO_ID[row["name"]]
-        prices[item_id] = int(row["price_gold_suggested"])
+        item_id = CAVE_EXIT_NAME_TO_ID.get(row["name"])
+        if item_id:
+            prices[item_id] = int(row["price_gold_suggested"])
     return prices
 
 
