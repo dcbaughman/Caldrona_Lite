@@ -11,6 +11,7 @@ import tkinter.font as tkfont
 from collections import OrderedDict
 from pathlib import Path
 
+from abilities import attune, remember
 from dialogue import DialogueBox, DialogueLine
 from astral_scene import AstralScene
 from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
@@ -320,8 +321,6 @@ class CaldronaLite:
             self.canvas, self._font,
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
-        self.supplies = {}
-        self.game_menu.supplies = lambda: self.supplies
         self.game_menu.roster = lambda: self.party
         self.game_menu.inventory = self._supply_inventory
         self.game_menu.use_item = self._use_menu_item
@@ -1086,8 +1085,12 @@ class CaldronaLite:
         ])
 
     def _supply_inventory(self):
-        return {name: self.potions if name == "Potion" else self.supplies.get(name, 0)
+        rows = {name: self.potions if name == "Potion" else self.supplies.get(name, 0)
                 for name in SUPPLIES}
+        carried = self.supplies.get("Ember Talisman", 0)
+        if carried:
+            rows["Ember Talisman"] = carried
+        return rows
 
     def _use_menu_item(self, name, member):
         if not self._supply_inventory().get(name):

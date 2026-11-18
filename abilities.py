@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from classes import JOBS, current_job
-from equipment import equipped_item
+from equipment import item_for, worn_id
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST_PATH = ROOT / "data" / "abilities_manifest.json"
@@ -196,8 +196,8 @@ def strike_variant(member) -> AbilityVariant | None:
 
     The player never picks Strike. Gray or blue follows ``attuned_stone``.
     """
-    item = equipped_item(member, "weapon")
-    if item is None or item.weapon is None or item.weapon.basic_attack_fx != "sword_strike":
+    item = item_for(worn_id(member, "weapon"))
+    if item is None or item.basic_attack_fx != "sword_strike":
         return None
     job = current_job(member) or "Saint"
     ability = find_ability(job, "strike")

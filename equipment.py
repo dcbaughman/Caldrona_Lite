@@ -3,8 +3,14 @@
 Add items to CATALOG with a unique id, one of the four SLOTS, and stat bonuses.
 The inventory stores total owned copies; equipment on party members reserves
 copies, so the same sword cannot be worn by two characters at once.
+
+Pack weapons are extra catalog rows. Their ATK, SPD, REACH, PEN, magic bonus,
+and suggested price are stored and are not added to ``bonuses``, so they do
+not change the damage, defense, or shop prices already in the game.
 """
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Mapping
 
 from classes import current_job
@@ -29,6 +35,16 @@ class Equipment:
     # Empty tuples allow everyone. These can restrict future equipment.
     characters: tuple[str, ...] = ()
     jobs: tuple[str, ...] = ()
+    icon: str = ""
+    # Suggested pack numbers. Battle and menus do not read these.
+    atk: int = 0
+    spd: int = 0
+    reach: str = ""
+    pen: int = 0
+    tier: int = 0
+    magic_bonus: int = 0
+    basic_attack_fx: str = ""
+    suggested_price: int = 0
 
     def __post_init__(self):
         if self.slot not in SLOTS:
@@ -130,3 +146,52 @@ def equip(member, slot, item_id, owned, roster):
     if "mp" in member:
         member["mp"] = min(member["mp"], stat_value(member, "max_mp"))
     return True, f"Equipped {item.name}." if item else f"Removed {SLOT_LABELS[slot].lower()}."
+
+
+def _pack_description(row):
+    if row["id"] == "practice_sword":
+        return "A blunt wooden trainer."
+    if row["id"] == "sunsteel_blade":
+        return "A blade from Sunrest Arms."
+    notes = (row.get("notes") or "").strip()
+    return notes[:96] if notes else row["name"]
+
+
+def _load_pack_equipment():
+    """Add starter-pack weapons beside the existing rows. Never replaces them."""
+    path = Path(__file__).resolve().parent / "data" / "weapons_manifest.json"
+    if not path.is_file():
+        return
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for row in data["weapons"]:
+        if row["id"] in CATALOG:
+            continue
+        stats = row.get("suggested_stats") or {}
+        item = Equipment(
+            row["id"],
+            row["name"],
+            "weapon",
+            {},
+            _pack_description(row),
+            jobs=tuple(row.get("classes") or ()),
+            icon=row.get("icon") or "",
+            atk=int(stats.get("ATK") or 0),
+            spd=int(stats.get("SPD") or 0),
+            reach=str(stats.get("REACH") if stats.get("REACH") is not None else ""),
+            pen=int(stats.get("PEN") or 0),
+            tier=int(row.get("suggested_tier") or 0),
+            magic_bonus=int(row.get("suggested_magic_bonus") or 0),
+            basic_attack_fx=row.get("basic_attack_fx") or "",
+            suggested_price=int(row.get("suggested_price_gold") or 0),
+        )
+        CATALOG[item.id] = item
+    if "spellbook" not in CATALOG:
+        # Shield slot, Saint only. No picture. The magic bonus stays 0.
+        CATALOG["spellbook"] = Equipment(
+            "spellbook", "Spellbook", "shield", {},
+            "A Saint's notes. Its magic bonus is stored and not applied.",
+            jobs=("Saint",),
+        )
+
+
+_load_pack_equipment()

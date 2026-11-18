@@ -1,65 +1,48 @@
-"""Shop stock lists. No shop is placed in the world or drawn in a menu.
+"""Cave-exit merchant stock. No shop NPC is placed and no shop screen is drawn.
 
-Each key in ``data/shops.json`` is a shop id. The value is catalog item ids
-that shop is allowed to sell. ``get_shop_stock`` returns those items in order.
-An unknown shop id yields an empty list.
-
-``cave_exit_merchant`` is data only. Caleb is placing that NPC. Its prices come
-from ``data/cave_exit_merchant_stock.json`` and override the catalog price on
-the returned items, so the shared catalog price of Potion stays 40 while this
-stall sells it for the suggested 15.
+The stall lists tier-1 pack weapons plus Potion and Ether. Mana Potion in the
+pack file is Ether. Antidote, Torch, Field Bandages, Ember Feather, and Ember
+Talisman are not on this stall. Suggested stall prices stay in the json and
+do not replace the prices in ``consumables.py``.
 """
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 from pathlib import Path
 
-from items import Item, get_item
+from equipment import CATALOG
 
 ROOT = Path(__file__).resolve().parent
-STOCK_PATH = ROOT / "data" / "shops.json"
 CAVE_EXIT_STOCK_PATH = ROOT / "data" / "cave_exit_merchant_stock.json"
 
-# The pack's "Mana Potion" is the existing Ether (mana_potion.png, 8 MP).
-# The stall sells that flask and the existing Potion. Antidote and Torch stay
-# in the catalog and are not on this stall.
+# The pack's "Mana Potion" is the existing Ether.
 CAVE_EXIT_NAME_TO_ID = {
-    "Potion": "potion",
-    "Mana Potion": "ether",
+    "Potion": "Potion",
+    "Mana Potion": "Ether",
 }
 
 
-def shop_lists() -> dict[str, list[str]]:
-    data = json.loads(STOCK_PATH.read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise ValueError("shops.json must map shop ids to item id lists")
-    return data
+def _stock():
+    return json.loads(CAVE_EXIT_STOCK_PATH.read_text(encoding="utf-8"))
+
+
+def cave_exit_ids() -> list[str]:
+    data = _stock()
+    weapons = [row["id"] for row in data["weapons"] if row["id"] in CATALOG]
+    supplies = []
+    for row in data["consumables"]:
+        item_id = CAVE_EXIT_NAME_TO_ID.get(row["name"])
+        if item_id:
+            supplies.append(item_id)
+    return weapons + supplies
 
 
 def cave_exit_prices() -> dict[str, int]:
-    """Suggested gold prices for the cave-exit stall, keyed by catalog id."""
-    data = json.loads(CAVE_EXIT_STOCK_PATH.read_text(encoding="utf-8"))
+    """Suggested gold for the stall. Catalog and Merren prices are not these."""
+    data = _stock()
     prices = {row["id"]: int(row["price_gold_suggested"]) for row in data["weapons"]}
     for row in data["consumables"]:
         item_id = CAVE_EXIT_NAME_TO_ID.get(row["name"])
         if item_id:
             prices[item_id] = int(row["price_gold_suggested"])
     return prices
-
-
-def get_shop_stock(shop_id: str) -> list[Item]:
-    rows = shop_lists().get(shop_id)
-    if not rows:
-        return []
-    prices = cave_exit_prices() if shop_id == "cave_exit_merchant" else {}
-    items = []
-    for item_id in rows:
-        item = get_item(item_id)
-        if not item.for_sale:
-            raise ValueError(f"{item_id} is not sold in shops")
-        if item_id in prices:
-            price = prices[item_id]
-            item = replace(item, buy_price=price, sell_price=price // 2)
-        items.append(item)
-    return items

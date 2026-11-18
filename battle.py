@@ -8,7 +8,8 @@ import tkinter as tk
 from stats import RETRI, RETRI_HP_PER_LEVEL, grow
 from classes import JOBS, current_job
 from equipment import stat_bonus, stat_value
-from consumables import SUPPLIES, apply_supply
+from consumables import RARE_SUPPLIES, SUPPLIES, apply_supply
+from abilities import frame_index, learned_abilities, strike_variant, variant_for
 
 # Tune encounters here. Only successful tile moves call EncounterMeter.step().
 ENCOUNTER_CHANCE = 0.08
@@ -134,16 +135,21 @@ class BattleModel:
     def supply_count(self, name):
         return self.potions if name == "Potion" else self.supplies.get(name, 0)
 
-    def command(self, action, target=None):
+    def item_names(self):
+        """Shop supplies, plus a rare revive only when the party is carrying it."""
+        names = list(SUPPLIES)
+        if self.supply_count("Ember Talisman"):
+            names.append("Ember Talisman")
+        return tuple(names)
+
+    def command(self, action, target=None, ability_id=None):
         if self.outcome or self.pending_reply:
             return False
-        if action == "Ability":
-            return self._ability_command(ability_id)
         self.effect = action
-        if action == "Attack":
-            # TODO(Caleb): suggested weapon ATK/SPD/REACH/PEN and magic bonus are
-            # stored on the catalog item and are not read here. Damage stays the
-            # strength roll so equipping a sword does not change combat numbers.
+        if action == "Ability":
+            if not self._ability_command(ability_id):
+                return False
+        elif action == "Attack":
             armor = 0 if current_job(self.party[self.actor]) == "Seer" else self.enemy.armor
             strength = stat_value(self.party[self.actor], "strength", RETRI["strength"] + self.party[self.actor].get("level", self.level) - 1)
             damage = max(1, self.rng.randint(max(1, strength-2), strength+2) - armor)
@@ -159,7 +165,7 @@ class BattleModel:
                 member["hp"] = min(stat_value(member, "max_hp"), member["hp"] + 3)
                 self.hp = self.party[0]["hp"]
             self.message = f"{member['name']} braces for the next blow."
-        elif action in SUPPLIES:
+        elif action in SUPPLIES or action in RARE_SUPPLIES:
             if not self.supply_count(action):
                 self.message = f"No {action} left. Choose another action."
                 return False
@@ -181,29 +187,24 @@ class BattleModel:
                 self.message = "Retri slips away!"
             else:
                 self.message = "The way out is blocked!"
-        else:
+        elif action != "Ability":
             return False
         self.pending_reply = self.outcome is None
         return True
 
     def _ability_command(self, ability_id):
-        """Accept an ability without spending MP or changing HP.
+        """Play a learned class ability. MP and HP stay as they are.
 
-        TODO(Caleb): mp_cost, power, steal, heals, buffs and Strike's weapon
-        multiplier are suggestions. This does not apply them. ``loop_frames``
-        on Forewarn and Sanctuary are not held, because no buff is active.
+        Strike is not chosen here. Attack uses it when the weapon asks for it.
         """
         member = self.party[self.actor]
-        job = current_job(member)
-        ability = find_ability(job, ability_id) if ability_id else None
-        if ability is None or ability.id == "strike" or ability not in learned_abilities(member):
+        known = {ability.id: ability for ability in learned_abilities(member)}
+        ability = known.get(ability_id)
+        if ability is None:
             self.message = "That ability is not learned."
             return False
-        self.effect = "Ability"
-        self.damage = 0
         self.active_ability = ability.id
         self.message = f"{ability.name} flashes. Its effect is not applied yet."
-        self.pending_reply = False
         return True
 
     def next_party_turn(self):
@@ -258,14 +259,14 @@ class ShalehornBattle(BattleModel):
                 "Its flank is exposed! Tremor incoming." if self.exposed else "Its foreclaws rise. Tremor incoming.",
                 "Shalehorn digs at the shale.", "Underground! Brace for its return.")[self.move_index]
 
-    def command(self, action, target=None, item_id=None, ability_id=None):
+    def command(self, action, target=None, ability_id=None):
         if action == "Attack" and self.buried and not self.pending_reply and not self.outcome:
             self.damage = 0
             self.effect = "miss"
             self.pending_reply = True
             self.message = "Your strike finds only loose shale."
             return True
-        accepted = super().command(action, target=target, item_id=item_id, ability_id=ability_id)
+        accepted = super().command(action, target=target, ability_id=ability_id)
         if accepted and action == "Attack" and self.exposed:
             self.enemy_hp = max(0, self.enemy_hp - self.damage)
             self.damage *= 2
@@ -368,17 +369,12 @@ class BattleScene:
         self.background_index = None
         self.model = None
         self.level_roster = None
-        self._item_icons = {}
-        self._fx_images = {}
-        self._slot_boxes = []
-        self.hover_index = None
-        self._motion_id = None
-        self.glint = SlotGlint(canvas)
         self.ability_menu = False
         self.chosen_ability = None
         self.attack_fx = None
-        self.fx_item = None
-        self.fx_path = None
+        self.fx_variant = None
+        self._fx_images = {}
+        self._fx_item = None
 
     def start(self, model, now):
         if not self.background_bag:
@@ -394,19 +390,13 @@ class BattleScene:
         self.ability_menu = False
         self.chosen_ability = None
         self.attack_fx = None
-        self.fx_on_enemy = True
         self.fx_variant = None
-        self.fx_item = None
-        self.fx_path = None
-        self.chosen_item = "potion"
+        self._fx_item = None
         self.ally_target = 0
         self.phase = "command"
         self.held = None
         self.repeat_at = 0.0
         self.phase_at = now
-        self.hover_index = None
-        self._slot_boxes = []
-        self._bind_motion()
         c = self.canvas
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
         self.glow_started = now
@@ -490,18 +480,18 @@ class BattleScene:
         c.create_text(40, 350, text=m.message, anchor="w", fill="#ffffff", font=self.font(23), tags=tags)
         if isinstance(m, ShalehornBattle) and self.phase in ("command", "target", "ally_target"):
             c.create_text(480, 65, text=m.tell(), fill="#ffe37e", font=self.font(24, True), tags=tags)
+        names = m.item_names()
         commands = self.COMMANDS
-        if self.item_menu:
-            commands = tuple(f"{name} x{m.supply_count(name)}" for name in SUPPLIES) + ("Back",)
+        if self.ability_menu:
+            commands = tuple(ability.name for ability in learned_abilities(m.party[m.actor])) + ("Back",)
+        elif self.item_menu:
+            commands = tuple(f"{name} x{m.supply_count(name)}" for name in names) + ("Back",)
+        elif self.phase == "command":
+            c.create_text(790, 350, text="Abilities", anchor="e",
+                          fill="#ffe37e" if self.selection >= len(self.COMMANDS) else "#ffffff",
+                          font=self.font(18), tags=tags)
         for i, command in enumerate(commands):
-            position = self._command_position(i)
-            if position is None:
-                continue
-            x, y = position
-            if self.item_menu and i < len(entries):
-                icon = self._item_icon(entries[i][2])
-                box = draw_item_slot(c, x - 38, y, icon, *tags)
-                self._slot_boxes.append((i, box))
+            x, y = self._command_position(i)
             if i == self.selection and self.phase == "command":
                 c.create_text(x-12, y, text="▶", anchor="e", fill="#ffffff",
                               font=self.font(16, True), tags=tags)
@@ -523,106 +513,11 @@ class BattleScene:
             hp_text = f"HP {member['hp']} / {stat_value(member, 'max_hp')}" + ("  KO" if member["hp"] <= 0 else "")
             c.create_text(912, y, text=hp_text,
                           anchor="e", fill=color, font=self.font(20), tags=tags)
-        if self.item_menu and self.phase == "command":
-            self._sync_glint()
-        else:
-            self.glint.stop()
-
-    def _item_entries(self):
-        """Owned consumables. Potion stays first so the existing item row is unchanged."""
-        entries = [("Potion", self.model.potions, "potion")]
-        for item_id, count in self.model.inventory.items():
-            if item_id == "potion" or count <= 0:
-                continue
-            try:
-                item = get_item(item_id)
-            except KeyError:
-                continue
-            if item.effect:
-                entries.append((item.name, count, item.id))
-        return entries
-
-    def _ability_entries(self):
-        return learned_abilities(self.model.party[self.model.actor])
 
     def _command_position(self, index):
-        if self.ability_menu:
-            entries = len(self._ability_entries())
-            total = entries + 1
-            if total <= 2:
-                return 96, 435 + index * 43
-            if total == 3:
-                return 96, 418 + index * 48
-            if index == entries:
-                return 96, 508
-            start = 0 if entries <= 2 else min(max(0, self.selection - 1), entries - 2)
-            if self.selection >= entries:
-                start = max(0, entries - 2)
-            row = index - start
-            if row < 0 or row > 1:
-                return None
-            return 96, 424 + row * 44
-        if index >= 4 and not self.item_menu:
-            return 790, 358
-        if self.item_menu:
+        if self.item_menu or self.ability_menu:
             return 60, 417 + index * 29
         return 60 + (index % 2) * 126, 435 + (index // 2) * 43
-
-    def _item_window_start(self):
-        entries = len(self._item_entries())
-        if entries <= 2:
-            return 0
-        if self.selection >= entries:
-            return entries - 2
-        return min(max(0, self.selection - 1), entries - 2)
-
-    def _item_icon(self, item_id):
-        item = get_item(item_id)
-        path = icon_file(item)
-        key = str(path)
-        if key not in self._item_icons:
-            self._item_icons[key] = tk.PhotoImage(master=self.canvas, file=key)
-        return self._item_icons[key]
-
-    def _bind_motion(self):
-        if self._motion_id is None:
-            self._motion_id = self.canvas.bind("<Motion>", self._on_motion, add="+")
-
-    def _unbind_motion(self):
-        if self._motion_id is not None:
-            self.canvas.unbind("<Motion>", self._motion_id)
-            self._motion_id = None
-
-    def _event_point(self, event):
-        canvas = self.canvas
-        if hasattr(canvas, "logical_x"):
-            return canvas.logical_x(event.x), canvas.logical_y(event.y)
-        return event.x, event.y
-
-    def _on_motion(self, event):
-        if self.model is None or not self.item_menu or self.phase != "command":
-            return
-        x, y = self._event_point(event)
-        hover = None
-        for index, (x1, y1, x2, y2) in self._slot_boxes:
-            if x1 <= x <= x2 and y1 <= y <= y2:
-                hover = index
-                break
-        if hover == self.hover_index:
-            return
-        self.hover_index = hover
-        self._sync_glint()
-
-    def _sync_glint(self):
-        if not self.item_menu or self.phase != "command" or not self._slot_boxes:
-            self.glint.stop()
-            return
-        index = self.hover_index if self.hover_index is not None else self.selection
-        box = next((bounds for slot, bounds in self._slot_boxes if slot == index), None)
-        if box is None:
-            self.glint.stop()
-        else:
-            self.glint.play(box)
 
     def navigate(self, direction, now):
         if self.phase in ("target", "ally_target"):
@@ -633,7 +528,10 @@ class BattleScene:
                 step = -1 if direction in ("left", "up") else 1
                 if self.phase == "ally_target":
                     self.ally_target = (self.ally_target + step) % len(self.model.party)
-                    self.model.message = f"Choose who receives the {tuple(SUPPLIES)[self.selection]}."
+                    if self.chosen_ability is not None:
+                        self.model.message = f"Choose who receives {self.chosen_ability.name}."
+                    else:
+                        self.model.message = f"Choose who receives the {self.model.item_names()[self.selection]}."
                 else:
                     for _ in self.model.enemies:
                         self.model.target = (self.model.target + step) % len(self.model.enemies)
@@ -651,88 +549,17 @@ class BattleScene:
             self.repeat_at = now
         if now >= self.repeat_at:
             step = {"up": -2, "down": 2, "left": -1, "right": 1}[direction]
-            if self.item_menu:
+            if self.item_menu or self.ability_menu:
                 step = -1 if direction in ("up", "left") else 1
-                self.selection = (self.selection + step) % (len(SUPPLIES) + 1)
+                count = len(self.model.item_names()) + 1 if self.item_menu else len(learned_abilities(self.model.party[self.model.actor])) + 1
+                self.selection = (self.selection + step) % count
+            elif self.selection >= len(self.COMMANDS):
+                self.selection = 2 if step < 0 else self.selection
             else:
-                self.selection = (self.selection + step) % 4
+                nxt = self.selection + step
+                self.selection = 4 if nxt == 4 else nxt % 4
             self.repeat_at = now + 0.22
             self.draw_status()
-
-    def _fx_photo(self, path, scale):
-        """Nearest-neighbor zoom of a shipped frame. Pixels are not recolored."""
-        key = (str(path), int(scale))
-        if key not in self._fx_images:
-            image = tk.PhotoImage(master=self.canvas, file=str(path))
-            if int(scale) != 1:
-                image = image.zoom(int(scale), int(scale))
-            self._fx_images[key] = image
-        return self._fx_images[key]
-
-    def _show_fx(self, variant, elapsed_ms, point):
-        path = frame_at(variant, elapsed_ms)
-        self.fx_path = path
-        image = self._fx_photo(path, variant.scale)
-        cx, cy = variant.target_center
-        dx = (cx - variant.frame_w / 2) * variant.scale
-        dy = (cy - variant.frame_h / 2) * variant.scale
-        x, y = point[0] - dx, point[1] - dy
-        if self.fx_item is None:
-            self.fx_item = self.canvas.create_image(
-                x, y, image=image, tags=(self.TAG, "battle_fx"))
-        else:
-            self.canvas.coords(self.fx_item, x, y)
-            self.canvas.itemconfigure(self.fx_item, image=image, state="normal")
-        self.canvas.tag_raise(self.fx_item)
-
-    def _clear_fx(self):
-        if self.fx_item is not None:
-            self.canvas.delete(self.fx_item)
-            self.fx_item = None
-        self.fx_path = None
-
-    def _fx_point(self):
-        if self.fx_on_enemy:
-            return self.enemy_positions[self.model.target]
-        return self._party_position(self.ally_target)
-
-    def _confirm_ability(self):
-        entries = self._ability_entries()
-        if self.selection >= len(entries):
-            self.ability_menu = False
-            self.selection = 4
-            self.chosen_ability = None
-            self.draw_status()
-            return
-        ability = entries[self.selection]
-        member = self.model.party[self.model.actor]
-        self.chosen_ability = ability
-        self.ability_menu = False
-        if ability.target == "single ally":
-            self.ally_target = self.model.actor
-            self.phase, self.held = "ally_target", None
-            self.model.message = f"Choose who receives {ability.name}."
-        else:
-            self.model.target = next(i for i, hp in enumerate(self.model.health) if hp)
-            self.phase, self.held = "target", None
-            self.model.message = "Choose a target."
-        self.draw_status()
-
-    def _begin_ability_fx(self, now):
-        ability = self.chosen_ability
-        member = self.model.party[self.model.actor]
-        if not self.model.command("Ability", ability_id=ability.id):
-            self.phase = "command"
-            self.ability_menu = True
-            self.draw_status()
-            return
-        self.fx_variant = variant_for(ability, member)
-        self.fx_on_enemy = ability.target != "single ally"
-        self.attack_fx = None
-        self.ability_menu = False
-        self.phase = "ability_fx"
-        self.phase_at = now
-        self._show_fx(self.fx_variant, 0, self._fx_point())
 
     def confirm(self, now):
         if self.phase == "result":
@@ -742,16 +569,16 @@ class BattleScene:
                 return None
             return self.model.outcome
         if self.phase == "target":
-            if self.chosen_ability is not None:
-                self._begin_ability_fx(now)
-            else:
-                self.model.command("Attack")
-                self.attack_fx = strike_variant(self.model.party[self.model.actor])
-                self.phase, self.phase_at = "hero_action", now
+            self.model.command("Attack")
+            self.attack_fx = strike_variant(self.model.party[self.model.actor])
+            self.phase, self.phase_at = "hero_action", now
             self.draw_status()
             return None
         if self.phase == "ally_target":
-            if self.model.command(tuple(SUPPLIES)[self.selection], target=self.ally_target):
+            if self.chosen_ability is not None:
+                self._begin_ability_fx(now)
+                return None
+            if self.model.command(self.model.item_names()[self.selection], target=self.ally_target):
                 self._sync_party_sprites()
                 self.item_menu, self.selection = False, 2
                 self.phase, self.phase_at = "hero_action", now
@@ -759,7 +586,7 @@ class BattleScene:
             return None
         if self.phase == "command":
             if self.ability_menu:
-                self._confirm_ability()
+                self._confirm_ability(now)
                 return None
             if not self.item_menu and self.selection >= len(self.COMMANDS):
                 self.ability_menu, self.selection = True, 0
@@ -777,12 +604,13 @@ class BattleScene:
                 self.item_menu, self.selection = True, 0
                 self.draw_status()
                 return None
-            if self.item_menu and self.selection == len(SUPPLIES):
+            names = self.model.item_names()
+            if self.item_menu and self.selection == len(names):
                 self.item_menu, self.selection = False, 2
                 self.draw_status()
                 return None
             if self.item_menu:
-                name = tuple(SUPPLIES)[self.selection]
+                name = names[self.selection]
                 if not self.model.supply_count(name):
                     self.model.message = f"No {name} left. Choose another action."
                 else:
@@ -802,26 +630,92 @@ class BattleScene:
     def back(self):
         if self.phase == "ally_target":
             self.phase, self.held = "command", None
-            self.item_menu = True
-            self.model.message = "Choose an item."
+            if self.chosen_ability is not None:
+                self.ability_menu, self.item_menu = True, False
+                self.model.message = "Choose an ability."
+            else:
+                self.item_menu = True
+                self.model.message = "Choose an item."
             self.draw_status()
             return
         if self.phase == "target":
             self.phase = "command"
-            if self.chosen_ability is not None:
-                self.ability_menu = True
-                self.model.message = "Choose an ability."
             self.draw_status()
             return
         if self.phase == "command":
             if self.ability_menu:
-                self.ability_menu, self.selection = False, 4
+                self.ability_menu, self.selection = False, 0
                 self.chosen_ability = None
             elif self.item_menu:
                 self.item_menu, self.selection = False, 2
             else:
                 self.selection = 3
             self.draw_status()
+
+    def _confirm_ability(self, now):
+        entries = learned_abilities(self.model.party[self.model.actor])
+        if self.selection >= len(entries):
+            self.ability_menu = False
+            self.selection = 0
+            self.model.message = f"What will {self.model.party[self.model.actor]['name']} do?"
+            self.draw_status()
+            return
+        ability = entries[self.selection]
+        self.chosen_ability = ability
+        self.ability_menu = False
+        if ability.target == "single ally":
+            self.ally_target = self.model.actor
+            self.phase, self.held = "ally_target", None
+            self.model.message = f"Choose who receives {ability.name}."
+            self.draw_status()
+            return
+        self._begin_ability_fx(now)
+
+    def _begin_ability_fx(self, now):
+        ability = self.chosen_ability
+        member = self.model.party[self.model.actor]
+        if ability is None or not self.model.command("Ability", ability_id=ability.id):
+            self.chosen_ability = None
+            self.ability_menu = True
+            self.draw_status()
+            return
+        self.fx_variant = variant_for(ability, member)
+        self.fx_on_enemy = ability.target != "single ally"
+        self.attack_fx = None
+        self.chosen_ability = None
+        self.phase = "ability_fx"
+        self.phase_at = now
+        self._show_fx(self.fx_variant, 0, self._fx_point())
+        self.draw_status()
+
+    def _fx_point(self):
+        if getattr(self, "fx_on_enemy", True):
+            return self.enemy_positions[self.model.target]
+        return self._party_position(self.model.actor)
+
+    def _show_fx(self, variant, elapsed_ms, point):
+        if variant is None:
+            return
+        path = variant.frames[frame_index(variant, elapsed_ms)]
+        key = str(path)
+        if key not in self._fx_images:
+            image = tk.PhotoImage(master=self.canvas, file=key)
+            if variant.scale > 1:
+                image = image.zoom(variant.scale)
+            self._fx_images[key] = image
+        if self._fx_item is None:
+            self._fx_item = self.canvas.create_image(
+                point[0], point[1], image=self._fx_images[key], tags=(self.TAG, "battle_fx"))
+        else:
+            self.canvas.itemconfigure(self._fx_item, image=self._fx_images[key])
+            self.canvas.coords(self._fx_item, *point)
+
+    def _clear_fx(self):
+        if self._fx_item is not None:
+            self.canvas.delete(self._fx_item)
+            self._fx_item = None
+        self.attack_fx = None
+        self.fx_variant = None
 
     def click(self, x, y, now):
         if self.phase == "ally_target":
@@ -841,7 +735,13 @@ class BattleScene:
         if self.phase == "result":
             return self.confirm(now)
         if self.phase == "command":
-            for i in range(len(SUPPLIES) + 1 if self.item_menu else 4):
+            if self.ability_menu:
+                count = len(learned_abilities(self.model.party[self.model.actor])) + 1
+            elif self.item_menu:
+                count = len(self.model.item_names()) + 1
+            else:
+                count = 4
+            for i in range(count):
                 tx, ty = self._command_position(i)
                 if self.item_menu:
                     hit = 35 <= x <= 280 and abs(y-ty) < 14
@@ -868,13 +768,11 @@ class BattleScene:
         if self.phase == "ability_fx":
             elapsed_ms = (now - self.phase_at) * 1000
             self._show_fx(self.fx_variant, elapsed_ms, self._fx_point())
-            if elapsed_ms >= self.fx_variant.total_ms:
-                self._clear_fx()
-                self.chosen_ability = None
-                self.phase = "command"
-                self.selection = 4
-                self.held = None
-                self.draw_status()
+            if elapsed_ms < self.fx_variant.total_ms:
+                return
+            self._clear_fx()
+            self.phase = "hero_action"
+            self.phase_at = now
             return
         if self.phase not in ("hero_action", "enemy_action"):
             return
@@ -888,6 +786,8 @@ class BattleScene:
         self.enemy_item = self.enemy_items[index]
         ex, ey = self.enemy_positions[index]
         c.delete("damage_number")
+        if attacking and self.attack_fx is not None:
+            self._show_fx(self.attack_fx, elapsed * 1000, (ex, ey))
         if attacking:
             height = self.enemies[self.model.enemies[index].sprite].height()
             c.create_text(ex, ey-max(50, height // 2 + 12)-int(elapsed*25), text=str(self.model.damage), fill="#ffe37e",
@@ -906,14 +806,11 @@ class BattleScene:
         c.coords(self.enemy_item, ex + (offset if enemy_attacking else 0), ey)
         c.itemconfigure(self.enemy_item, state="hidden" if getattr(self.model, "buried", False) or (attacking and int(elapsed * 16) % 2) else "normal")
         c.itemconfigure(active_item, state="hidden" if enemy_attacking and int(elapsed * 16) % 2 else "normal")
-        if attacking and self.attack_fx is not None:
-            self._show_fx(self.attack_fx, elapsed * 1000, (ex, ey))
         if elapsed < 0.65:
             return
-        self._clear_fx()
-        self.attack_fx = None
         c.coords(active_item, *self._party_position(i))
         c.delete("damage_number")
+        self._clear_fx()
         c.coords(self.enemy_item, ex, ey)
         c.itemconfigure(active_item, state="normal")
         c.itemconfigure(self.enemy_item, state="normal" if self.model.health[index] and not getattr(self.model, "buried", False) else "hidden")
@@ -948,7 +845,6 @@ class BattleScene:
         self.level_item = None
         self.result_page = -1
         self.level_pages = []
-        self.level_learned = []
         fields = (
                 ("MAX HP", "max_hp", 0), ("MAX MP", "max_mp", 0),
                 ("STRENGTH", "strength", 8), ("DEFENSE", "defense", 0),
@@ -962,14 +858,11 @@ class BattleScene:
             if level <= old_level:
                 continue
             projected = dict(member)
-            projected["level"] = level
-            before_ids = {ability.id for ability in learned_abilities(member)}
             grow(projected, old_level, level)
             changes = [(label, stat_value(member, key, default), stat_value(projected, key, default))
                        for label, key, default in fields
                        if stat_value(member, key, default) != stat_value(projected, key, default)]
             self.level_pages.append((member["name"], True, old_level, level, changes))
-            self.level_learned.append(learned)
         c.delete(self.TAG)
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=self.TAG)
         self._frame(35, 28, 925, 106)
@@ -1024,19 +917,10 @@ class BattleScene:
                           font=self.font(21), tags=self.TAG)
             c.create_text(x + 355, y, text=f"{before} → {after}", anchor="e", fill="#ffffff",
                           font=self.font(23), tags=self.TAG)
-        learned = self.level_learned[self.result_page] if self.result_page < len(self.level_learned) else ()
-        if learned:
-            c.create_text(80, 408, text="LEARNED  " + ", ".join(learned), anchor="w",
-                          fill="#ffe37e", font=self.font(18), tags=self.TAG)
         c.create_text(65, 483, text=f"MEMBER {self.result_page+1}/{len(self.level_pages)}  ·  ENTER / CROSS TO CONTINUE",
                       anchor="w", fill="#ffffff", font=self.font(21), tags=self.TAG)
 
     def close(self):
-        self.glint.stop()
-        self.hover_index = None
-        self._slot_boxes = []
-        self.fx_item = None
-        self._unbind_motion()
         self.canvas.delete(self.TAG)
 
 

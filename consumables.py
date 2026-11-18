@@ -8,10 +8,20 @@ SUPPLIES = {
     "Ember Feather": (30, "Revives a fainted ally at 25% HP."),
 }
 
+# Owned from a find, never from a shop. Sell price 0 is a placeholder.
+RARE_SUPPLIES = {
+    "Ember Talisman": "Revives a fainted ally at full HP. Not sold.",
+}
+
 
 def apply_supply(name, member):
     """Return whether the item was used and a message for the player."""
     target = member["name"]
+    if name == "Ember Talisman":
+        if member["hp"] > 0:
+            return False, f"{target} is still standing."
+        member["hp"] = stat_value(member, "max_hp")
+        return True, f"{target} rises with {member['hp']} HP!"
     if name == "Ember Feather":
         if member["hp"] > 0:
             return False, f"{target} is still standing."
