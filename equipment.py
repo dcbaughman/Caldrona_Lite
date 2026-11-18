@@ -60,8 +60,8 @@ CATALOG = {
     item.id: item for item in (
         Equipment("leather_vest", "Leather Vest", "armor", {"defense": 1}, "A simple, flexible vest."),
         Equipment("quarry_coat", "Quarry Coat", "armor", {"defense": 2, "agility": -1}, "Sturdy protection for the caves."),
-        Equipment("training_sword", "Training Sword", "weapon", {"strength": 1}, "A reliable starter blade."),
-        Equipment("miner_blade", "Miner's Blade", "weapon", {"strength": 2, "agility": -1}, "A heavier blade with a strong edge."),
+        Equipment("training_sword", "Training Sword", "weapon", {"strength": 1}, "A reliable starter blade.", basic_attack_fx="sword_strike"),
+        Equipment("miner_blade", "Miner's Blade", "weapon", {"strength": 2, "agility": -1}, "A heavier blade with a strong edge.", basic_attack_fx="sword_strike"),
         Equipment("wood_shield", "Wooden Shield", "shield", {"defense": 1}, "A light wooden shield."),
         Equipment("lucky_charm", "Lucky Charm", "accessory", {"luck": 1}, "A small trinket for good fortune."),
         Equipment("quartz_pendant", "Quartz Pendant", "accessory", {"magic_defense": 1, "max_mp": 2}, "A stone that steadies magic."),
