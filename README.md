@@ -18,7 +18,38 @@ Temur uses separate front-facing world and left-facing battle sprites, prepared 
 
 Retri's updated battle pose and portrait follow Temur's approved art style. Temur's world sprite is prepared directly at 16×16 so his eyes remain readable. The source art, preparation steps and prompts for these revisions are in `assets/party-art-notes.md`.
 
-The in-game menu in `game_menu.py` opens with Escape or the controller Options button. D-pad/arrows move the cursor with a short initial delay and faster repeat; Enter/Cross opens the selected section, and Escape/Circle goes back. The sections are navigation shells for future features. "Title Screen" goes back to the start screen.
+The in-game menu in `game_menu.py` opens with Escape or the controller Options button. D-pad/arrows move the cursor with a short initial delay and faster repeat; Enter/Cross opens the selected section, and Escape/Circle goes back. "Title Screen" goes back to the start screen.
+
+### Equipment
+
+Choose **Equip** in the in-game menu. Up/down selects Armor, Weapon, Shield,
+or Accessory (the shared slot for artifacts, trinkets and accessories). Press
+Enter/Cross to browse a category, then choose an item to equip it or choose
+Remove Equipment. L1/R1 switches party members, including reserves;
+Escape/Circle goes back. The right panel previews stat changes before you
+confirm. The list shows free versus total owned copies, so a single item
+cannot be worn by two people. Long lists scroll with up/down, and categories,
+characters, and items also support mouse clicks.
+
+A small starter collection is available to exercise the screen. Equipment
+bonuses are separate from level-up stats. Strength and defense affect current
+combat, while maximum HP/MP bonuses affect healing and the status display;
+other bonuses are displayed for future mechanics. Equipment remains with the
+party for the current journey; saving journeys is not implemented yet.
+
+To add gear, add an `Equipment` entry to `CATALOG` in `equipment.py`, using a
+unique ID and one of `armor`, `weapon`, `shield`, or `accessory`. For example:
+
+```python
+Equipment("silver_blade", "Silver Blade", "weapon", {"strength": 3},
+          "A bright, well-balanced blade.")
+```
+
+Bonuses can use any key in `STAT_LABELS`, such as `defense`, `magic`,
+`max_hp`, `max_mp`, `agility`, or `luck`. Adding an item to the catalog does
+not automatically give it to the player: add quantities to `STARTING_GEAR`
+for starter items, or increase `self.gear_inventory[item_id]` when implementing
+loot or a shop. The stored quantity includes equipped copies.
 
 PlayStation controller: use the digital D-pad to move, Cross to select, Circle to go back, and Options to open or close the in-game menu. Analog sticks are ignored. Pygame reads the standardized D-pad when Windows exposes the controller through SDL; direct joystick hats are supported too.
 

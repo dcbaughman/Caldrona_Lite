@@ -50,21 +50,23 @@ class BattleIntegrationTests(unittest.TestCase):
         scene, canvas = self.app.battle, self.app.canvas
         for name, base in (("Retri", RETRI), ("Temur", TEMUR)):
             original = pygame.image.load(str(game.ASSETS / "battle" / f"{name.lower()}-guard.png"))
-            for job in ("Sollers", "Saint", "Seer"):
+            for job in (None, "Sollers", "Saint", "Seer"):
                 character = member(name, base)
-                character["job"] = job
+                if job is not None:
+                    character["job"] = job
                 model = BattleModel(ENEMIES[0], party=[character])
                 scene.start(model, 0)
                 model.command("Guard")
                 scene._sync_party_sprites()
-                self.assertEqual(canvas.itemcget(scene.party_items[0], "image"),
-                                 str(canvas._image(scene.class_poses[(name, job, "guard")])) )
+                guard = scene.guard_sprites[name] if job is None else scene.class_poses[(name, job, "guard")]
+                self.assertEqual(canvas.itemcget(scene.party_items[0], "image"), str(canvas._image(guard)))
                 character["hp"] = 0
                 scene._sync_party_sprites()
-                self.assertEqual(canvas.itemcget(scene.party_items[0], "image"),
-                                 str(canvas._image(scene.class_poses[(name, job, "fainted")])) )
-                native = pygame.image.load(str(game.ASSETS / "battle" / "classes" /
-                                               f"{name.lower()}-{job.lower()}-guard.png"))
+                fainted = scene.fainted_sprites[name] if job is None else scene.class_poses[(name, job, "fainted")]
+                self.assertEqual(canvas.itemcget(scene.party_items[0], "image"), str(canvas._image(fainted)))
+                path = (game.ASSETS / "battle" / f"{name.lower()}-guard.png" if job is None else
+                        game.ASSETS / "battle" / "classes" / f"{name.lower()}-{job.lower()}-guard.png")
+                native = pygame.image.load(str(path))
                 self.assertEqual(native.get_size(), (32,32))
                 self.assertEqual(native.get_bounding_rect(), original.get_bounding_rect())
                 for y in range(13):

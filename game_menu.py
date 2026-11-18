@@ -7,6 +7,8 @@ from typing import Callable
 
 
 from classes import JOBS, EMBLEMS, DESCRIPTIONS, current_job
+from equipment import (SLOTS, SLOT_LABELS, STAT_LABELS, available_count, can_wear,
+                       equip, item_for, owned_items, preview_value, stat_value, worn_id)
 
 
 class GameMenu:
@@ -14,7 +16,7 @@ class GameMenu:
     OPTIONS = (
         ("Items", "Your pack is empty for now."),
         ("Abilities", "Discover the stone to awaken Astral Sync."),
-        ("Equip", "Equipment management is coming later."),
+        ("Equip", "Manage weapons, armor, shields and accessories."),
         ("Status", "Retri is a skirter exploring Sunrest's cavern."),
         ("Formation", "Retri is the only party member right now."),
         ("Configuration", "Display settings can be changed at the title screen."),
@@ -42,9 +44,14 @@ class GameMenu:
         self.sync_icons = {}
         self.inventory = lambda: {}
         self.use_item = lambda name, member: "Item unavailable."
+        self.gear_inventory = lambda: {}
+        self.gear_changed = lambda member: None
         self.progress = lambda: (1, 0, 30)
         self.item_index = 0
         self.item_targeting = False
+        self.equip_slot = 0
+        self.equip_index = 0
+        self.equip_focus = "category"
         self.feedback = ""
         self._small_portraits = {}
         self.active = False
@@ -69,6 +76,11 @@ class GameMenu:
         self.held_direction = None
 
     def back(self) -> None:
+        if self.detail == 2 and self.equip_focus == "items":
+            self.equip_focus = "category"
+            self.feedback = ""
+            self.draw()
+            return
         if self.detail == 0 and self.item_targeting:
             self.item_targeting = False
             self.draw()
@@ -84,6 +96,10 @@ class GameMenu:
             return None
         if self.detail is None and self.selection in (1, 8) and self.sync_unlocked():
             return "sync"
+        if self.detail == 2:
+            self._equip_activate()
+            self.draw()
+            return None
         if self._roster_page():
             self._choose_member()
             self.draw()
@@ -96,6 +112,9 @@ class GameMenu:
         self.member_index = 0
         self.item_index = 0
         self.item_targeting = False
+        self.equip_slot = 0
+        self.equip_index = 0
+        self.equip_focus = "category"
         self.feedback = ""
         self.detail = self.selection
         if self._sync_page() and self.roster():
@@ -153,6 +172,9 @@ class GameMenu:
             member["active"] = True
 
     def navigate(self, direction: str | None, now: float) -> None:
+        if self.active and self.detail == 2:
+            self._equip_navigate(direction, now)
+            return
         if not self.active or (self.detail is not None and not self._roster_page()):
             return
         directions = ("up", "down", "left", "right") if self._sync_page() else ("up", "down")
@@ -187,6 +209,9 @@ class GameMenu:
             self.repeating = True
 
     def click(self, x: int, y: int) -> str | None:
+        if self.active and self.detail == 2:
+            self._equip_click(x, y)
+            return None
         if self.active and self._sync_page():
             for index, (cx, cy) in enumerate(((610, 170), (752, 302), (468, 302))):
                 if abs(x-cx) <= 42 and abs(y-cy) <= 42:
@@ -234,6 +259,210 @@ class GameMenu:
                 return self.activate()
         return None
 
+    @staticmethod
+    def _short(text, limit):
+        return text if len(text) <= limit else text[:limit-3] + "..."
+
+    def _equip_member(self):
+        roster = self.roster()
+        if not roster:
+            return None
+        self.member_index = min(self.member_index, len(roster)-1)
+        return roster[self.member_index]
+
+    def _equip_entries(self):
+        slot = SLOTS[self.equip_slot]
+        return [None] + [item.id for item in owned_items(self.gear_inventory(), slot)]
+
+    def _equip_scroll(self, entries):
+        return max(0, min(self.equip_index - 5, len(entries) - 6))
+
+    def _equip_select_current(self):
+        member = self._equip_member()
+        entries = self._equip_entries()
+        current = worn_id(member, SLOTS[self.equip_slot]) if member else None
+        self.equip_index = entries.index(current) if current in entries and current is not None else min(1, len(entries)-1)
+
+    def _equip_activate(self):
+        member = self._equip_member()
+        if member is None:
+            return
+        entries = self._equip_entries()
+        if self.equip_focus == "category":
+            self.equip_focus = "items"
+            self._equip_select_current()
+            self.feedback = ""
+            return
+        self.equip_index = min(self.equip_index, len(entries)-1)
+        changed, self.feedback = equip(member, SLOTS[self.equip_slot], entries[self.equip_index],
+                                       self.gear_inventory(), self.roster())
+        if changed:
+            self.gear_changed(member)
+
+    def change_equipment_member(self, step):
+        """Switch the previewed member without changing the selected slot."""
+        if not self.active or self.detail != 2 or step not in (-1, 1):
+            return
+        roster = self.roster()
+        if not roster:
+            return
+        self.member_index = (self.member_index + step) % len(roster)
+        if self.equip_focus == "items":
+            self._equip_select_current()
+        else:
+            self.equip_index = 0
+        self.feedback = ""
+        self.draw()
+
+    def _equip_navigate(self, direction, now):
+        if direction not in ("up", "down"):
+            self.held_direction = None
+            self.repeating = False
+            return
+        if direction != self.held_direction:
+            self.held_direction = direction
+            self.repeat_at = now
+            self.repeating = False
+        if now < self.repeat_at:
+            return
+        step = -1 if direction == "up" else 1
+        if self.equip_focus == "category":
+            self.equip_slot = (self.equip_slot + step) % len(SLOTS)
+            self.equip_index = 0
+        else:
+            self.equip_index = (self.equip_index + step) % len(self._equip_entries())
+        self.feedback = ""
+        self.draw()
+        self.repeat_at = now + (0.09 if self.repeating else 0.24)
+        self.repeating = True
+
+    def _equip_click(self, x, y):
+        for index in range(len(SLOTS)):
+            if 38 <= x <= 264 and abs(y - (169 + index*65)) <= 28:
+                self.equip_slot = index
+                self.equip_focus = "category"
+                self._equip_activate()
+                self.draw()
+                return
+        entries = self._equip_entries()
+        start = self._equip_scroll(entries)
+        if 288 <= x <= 338 and 130 <= y <= 152 and start:
+            self.equip_focus = "items"
+            self.equip_index = start - 1
+            self.feedback = ""
+            self.draw()
+            return
+        if 288 <= x <= 338 and 356 <= y <= 382 and start + 6 < len(entries):
+            self.equip_focus = "items"
+            self.equip_index = min(len(entries)-1, start + 6)
+            self.feedback = ""
+            self.draw()
+            return
+        row = round((y - 167) / 35)
+        if 288 <= x <= 651 and 0 <= row < 6 and abs(y - (167 + row*35)) <= 16 and start + row < len(entries):
+            index = start + row
+            if self.equip_focus == "items" and self.equip_index == index:
+                self._equip_activate()
+            else:
+                self.equip_focus = "items"
+                self.equip_index = index
+                self.feedback = ""
+            self.draw()
+
+    def _draw_equipment(self):
+        c, tag = self.canvas, self.TAG
+        c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=tag)
+        self._frame(28, 24, 932, 94)
+        self._frame(28, 103, 264, 454)
+        self._frame(276, 103, 654, 454)
+        self._frame(666, 103, 932, 454)
+        self._frame(28, 470, 932, 528)
+        text = lambda x, y, value, size=20, color="#ffffff", **kw: c.create_text(
+            x, y, text=value, fill=color, font=self.font(size), tags=tag, **kw)
+        text(51, 58, "EQUIP", 29, "#ffe37e", anchor="w")
+        member = self._equip_member()
+        if member is None:
+            text(480, 275, "No party members available.", 24)
+            return
+        text(508, 57, "L1  <  " + self._short(member["name"].upper(), 16) + "  >  R1", 23)
+        text(900, 58, "ACTIVE" if member.get("active", True) else "RESERVE", 18, "#80eaf5", anchor="e")
+        text(49, 124, "CATEGORY", 19, "#80eaf5", anchor="w")
+        for index, slot in enumerate(SLOTS):
+            y = 169 + index*65
+            chosen = index == self.equip_slot
+            text(48, y, ("> " if chosen else "   ") + SLOT_LABELS[slot].upper(), 19,
+                 "#ffe37e" if chosen else "#ffffff", anchor="w")
+            equipped = item_for(worn_id(member, slot))
+            text(72, y+23, self._short(equipped.name if equipped else "Empty", 16), 14,
+                 "#b9c9d6", anchor="w")
+
+        slot = SLOTS[self.equip_slot]
+        entries = self._equip_entries()
+        self.equip_index = min(self.equip_index, len(entries)-1)
+        start = self._equip_scroll(entries)
+        selected = entries[self.equip_index] if self.equip_focus == "items" else None
+        text(297, 124, SLOT_LABELS[slot].upper(), 19, "#80eaf5", anchor="w")
+        text(632, 124, "FREE/TOTAL", 15, "#80eaf5", anchor="e")
+        for row, item_id in enumerate(entries[start:start+6]):
+            y = 167 + row*35
+            active = self.equip_focus == "items" and start+row == self.equip_index
+            item = item_for(item_id)
+            equipped_here = item is not None and worn_id(member, slot) == item.id
+            label = (self._short(item.name, 15) + " [E]" if equipped_here else
+                     self._short(item.name, 19)) if item else "Remove equipment"
+            text(298, y, ("> " if active else "   ") + label, 18,
+                 "#ffe37e" if active else "#ffffff", anchor="w")
+            if item:
+                total = self.gear_inventory().get(item.id, 0)
+                free = available_count(self.gear_inventory(), self.roster(), item.id)
+                value = f"{free}/{total}"
+                color = "#8693ae" if not free and not equipped_here else "#c9dcf1"
+                if not can_wear(member, item):
+                    value, color = "CANNOT", "#e9a7a7"
+                text(632, y, value, 17, color, anchor="e")
+        if start:
+            text(300, 146, "^", 14, "#80eaf5", anchor="w")
+        if start + 6 < len(entries):
+            text(300, 370, "v", 14, "#80eaf5", anchor="w")
+        item = item_for(selected)
+        if self.equip_focus != "items":
+            description = "Choose a category. Accessories include artifacts and trinkets." if slot == "accessory" else "Choose a category, then select equipment."
+        elif item is None:
+            description = "Remove the item in this slot." if worn_id(member, slot) else "This slot is empty."
+        elif not can_wear(member, item):
+            description = member["name"] + " cannot equip " + item.name + "."
+        elif worn_id(member, slot) != item.id and not available_count(self.gear_inventory(), self.roster(), item.id):
+            description = "All copies are equipped by other party members."
+        elif worn_id(member, slot) == item.id:
+            description = item.name + " is equipped. " + item.description
+        else:
+            description = item.name + (": " + item.description if item.description else "")
+        description = self._short(description, 70)
+        description_item = text(298, 388, description, 16, "#b8dce6", anchor="nw", width=330)
+        # Tk wraps using the actual font and display scale. Shorten only when
+        # necessary so unusually long future item names stay inside the panel.
+        bottom = getattr(c, "_value", lambda value: value)(444)
+        while len(description) > 4 and c.bbox(description_item)[3] > bottom:
+            plain = description[:-3] if description.endswith("...") else description
+            description = plain[:-4].rstrip() + "..."
+            c.itemconfigure(description_item, text=description)
+
+        text(686, 124, "STATS", 19, "#80eaf5", anchor="w")
+        abbreviations = ("MAX HP", "MAX MP", "STR", "DEF", "MAG", "MAG DEF", "AGI", "LUCK", "EVA", "ACC")
+        for i, ((stat, _), label) in enumerate(zip(STAT_LABELS, abbreviations)):
+            y = 166 + i*24
+            before = stat_value(member, stat)
+            after = preview_value(member, slot, selected, stat) if self.equip_focus == "items" else before
+            text(686, y, label, 15, "#d8ecf3", anchor="w")
+            if before == after:
+                text(910, y, str(before), 16, "#ffffff", anchor="e")
+            else:
+                text(910, y, f"{before} > {after}", 16, "#8fe8ae" if after > before else "#ffaaaa", anchor="e")
+        text(50, 490, self._short(self.feedback, 72) if self.feedback else
+             ("Compare stats. [E] marks equipped gear." if self.equip_focus == "items" else "Choose a category to browse equipment."),
+             16, "#ffe37e" if self.feedback else "#ffffff", anchor="w")
+        text(50, 513, "UP/DOWN MOVE   L1/R1: CHANGE MEMBER   ENTER SELECT   ESC BACK", 14, "#a8dce7", anchor="w")
+
     def _frame(self, x1: int, y1: int, x2: int, y2: int) -> None:
         c = self.canvas
         tag = self.TAG
@@ -254,6 +483,10 @@ class GameMenu:
         c = self.canvas
         tag = self.TAG
         c.delete(tag)
+        if self.detail == 2:
+            self._draw_equipment()
+            c.tag_raise(tag)
+            return
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=tag)
         self._frame(28, 44, 274, 458)
         self._frame(284, 44, 932, 458)
@@ -380,7 +613,7 @@ class GameMenu:
                 start = max(0, self.member_index-3)
                 for row, target in enumerate(members[start:start+4]):
                     selected = start+row == self.member_index
-                    c.create_text(600, 150+row*38, text=("▶ " if selected else "   ") + f"{target['name']} {target['hp']}/{target['max_hp']}", anchor="w", fill="#ffe37e" if selected else "#ffffff", font=self.font(20), tags=tag)
+                    c.create_text(600, 150+row*38, text=("▶ " if selected else "   ") + f"{target['name']} {target['hp']}/{stat_value(target, 'max_hp')}", anchor="w", fill="#ffe37e" if selected else "#ffffff", font=self.font(20), tags=tag)
             hint = "Select an item." if not self.item_targeting else "UP/DOWN target · CONFIRM use · BACK items"
         else:
             level, xp, needed = self.progress()
@@ -389,11 +622,11 @@ class GameMenu:
                 needed = 30 * level
             job = self._current_job(member) or "Unbound"
             c.create_text(320, 140, text=f"{member['name']}  ▲▼    LV {level}   XP {xp}/{needed}", anchor="w", fill="#ffffff", font=self.font(21), tags=tag)
-            values = (("HP", f"{member['hp']}/{member['max_hp']}"), ("MP", f"{member.get('mp', 0)}/{member.get('max_mp', 0)}"),
-                      ("Strength", member.get('strength', 0)), ("Defense", member.get('defense', 0)),
-                      ("Magic", member.get('magic', 0)), ("Magic Defense", member.get('magic_defense', 0)),
-                      ("Agility", member.get('agility', 0)), ("Luck", member.get('luck', 0)),
-                      ("Evasion", member.get('evasion', 0)), ("Accuracy", member.get('accuracy', 0)))
+            values = (("HP", f"{member['hp']}/{stat_value(member, 'max_hp')}"), ("MP", f"{member.get('mp', 0)}/{stat_value(member, 'max_mp')}"),
+                      ("Strength", stat_value(member, 'strength')), ("Defense", stat_value(member, 'defense')),
+                      ("Magic", stat_value(member, 'magic')), ("Magic Defense", stat_value(member, 'magic_defense')),
+                      ("Agility", stat_value(member, 'agility')), ("Luck", stat_value(member, 'luck')),
+                      ("Evasion", stat_value(member, 'evasion')), ("Accuracy", stat_value(member, 'accuracy')))
             for i, (label, value) in enumerate(values):
                 c.create_text(320+(i%2)*285, 185+(i//2)*38, text=f"{label}  {value}", anchor="w", fill="#ffffff", font=self.font(19), tags=tag)
             c.create_text(320, 380, text=f"SYNC  {job}", anchor="w", fill="#80eaf5", font=self.font(19), tags=tag)

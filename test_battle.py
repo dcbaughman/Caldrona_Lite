@@ -3,10 +3,24 @@ import random
 import unittest
 from unittest.mock import Mock
 
-from battle import BattleModel, EncounterMeter, ENEMIES, MAX_HP, SAFE_STEPS
+from battle import (BattleModel, EncounterMeter, ENEMIES, MAX_HP, SAFE_STEPS,
+                    DEN_MOTHER, DEN_MOTHER_CHANCE, SHALEHORN, cave_encounter)
 
 
 class BattleTests(unittest.TestCase):
+    def test_rare_den_mother_is_a_strong_solo_encounter(self):
+        rng = Mock()
+        rng.random.return_value = DEN_MOTHER_CHANCE / 2
+        self.assertEqual(cave_encounter(rng), [DEN_MOTHER])
+        self.assertGreater(DEN_MOTHER.hp, max(enemy.hp for enemy in ENEMIES))
+        self.assertLess(DEN_MOTHER.hp, SHALEHORN.hp)
+        self.assertGreater(DEN_MOTHER.attack[0], max(enemy.attack[0] for enemy in ENEMIES))
+        self.assertGreater(DEN_MOTHER.gold, max(enemy.gold for enemy in ENEMIES))
+        rng.random.return_value = DEN_MOTHER_CHANCE
+        rng.randint.return_value = 2
+        rng.choice.return_value = ENEMIES[0]
+        self.assertEqual(cave_encounter(rng), [ENEMIES[0], ENEMIES[0]])
+
     def test_potion_targets_another_member_and_cannot_revive(self):
         party = [{"name": "Retri", "hp": 60, "max_hp": 60},
                  {"name": "Temur", "hp": 20, "max_hp": 82},

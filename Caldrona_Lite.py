@@ -16,9 +16,11 @@ from astral_scene import AstralScene
 from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
                               load_display, pixel_scale, save_display)
 from game_menu import GameMenu
-from stats import RETRI, TEMUR, member, grow, POTION_HEAL
+from stats import RETRI, TEMUR, member, grow
+from consumables import SUPPLIES, apply_supply
+from equipment import STARTING_GEAR, stat_value
 from battle import (BattleModel, BattleScene, BattleTransition, EncounterMeter,
-                    ENEMIES, MAX_HP, MAX_POTIONS, gain_xp, SHALEHORN, ShalehornBattle)
+                    ENEMIES, MAX_HP, MAX_POTIONS, gain_xp, SHALEHORN, ShalehornBattle, cave_encounter)
 
 TILE = 16
 VIEW_W, VIEW_H = 320, 180
@@ -43,6 +45,7 @@ TITLE_FADE_OUT_MS = 700
 RETRI_PORTRAIT = ASSETS / "portraits" / "retri-v2.png"
 RETRI_PORTRAIT_REGION = None
 TEMUR_PORTRAIT = ASSETS / "portraits" / "temur.png"
+MERREN_PORTRAIT = ASSETS / "portraits" / "merren.png"
 INK = "#101722"
 GOLD = "#f0d28c"
 MUTED = "#a7b2c2"
@@ -268,6 +271,18 @@ class CavernInstance:
         return (int(px // TILE), int(py // TILE)) in self.floor
 
 
+class GrasslandInstance:
+    """An open field with a mountain face and an entrance back to the cave."""
+    width, height = 64, 40
+
+    def __init__(self):
+        self.floor = {(x, y) for y in range(3, self.height - 1)
+                      for x in range(1, self.width - 1)}
+
+    def walkable(self, px, py):
+        return (int(px // TILE), int(py // TILE)) in self.floor
+
+
 class CaldronaLite:
     """A low-cost retro menu and single-character cavern exploration slice."""
 
@@ -300,13 +315,16 @@ class CaldronaLite:
         self.dialogue = DialogueBox(self.canvas, self.root, self._font)
         self.dialogue.register_portrait("Retri", RETRI_PORTRAIT, RETRI_PORTRAIT_REGION)
         self.dialogue.register_portrait("Temur", TEMUR_PORTRAIT)
+        self.dialogue.register_portrait("Merren", MERREN_PORTRAIT)
         self.game_menu = GameMenu(
             self.canvas, self._font,
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
         self.game_menu.roster = lambda: self.party
-        self.game_menu.inventory = lambda: {"Potion": self.potions}
+        self.game_menu.inventory = self._supply_inventory
         self.game_menu.use_item = self._use_menu_item
+        self.game_menu.gear_inventory = lambda: self.gear_inventory
+        self.game_menu.gear_changed = self._gear_changed
         self.game_menu.progress = lambda: (self.level, self.xp, 30*self.level)
         self.game_menu.sync_unlocked = lambda: self.astral_sync
         self.game_menu.party_names = lambda: [member["name"] for member in getattr(self, "party", [{"name": "Retri"}]) if member.get("active", True)]
@@ -435,11 +453,14 @@ class CaldronaLite:
                 ("confirm", self.pygame.CONTROLLER_BUTTON_A),
                 ("back", self.pygame.CONTROLLER_BUTTON_B),
                 ("menu", self.pygame.CONTROLLER_BUTTON_START),
+                ("member_previous", self.pygame.CONTROLLER_BUTTON_LEFTSHOULDER),
+                ("member_next", self.pygame.CONTROLLER_BUTTON_RIGHTSHOULDER),
             ) if self.pad.get_button(button)}
         if self.joystick is not None and self.joystick.get_init():
             count = self.joystick.get_numbuttons()
-            # Common DS4 DirectInput order: Cross is button 1, Circle is button 2.
-            return {name for index, name in ((1, "confirm"), (2, "back"), (9, "menu"))
+            # Common DS4 DirectInput order: Cross/Circle 1/2, L1/R1 4/5.
+            return {name for index, name in ((1, "confirm"), (2, "back"),
+                                              (4, "member_previous"), (5, "member_next"), (9, "menu"))
                     if count > index and self.joystick.get_button(index)}
         return set()
 
@@ -671,6 +692,9 @@ class CaldronaLite:
         self._menu_footer("ESC BACK")
 
     def _activate(self) -> None:
+        if self.screen == "shop":
+            self._buy_supply()
+            return
         if self.screen in ("faint", "cave_shake"):
             return
         if self.screen == "astral":
@@ -694,6 +718,14 @@ class CaldronaLite:
         if self.screen == "game":
             if self.dialogue.active:
                 self.dialogue.advance()
+                if not self.dialogue.active and self.merren_shop_pending:
+                    self.merren_shop_pending = False
+                    self._open_merren_shop()
+                    return
+                if not self.dialogue.active and self.grass_intro_active:
+                    self.grass_intro_active = False
+                    self.grass_camera = None
+                    self.canvas.itemconfigure(self.grass_temur_item, state="hidden")
                 if not self.dialogue.active and self.boss_intro:
                     self.boss_intro = False
                     self._begin_battle(time.monotonic())
@@ -711,7 +743,7 @@ class CaldronaLite:
                 elif action == "sync":
                     self._open_astral(reveal=False)
             elif not self.game_menu.active:
-                if not self._interact_quarry() and not self._interact_temur():
+                if not self._interact_merren() and not self._interact_quarry() and not self._interact_temur():
                     self._interact_chest()
             return
         if self.screen == "menu":
@@ -783,6 +815,12 @@ class CaldronaLite:
         self.settings_repeating = True
 
     def _back(self) -> None:
+        if self.screen == "shop":
+            self.canvas.delete("merren_shop")
+            self.screen = "game"
+            self.held_direction = None
+            self.next_step_at = time.monotonic() + STEP_INTERVAL
+            return
         if self.screen in ("faint", "game_over", "cave_shake"):
             return
         if self.screen == "astral":
@@ -795,7 +833,10 @@ class CaldronaLite:
             return
         if self.screen == "game":
             if self.dialogue.active:
-                if self.boss_intro or getattr(self, "temur_story", "") in ("intro", "joining"):
+                if self.merren_shop_pending:
+                    self.merren_shop_pending = False
+                    self.dialogue.clear()
+                elif self.grass_intro_active or self.boss_intro or getattr(self, "temur_story", "") in ("intro", "joining"):
                     self._activate()
                 else:
                     self.dialogue.clear()
@@ -880,6 +921,16 @@ class CaldronaLite:
 
     def _click(self, event: tk.Event) -> None:
         x, y = self.canvas.logical_x(event.x), self.canvas.logical_y(event.y)
+        if self.screen == "shop":
+            for index in range(len(SUPPLIES)):
+                if 159 <= x <= 801 and abs(y - (196 + index * 51)) <= 22:
+                    if self.shop_selection == index:
+                        self._buy_supply()
+                    else:
+                        self.shop_selection = index
+                        self._draw_merren_shop()
+                    break
+            return
         if self.screen == "astral":
             self._finish_astral(self.astral_scene.click(x, y))
             return
@@ -920,6 +971,15 @@ class CaldronaLite:
         self.canvas.configure(background=INK)
         self.canvas.delete("all")
         self.cave = CavernInstance()
+        self.cavern_map = self.cave
+        self.grassland_map = GrasslandInstance()
+        self.outdoors = False
+        self._area_step_latch = False
+        self.grass_intro_seen = self.grass_intro_active = False
+        self.grass_camera = None
+        self.merren_shop_pending = False
+        self.merren_hint_seen = False
+        self.merren_tile = (35, 5)
         self.x, self.y = self.cave.spawn
         self.direction = "down"
         self.walk_frame = 1
@@ -942,11 +1002,26 @@ class CaldronaLite:
         self.side_wall_tiles = [[side_wall(tile, clockwise) for tile in source_walls[:2]]
                                 for clockwise in (False, True)]
         self.crystal_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"crystal_lit_{i}.png")).zoom(SCALE) for i in range(4)]
+        grass_art = ASSETS / "grassland"
+        def grass_image(name):
+            return tk.PhotoImage(master=self.root, file=str(grass_art / f"{name}.png")).zoom(SCALE)
+        self.grass_tiles = [grass_image(f"meadow{i}") for i in range(6)]
+        self.path_tiles = [grass_image(f"road{i}") for i in range(2)]
+        self.mountain_tiles = [grass_image(f"cliff{i}") for i in range(2)]
+        self.path_edges = {(side, shift, i): grass_image(f"road-edge-{side}-{shift}-{i}")
+                           for side in (-1, 1) for shift in range(4) for i in range(2)}
+        self.merren_image = grass_image("merren")
+        entrance = tk.PhotoImage(master=self.root, file=str(grass_art / "cliff0.png"))
+        entrance.put("#20252b", to=(3, 5, 13, 16))
+        entrance.put("#20252b", to=(5, 3, 11, 5))
+        self.entrance_tile = entrance.zoom(SCALE)
         self.player_frames = self._load_player()
         self.encounters = EncounterMeter()
         self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
+        self.supplies = {}
         self.level, self.xp = 1, 0
         self.party = [member("Retri", RETRI)]
+        self.gear_inventory = dict(STARTING_GEAR)
         self.temur_story = "waiting"
         self.temur_tile = (10, 7)
         self.temur_image = tk.PhotoImage(master=self.root, file=str(ASSETS / "temur-world-v4.png")).zoom(SCALE)
@@ -981,6 +1056,9 @@ class CaldronaLite:
         self.player_item = self.canvas.create_image(0, 0, anchor="center", tags=("player",))
         self.temur_item = self.canvas.create_image(0, 0, image=self.temur_image, tags=("temur",))
         self.chest_item = self.canvas.create_image(0, 0, image=self.chest_images[0], tags=("chest",))
+        self.merren_item = self.canvas.create_image(0, 0, image=self.merren_image, state="hidden")
+        self.merren_stall = self.canvas.create_image(0, 0, image=self.chest_images[0], state="hidden")
+        self.grass_temur_item = self.canvas.create_image(0, 0, image=self.temur_image, state="hidden")
         self.drawn_player_frame = None
         self.held_direction: str | None = None
         self.next_step_at = 0.0
@@ -1005,19 +1083,26 @@ class CaldronaLite:
                          portrait_region=RETRI_PORTRAIT_REGION),
         ])
 
+    def _supply_inventory(self):
+        return {name: self.potions if name == "Potion" else self.supplies.get(name, 0)
+                for name in SUPPLIES}
+
     def _use_menu_item(self, name, member):
-        if name != "Potion" or self.potions <= 0:
-            return "No potions left."
-        if member["hp"] <= 0:
-            return "A potion cannot revive a fainted member."
-        if member["hp"] >= member["max_hp"]:
-            return member["name"] + " already has full HP."
-        healed = min(POTION_HEAL, member["max_hp"] - member["hp"])
-        member["hp"] += healed
-        self.potions -= 1
+        if not self._supply_inventory().get(name):
+            return f"No {name} left."
+        used, message = apply_supply(name, member)
+        if used:
+            if name == "Potion":
+                self.potions -= 1
+            else:
+                self.supplies[name] -= 1
+            if member["name"] == "Retri":
+                self.hp = member["hp"]
+        return message
+
+    def _gear_changed(self, member):
         if member["name"] == "Retri":
             self.hp = member["hp"]
-        return f"{member['name']} recovered {healed} HP."
 
     def _recruit(self, member):
         if not any(p["name"] == member["name"] for p in self.party):
@@ -1045,6 +1130,8 @@ class CaldronaLite:
             self.next_step_at = time.monotonic() + 0.25
 
     def _interact_quarry(self):
+        if self.outdoors:
+            return False
         dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
         tile = (int(self.x // TILE) + dx, int(self.y // TILE) + dy)
         if tile == self.outer_door:
@@ -1071,6 +1158,104 @@ class CaldronaLite:
             return False
         return True
 
+    def _interact_merren(self):
+        if not self.outdoors:
+            return False
+        dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
+        if (int(self.x // TILE)+dx, int(self.y // TILE)+dy) != self.merren_tile:
+            return False
+        self.merren_shop_pending = True
+        if not self.merren_hint_seen:
+            self.merren_hint_seen = True
+            text = ("Your companion doesn't talk much. Usually means he knows more than he says."
+                    if any(p['name'] == 'Temur' for p in self.party) else
+                    "Been hearing sounds from that cave for days. Now I'm not so sure it's shifting stone.")
+        else:
+            text = "Good to see you again. Need anything for the road?"
+        self.dialogue.show([DialogueLine("Merren", text)])
+        return True
+
+    def _open_merren_shop(self):
+        self.screen = "shop"
+        self.shop_selection = 0
+        self.shop_feedback = ""
+        self.shop_direction = None
+        self.shop_repeat_at = 0.0
+        self._draw_merren_shop()
+
+    def _draw_merren_shop(self):
+        c, tag = self.canvas, "merren_shop"
+        c.delete(tag)
+        c.create_rectangle(132, 97, 828, 449, fill="#101625", outline=GOLD, width=3, tags=tag)
+        c.create_text(159, 127, text="MERREN'S WARES", anchor="w", fill=GOLD,
+                      font=self._font(25, True), tags=tag)
+        c.create_text(801, 127, text=f"{self.gold} GOLD", anchor="e", fill=GOLD,
+                      font=self._font(22), tags=tag)
+        for x, title in ((689, "PRICE"), (796, "OWNED")):
+            c.create_text(x, 163, text=title, anchor="e", fill=MUTED, font=self._font(16), tags=tag)
+        inventory = self._supply_inventory()
+        for i, (name, (price, _)) in enumerate(SUPPLIES.items()):
+            y = 196 + i * 51
+            selected = self.shop_selection == i
+            if selected:
+                c.create_rectangle(155, y-21, 805, y+21, fill="#242181", outline="#83b7d5", tags=tag)
+                c.create_text(175, y, text="▶", fill=CREAM, font=self._font(18), tags=tag)
+            c.create_text(198, y, text=name, anchor="w", fill=GOLD if selected else CREAM,
+                          font=self._font(22), tags=tag)
+            c.create_text(689, y, text=str(price), anchor="e", fill=CREAM if self.gold >= price else "#f3a8a8",
+                          font=self._font(20), tags=tag)
+            c.create_text(796, y, text=str(inventory[name]), anchor="e", fill=CREAM,
+                          font=self._font(20), tags=tag)
+        name = tuple(SUPPLIES)[self.shop_selection]
+        c.create_text(159, 353, text=SUPPLIES[name][1], anchor="w", fill=CREAM,
+                      font=self._font(19), tags=tag)
+        c.create_text(159, 383, text=self.shop_feedback, anchor="w", fill=GOLD,
+                      font=self._font(18), tags=tag)
+        c.create_text(159, 419, text="UP / DOWN MOVE   ENTER / CROSS BUY   ESC / CIRCLE BACK",
+                      anchor="w", fill=MUTED, font=self._font(16), tags=tag)
+
+    def _buy_supply(self):
+        name = tuple(SUPPLIES)[self.shop_selection]
+        price, _ = SUPPLIES[name]
+        if self.gold < price:
+            self.shop_feedback = "You don't have enough gold."
+        else:
+            self.gold -= price
+            if name == "Potion":
+                self.potions += 1
+            else:
+                self.supplies[name] = self.supplies.get(name, 0) + 1
+            self.shop_feedback = f"Bought 1 {name}."
+        self._draw_merren_shop()
+
+    def _grassland_intro(self):
+        self.grass_intro_seen = self.grass_intro_active = True
+        self.grass_camera = self._camera()
+        if any(p['name'] == 'Temur' for p in self.party):
+            cx, cy = self.grass_camera
+            self.canvas.coords(self.grass_temur_item, (33.5*TILE-cx)*SCALE, (4.5*TILE-cy)*SCALE)
+            self.canvas.itemconfigure(self.grass_temur_item, state="normal")
+        self.potions += 1
+        if any(p['name'] == 'Temur' for p in self.party):
+            lines = [DialogueLine("Merren", "Wait -- you weren't alone? So I did see someone go in!"),
+                     DialogueLine("Merren", "Mountain dust. Not from around Sunrest, are you?"),
+                     DialogueLine("Temur", "No."),
+                     DialogueLine("Merren", "Fair enough. You both look like you fought the cave itself."),
+                     DialogueLine("Merren", "Here, a potion on the house. Payment for proving I wasn't imagining things."),
+                     DialogueLine("Retri", "You help every stranger who comes out of a quarry?"),
+                     DialogueLine("Merren", "Only the ones that still look useful."),
+                     DialogueLine("Temur", "This road leads to Sunrest?"),
+                     DialogueLine("Merren", "Aye. Follow the worn grass west. I'll be here if you need supplies.")]
+        else:
+            lines = [DialogueLine("Merren", "By the stones! You're alive?"),
+                     DialogueLine("Merren", "I saw a silhouette near that cave. Didn't expect anyone to come back out."),
+                     DialogueLine("Merren", "You look half-buried. Here, take this potion. First one's charity, second one's business."),
+                     DialogueLine("Retri", "You stay out here alone?"),
+                     DialogueLine("Merren", "Alone enough. Caves spit out customers when they don't swallow them."),
+                     DialogueLine("Merren", "Follow the lower path west to Sunrest. Fewer cliffs, though there may be wolves."),
+                     DialogueLine("Merren", "I'm Merren. I'll be here if you need supplies.")]
+        self.dialogue.show(lines)
+
     def _meet_shalehorn(self):
         self.boss_intro = True
         lines = [DialogueLine("Retri", "That scraping sound... Look under its tusks. Something blue is pulsing.")]
@@ -1080,6 +1265,8 @@ class CaldronaLite:
         self.dialogue.show(lines)
 
     def _interact_temur(self) -> bool:
+        if self.outdoors:
+            return False
         dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
         if self.temur_story != "waiting" or (int(self.x // TILE) + dx, int(self.y // TILE) + dy) != self.temur_tile:
             return False
@@ -1092,6 +1279,8 @@ class CaldronaLite:
         return True
 
     def _interact_chest(self) -> None:
+        if self.outdoors:
+            return
         dx, dy = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}[self.direction]
         tile = (int(self.x // TILE) + dx, int(self.y // TILE) + dy)
         if tile != self.chest_tile:
@@ -1128,6 +1317,7 @@ class CaldronaLite:
 
     def _finish_battle(self, outcome: str) -> None:
         model = self.battle.model
+        self.supplies = model.supplies.copy()
         if outcome == "victory":
             self.gold += model.gold_reward
             for member in model.party:
@@ -1139,19 +1329,20 @@ class CaldronaLite:
             self.level, self.xp = retri.get("level", 1), retri.get("xp", 0)
             for member in model.party:
                 if member["hp"] > 0:
-                    member["hp"] = min(member["max_hp"], member["hp"] + 8)
+                    member["hp"] = min(stat_value(member, "max_hp"), member["hp"] + 8)
             self.hp = next((p["hp"] for p in model.party if p["name"] == "Retri"), self.party[0]["hp"])
             if isinstance(model, ShalehornBattle):
                 self.boss_cleared = self.stone_reveal = True
+                self.chunk_cache.clear()
             self.potions = max(model.potions, min(MAX_POTIONS, model.potions + 1))
         elif outcome == "defeat":
             self.in_chamber = False
             self.x, self.y = self.cave.spawn
-            self.hp, self.potions = self.party[0]["max_hp"], MAX_POTIONS
+            self.hp, self.potions = stat_value(self.party[0], "max_hp"), MAX_POTIONS
             for member in self.party:
-                member["hp"] = member["max_hp"]
+                member["hp"] = stat_value(member, "max_hp")
                 if "max_mp" in member:
-                    member["mp"] = member["max_mp"]
+                    member["mp"] = stat_value(member, "max_mp")
         else:
             self.hp = next((p["hp"] for p in model.party if p["name"] == "Retri"), self.hp)
             self.potions = model.potions
@@ -1167,13 +1358,14 @@ class CaldronaLite:
         if progress < 1:
             return
         if self.screen == "battle_in":
-            enemy = [self.encounters.rng.choice(ENEMIES) for _ in range(self.encounters.rng.randint(1, 3))]
+            enemy = cave_encounter(self.encounters.rng) if not self.in_chamber else None
             self.party[0]["hp"] = self.hp
             active = [p for p in self.party if p.get("active", True)][:3]
             model_type = ShalehornBattle if self.in_chamber else BattleModel
             opponents = SHALEHORN if self.in_chamber else enemy
             self.battle.start(model_type(opponents, active[0]["hp"], self.potions,
-                                        level=self.level, xp=self.xp, party=active), now)
+                                        level=self.level, xp=self.xp, party=active,
+                                        supplies=self.supplies), now)
             self.screen = "battle"
             self._play_music(ASSETS / "audio" / "first-boss.mp3" if self.in_chamber else BATTLE_MUSIC)
         else:
@@ -1202,6 +1394,8 @@ class CaldronaLite:
         return frames
 
     def _camera(self) -> tuple[float, float]:
+        if self.grass_camera is not None:
+            return self.grass_camera
         max_x = max(0, self.cave.width * TILE - VIEW_W)
         max_y = max(0, self.cave.height * TILE - VIEW_H)
         return (min(max(self.x - VIEW_W/2, 0), max_x),
@@ -1216,6 +1410,13 @@ class CaldronaLite:
                 dest = (ox*TILE*SCALE, oy*TILE*SCALE)
                 # Stable variation keeps cached chunks identical when revisited.
                 variation = ((tx * 73856093) ^ (ty * 19349663)) & 0xffffffff
+                if self.outdoors:
+                    tile = self._grassland_tile(tx, ty, variation)
+                    photo.tk.call(photo, "copy", tile, "-to", *dest)
+                    continue
+                if self.boss_cleared and (tx, ty) == (70, 8):
+                    photo.tk.call(photo, "copy", self.entrance_tile, "-to", *dest)
+                    continue
                 if (tx, ty) in self.cave.floor:
                     roll = variation % 100
                     index = 0 if roll < 70 else 2 if roll < 85 else 1 if roll < 97 else 3
@@ -1234,6 +1435,27 @@ class CaldronaLite:
                     photo.tk.call(photo, "copy", self.solid_rock_tiles[variation % 3], "-to", *dest)
         self.chunk_cache[key] = photo
         return photo
+
+    def _grassland_tile(self, tx, ty, variation):
+        if (tx, ty) == (32, 2):
+            return self.entrance_tile
+        roll = (variation ^ (variation >> 13) ^ (variation >> 23)) & 255
+        if ty < 3:
+            return self.mountain_tiles[int(roll >= 176)]
+        bend = max(0, ty - 6)
+        offset = tx - (32 - bend // 5)
+        road_variant = int(roll >= 128)
+        if offset == 0:
+            return self.path_tiles[road_variant]
+        if abs(offset) == 1:
+            sweep = min(3, bend % 5)
+            shift = 3 - sweep if offset < 0 else sweep
+            return self.path_edges[offset, shift, road_variant]
+        # Large warm patches with a few scattered clumps give the field a readable shape.
+        warm_patch = math.sin(tx * 0.43 + ty * 0.24) + math.cos(ty * 0.48 - tx * 0.21)
+        if warm_patch > 0.8:
+            return self.grass_tiles[3 if roll < 100 else 4 if roll < 205 else 5]
+        return self.grass_tiles[0 if roll < 110 else 1 if roll < 195 else 2 if roll < 225 else 5]
 
     def _update_world(self, force: bool = False) -> None:
         camera = self._camera()
@@ -1269,9 +1491,29 @@ class CaldronaLite:
                            (self.temur_tile[1]*TILE + TILE/2-cy)*SCALE)
         for tile, image, item, lift in self.quarry_objects:
             self.canvas.coords(item, ((tile[0]+0.5)*TILE-cx)*SCALE, ((tile[1]+0.5)*TILE-cy)*SCALE-lift)
-            self.canvas.itemconfigure(item, state="hidden" if lift and self.boss_cleared else "normal")
-        self.canvas.itemconfigure(self.location_label, text="ASTRAL HOLLOW" if self.in_chamber else "SUNREST EXCAVATION · FLOOR 1")
+            self.canvas.itemconfigure(item, state="hidden" if self.outdoors or (lift and self.boss_cleared) else "normal")
+        self.canvas.itemconfigure(self.chest_item, state="hidden" if self.outdoors else "normal")
+        self.canvas.itemconfigure(self.temur_item, state="normal" if not self.outdoors and self.temur_story == "waiting" else "hidden")
+        self.canvas.coords(self.merren_item, ((self.merren_tile[0]+0.5)*TILE-cx)*SCALE, ((self.merren_tile[1]+0.5)*TILE-cy)*SCALE)
+        self.canvas.coords(self.merren_stall, ((self.merren_tile[0]+1.5)*TILE-cx)*SCALE, ((self.merren_tile[1]+0.5)*TILE-cy)*SCALE)
+        for item in (self.merren_item, self.merren_stall):
+            self.canvas.itemconfigure(item, state="normal" if self.outdoors else "hidden")
+        self.canvas.itemconfigure(self.location_label, text="SUNREST GRASSLANDS" if self.outdoors else "ASTRAL HOLLOW" if self.in_chamber else "SUNREST EXCAVATION · FLOOR 1")
         self._place_player(camera)
+
+    def _change_area(self, outdoors):
+        self.outdoors = outdoors
+        self.cave = self.grassland_map if outdoors else self.cavern_map
+        self.in_chamber = not outdoors
+        self.x, self.y = ((32.5*TILE, 3.5*TILE) if outdoors else (70.5*TILE, 9.5*TILE))
+        self.direction = "down"
+        self._stone_step_latch = False
+        self._area_step_latch = True
+        self.encounters.reset()
+        self.chunk_cache.clear()
+        self._update_world(force=True)
+        if outdoors and not self.grass_intro_seen:
+            self._grassland_intro()
 
     def _place_player(self, camera: tuple[float, float]) -> None:
         cx, cy = camera
@@ -1305,6 +1547,15 @@ class CaldronaLite:
             self.menu_nav_after = now + 0.18
         elif self.screen == "settings":
             self._navigate_settings(direction, now)
+        elif self.screen == "shop":
+            if direction not in ("up", "down"):
+                self.shop_direction = None
+            elif direction != self.shop_direction or now >= self.shop_repeat_at:
+                self.shop_direction, self.shop_repeat_at = direction, now + 0.22
+                step = -1 if direction == "up" else 1
+                self.shop_selection = (self.shop_selection + step) % len(SUPPLIES)
+                self.shop_feedback = ""
+                self._draw_merren_shop()
         elif self.screen == "cave_shake":
             elapsed = now - self.shake_started
             shift = (3 if int(elapsed*20)%2 else -3) if elapsed < 1.0 else 0
@@ -1350,6 +1601,11 @@ class CaldronaLite:
             self.astral_scene.navigate(direction if self._astral_direction_armed else None, now)
             self.astral_scene.update(now)
         elif self.screen == "game" and self.game_menu.active:
+            # Shoulder buttons switch equipment members once per press. The
+            # menu itself ignores this outside the equipment screen.
+            shoulder_step = int("member_next" in tapped) - int("member_previous" in tapped)
+            if shoulder_step:
+                self.game_menu.change_equipment_member(shoulder_step)
             self.game_menu.navigate(direction, now)
         elif self.screen == "game" and not self.dialogue.active:
             # One input step is one complete tile. Retri never rests across a
@@ -1365,17 +1621,25 @@ class CaldronaLite:
                     old_direction, old_frame = self.direction, self.walk_frame
                     self.direction = active
                     nx, ny = self.x + dx * TILE, self.y + dy * TILE
-                    if (int(nx // TILE), int(ny // TILE)) in (self.outer_door, self.inner_door):
+                    next_tile = (int(nx // TILE), int(ny // TILE))
+                    if self.outdoors and next_tile == (32, 2):
+                        if not self._area_step_latch:
+                            self._change_area(False)
+                    elif not self.outdoors and self.in_chamber and self.boss_cleared and next_tile == (70, 8):
+                        if not self._area_step_latch:
+                            self._change_area(True)
+                    elif not self.outdoors and next_tile in (self.outer_door, self.inner_door):
                         self._interact_quarry()
-                    elif (int(nx // TILE), int(ny // TILE)) == self.stone_tile and self.boss_cleared:
+                    elif not self.outdoors and next_tile == self.stone_tile and self.boss_cleared:
                         if not self._stone_step_latch:
                             self._interact_quarry()
-                    elif self.cave.walkable(nx, ny) and (int(nx // TILE), int(ny // TILE)) not in (self.chest_tile, self.stone_tile) and (self.temur_story == "joined" or (int(nx // TILE), int(ny // TILE)) != self.temur_tile):
+                    elif self.cave.walkable(nx, ny) and ((self.outdoors and next_tile not in (self.merren_tile, (self.merren_tile[0]+1, self.merren_tile[1]))) or (not self.outdoors and next_tile not in (self.chest_tile, self.stone_tile) and (self.temur_story == "joined" or next_tile != self.temur_tile))):
                         self.x, self.y = nx, ny
+                        self._area_step_latch = False
                         self._stone_step_latch = False
                         self.walk_frame = 0 if self.walk_frame == 2 else 2
                         self._update_world()
-                        if not self.in_chamber and self.encounters.step():
+                        if not self.outdoors and not self.in_chamber and self.encounters.step():
                             self._begin_battle(now)
                     else:
                         self.walk_frame = 1
@@ -1384,6 +1648,7 @@ class CaldronaLite:
                     self.next_step_at = now + STEP_INTERVAL
             else:
                 self.held_direction = None
+                self._area_step_latch = False
                 self._stone_step_latch = False
                 if self.walk_frame != 1:
                     self.walk_frame = 1
