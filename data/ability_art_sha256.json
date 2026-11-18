@@ -1,0 +1,838 @@
+{
+  "abilities/saint_mend/frames/saint_mend_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_00.png",
+    "sha256": "532a8ac44082b10db358da266ca75cffbbf2a32f5506948c1dc6daf4f5dbd069"
+  },
+  "abilities/saint_mend/frames/saint_mend_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_01.png",
+    "sha256": "5d0dafcc5f004b90768e9d8f06cc99088ab229e8c79b4001deb14148227ab767"
+  },
+  "abilities/saint_mend/frames/saint_mend_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_02.png",
+    "sha256": "d27792e07ce64b0762d01ccc897aed4b8ab4fe7dabf9ab7798c39ad2758d9a82"
+  },
+  "abilities/saint_mend/frames/saint_mend_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_03.png",
+    "sha256": "6f359ea74df4ed1c3832bf18406f20d4d753dad6dc5a4f46f18973c67dda6d4b"
+  },
+  "abilities/saint_mend/frames/saint_mend_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_04.png",
+    "sha256": "1ce8adb592cc1ff3b73918c244494eefe798ba023ce2322ae3f0922bf079ea25"
+  },
+  "abilities/saint_mend/frames/saint_mend_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_05.png",
+    "sha256": "8a801cef4d9b4fab0dbddaecd6c71a9e1e8a49b88d3764403e90722aa31821b6"
+  },
+  "abilities/saint_mend/frames/saint_mend_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_06.png",
+    "sha256": "dcba33e47972d1907462deb4d2dc81ba1ad69c397f46e8145a1f7cf14a7efc59"
+  },
+  "abilities/saint_mend/frames/saint_mend_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_07.png",
+    "sha256": "808d58d5183299ad601e1a510fdef816835ed42c43e5f14a76ad1501e97153d1"
+  },
+  "abilities/saint_mend/frames/saint_mend_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/frames/saint_mend_08.png",
+    "sha256": "b0a32077da687f03ecd86e712b60619b1ec8c42588115bca9f09e228cd4472a1"
+  },
+  "abilities/saint_mend/saint_mend.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/saint_mend.json",
+    "sha256": "c2b82d7730209865c65cd82ecdb8abcca7ead3315894631da216d957063e7355"
+  },
+  "abilities/saint_mend/saint_mend_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/saint_mend_preview_4x.gif",
+    "sha256": "f4fa23f698df70fd8a26ca01fdcd15c7525467f18d49b836da18cd8593126f9a"
+  },
+  "abilities/saint_mend/saint_mend_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_mend/saint_mend_strip.png",
+    "sha256": "2b48da1d41af40384bbfcc7dc886eced3af7bb23f73658fd35fc77590f913f9b"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_00.png",
+    "sha256": "2ecd118135cbe76415d4e325b9922790ac5335ea032775d3131763e58e8f9d5b"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_01.png",
+    "sha256": "3fdc8800810a36d9589b868b9c4300b669359b4130ad4c4574e11e682f65b7be"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_02.png",
+    "sha256": "b8b9265b5211ce6bea5c9e58dd93da4644e7dcf06e0a6f6f88cefcd3bc891eb6"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_03.png",
+    "sha256": "a7957f11b0e346f34cbd9e9ee0a32dd098cb3e42d55daeccd7fecb7d0fcce83b"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_04.png",
+    "sha256": "92f8581c583b9e985a0a66d6af2497bcfa0fb7815e87cd95e24772b7a702433d"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_05.png",
+    "sha256": "4b670fabacb20ef45e8001899af03426b1989e2e65cbce0c71cedaf2a660d681"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_06.png",
+    "sha256": "1cc210221f5b378041993cb70334c6665ccff4b7f83e09f558b903bfdb9726a4"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_07.png",
+    "sha256": "4e3a9eac921ebe54f158e7f0f7e40c6c35c2f7aa1c6caf636d2572f732902a42"
+  },
+  "abilities/saint_sanctuary/frames/saint_sanctuary_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/frames/saint_sanctuary_08.png",
+    "sha256": "0e2a9d67c035e485ef439ae52f8fbfaf31fa74fd9cec6efb26b68bb417e2e028"
+  },
+  "abilities/saint_sanctuary/saint_sanctuary.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/saint_sanctuary.json",
+    "sha256": "2e42530e1e9e27500e87440ffd0d0a7970ace24cd27e88714ddb05882771011b"
+  },
+  "abilities/saint_sanctuary/saint_sanctuary_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/saint_sanctuary_preview_4x.gif",
+    "sha256": "d369620897729627ccfbc969a760752abe178c3df466f4098dc360163b90fc7b"
+  },
+  "abilities/saint_sanctuary/saint_sanctuary_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_sanctuary/saint_sanctuary_strip.png",
+    "sha256": "6adf1ffffacf45000f3122b9b2df20257b011b761671d85efe94cb8c7a2db210"
+  },
+  "abilities/saint_smite/frames_first_stone/saint_smite_first_stone_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_first_stone/saint_smite_first_stone_00.png",
+    "sha256": "78a8af8aaf579cc259db01a74428baa6ec3a8b7503939386f488a48d956e961d"
+  },
+  "abilities/saint_smite/frames_first_stone/saint_smite_first_stone_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_first_stone/saint_smite_first_stone_01.png",
+    "sha256": "23f7ff23b9174330e1db489860bf3869c5d3ecd1dbbbffdb217d9fea3a664ede"
+  },
+  "abilities/saint_smite/frames_first_stone/saint_smite_first_stone_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_first_stone/saint_smite_first_stone_02.png",
+    "sha256": "164f13dc9e24bc9cf39e26aaf70a944ff4b20f7c89574d320d83175bd5b905da"
+  },
+  "abilities/saint_smite/frames_first_stone/saint_smite_first_stone_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_first_stone/saint_smite_first_stone_03.png",
+    "sha256": "b8d96a5bef632cf68fb754371bbd68dd14dbc280a9e05ce9ae9640f9ef691643"
+  },
+  "abilities/saint_smite/frames_first_stone/saint_smite_first_stone_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_first_stone/saint_smite_first_stone_04.png",
+    "sha256": "d4e61807fc74f3745b9caf2c1ecfd2d410311717c848ac2bf2ea2d5b4726c44e"
+  },
+  "abilities/saint_smite/frames_first_stone/saint_smite_first_stone_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_first_stone/saint_smite_first_stone_05.png",
+    "sha256": "45853d8f6470a3adeb58aa2bf74a74c9217689c1570bb15bc5fbaf5bee660521"
+  },
+  "abilities/saint_smite/frames_first_stone/saint_smite_first_stone_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_first_stone/saint_smite_first_stone_06.png",
+    "sha256": "a5762cd89ef3dccdecfbfe039ed4b2861186f98700db7b4eb4a9fc54b3eb5773"
+  },
+  "abilities/saint_smite/frames_first_stone/saint_smite_first_stone_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_first_stone/saint_smite_first_stone_07.png",
+    "sha256": "a97f4c22c44c60143b74d559cf3678b983d0fb07f30435b288b1b59865c89626"
+  },
+  "abilities/saint_smite/frames_unattuned/saint_smite_unattuned_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_unattuned/saint_smite_unattuned_00.png",
+    "sha256": "78a8af8aaf579cc259db01a74428baa6ec3a8b7503939386f488a48d956e961d"
+  },
+  "abilities/saint_smite/frames_unattuned/saint_smite_unattuned_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_unattuned/saint_smite_unattuned_01.png",
+    "sha256": "23f7ff23b9174330e1db489860bf3869c5d3ecd1dbbbffdb217d9fea3a664ede"
+  },
+  "abilities/saint_smite/frames_unattuned/saint_smite_unattuned_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_unattuned/saint_smite_unattuned_02.png",
+    "sha256": "22e6885fa128ec4c4b8cec3359609841ec19cd70e8595e989a68638abd5cbe78"
+  },
+  "abilities/saint_smite/frames_unattuned/saint_smite_unattuned_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_unattuned/saint_smite_unattuned_03.png",
+    "sha256": "dc1e3b05ebbf4e7be41a0585f73f183e8ca28ed5236ec35a0b3fbd25f9ac194a"
+  },
+  "abilities/saint_smite/frames_unattuned/saint_smite_unattuned_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_unattuned/saint_smite_unattuned_04.png",
+    "sha256": "29224c722a4c5797b0ccd8f6116279ea8188d0b7102f6139af4d20565fcc49c8"
+  },
+  "abilities/saint_smite/frames_unattuned/saint_smite_unattuned_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_unattuned/saint_smite_unattuned_05.png",
+    "sha256": "c4abb47496fa5bf26598172d56363089c477ba3b0de9552a866634f7694b2d09"
+  },
+  "abilities/saint_smite/frames_unattuned/saint_smite_unattuned_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_unattuned/saint_smite_unattuned_06.png",
+    "sha256": "43ca630593d144fb276ede907474258c6d19afb19175cf810af21ba2bfcece8d"
+  },
+  "abilities/saint_smite/frames_unattuned/saint_smite_unattuned_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/frames_unattuned/saint_smite_unattuned_07.png",
+    "sha256": "396aa7a6d2eb470f03e108235074280ab38dd579fc98b5ec9cc89d4dde616202"
+  },
+  "abilities/saint_smite/saint_smite_first_stone.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/saint_smite_first_stone.json",
+    "sha256": "e2ee93ce37bf78f9579c8e4934ca902e86c97e5c00c57449d52dd8de3afcd273"
+  },
+  "abilities/saint_smite/saint_smite_first_stone_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/saint_smite_first_stone_preview_4x.gif",
+    "sha256": "44d81abbd7f139ea206351aacafd946bfc1069652d071fb800ea60025191ad57"
+  },
+  "abilities/saint_smite/saint_smite_first_stone_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/saint_smite_first_stone_strip.png",
+    "sha256": "41b8b0552b957cf98b6e5c8460e10d1c792499c3bb789627c5beff39923b4f4e"
+  },
+  "abilities/saint_smite/saint_smite_unattuned.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/saint_smite_unattuned.json",
+    "sha256": "af710b4b59a3959a55a64996d14db8b0088ed0c4e3cc1b778ed42fffefb90309"
+  },
+  "abilities/saint_smite/saint_smite_unattuned_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/saint_smite_unattuned_preview_4x.gif",
+    "sha256": "c9492fe665e6bf749ebe68c6f0d2538ae2a76662ddce6959fe6083afdddd1987"
+  },
+  "abilities/saint_smite/saint_smite_unattuned_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/saint_smite/saint_smite_unattuned_strip.png",
+    "sha256": "0e2151065c77a8e9274a7cbfec8f78a009cce044ec784e3b7642a01a6959f30c"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_00.png",
+    "sha256": "6472cdfbe8f2c4ff7eee8383f5fd9fea91fbe0d2ea5f5af9b7fe630f80c83a31"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_01.png",
+    "sha256": "a33b5bfd4681f50fc182386fb324c9abd5026a767264c4a901ca214daac6c78d"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_02.png",
+    "sha256": "f5e1f8ac03a4b54aa66c3af94af602efe95c76cacb3d7bf81c369e1dfacabb5f"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_03.png",
+    "sha256": "cc775d773c9818044b3b8c29db32d8509d1d8a60229f46a59a8a937d31e9bf65"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_04.png",
+    "sha256": "5cf7f2cbe52d6cabc7280c24b262b7039e9299655a97a24430193d7d06bc1192"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_05.png",
+    "sha256": "ea6fd650ba2babb2a7b603ed7105489b70f0241b062b7743c1a7b5fee3533c6e"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_06.png",
+    "sha256": "1525769aeeb250bb399f0e73732534bb6b95889fea45b7d6bf86ed37182553cf"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_07.png",
+    "sha256": "03a2009d8f21aca8aadf1c2653e4429e33b802096743280eb7e7d8cb09def1ec"
+  },
+  "abilities/seer_foretell/frames_first_stone/seer_foretell_first_stone_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_first_stone/seer_foretell_first_stone_08.png",
+    "sha256": "f8e48c5cd228c53460531b139e721e2346b613d075f299d21c691579d13c5654"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_00.png",
+    "sha256": "9d60519ed654f7ae88dea302a46704ce1d21eeb1c3d3c79d55b424a39c57f56f"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_01.png",
+    "sha256": "419c0cc606fe469751778a778fa8820b9162b293047e6f3d96b3a6c549806d27"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_02.png",
+    "sha256": "b063a90c11f50ac5b0c5c42dd0044913be37598e5f42b001352dd014c0fa49a8"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_03.png",
+    "sha256": "bbc8696042eddddbaddbb7b7f8165efd086f0c1ee685345be56a6a6b99841bfc"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_04.png",
+    "sha256": "f1f3cab0d2a8d69c499dd7364fe6fe350a2fbd87a35b6608ab2f4df90dc71253"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_05.png",
+    "sha256": "0af721edea566a5ca3a8dc79a59c11d5d03d1b52568289e8dc345c837e0da7c8"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_06.png",
+    "sha256": "dcac57478c0291227055cda1f141c1216c545a0fffc7d08bd88b92d229962780"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_07.png",
+    "sha256": "f6051ddba71bf848ff76f9a64f61fc83358947afc4d2ea76e35089e1b8dfcb90"
+  },
+  "abilities/seer_foretell/frames_unattuned/seer_foretell_unattuned_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/frames_unattuned/seer_foretell_unattuned_08.png",
+    "sha256": "019146b85bb604ad02dc30d6c994ec196b021ebb60a1f38b628a9b01e2c8ecba"
+  },
+  "abilities/seer_foretell/seer_foretell_first_stone.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/seer_foretell_first_stone.json",
+    "sha256": "19ff422d6d62a64642bbb3c0317213c8a1be414a194634f8fa614a5bbc215e7d"
+  },
+  "abilities/seer_foretell/seer_foretell_first_stone_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/seer_foretell_first_stone_preview_4x.gif",
+    "sha256": "ffda3715f0f692769eebe9c5ee5713770fc05c4df1a7ee891d628600abee808e"
+  },
+  "abilities/seer_foretell/seer_foretell_first_stone_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/seer_foretell_first_stone_strip.png",
+    "sha256": "53992497d06f8637734ec86970b8df63a5e8175019875b3afdfab54068297c86"
+  },
+  "abilities/seer_foretell/seer_foretell_unattuned.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/seer_foretell_unattuned.json",
+    "sha256": "4729e77ef27b77905d2f018c1b8c3d1030a1e6cc1759c8a452d6291b481d243b"
+  },
+  "abilities/seer_foretell/seer_foretell_unattuned_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/seer_foretell_unattuned_preview_4x.gif",
+    "sha256": "b22a6e31a125273b167c37455d9d1d7af0c9b62360a8933884fcb1f4acde2a88"
+  },
+  "abilities/seer_foretell/seer_foretell_unattuned_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_foretell/seer_foretell_unattuned_strip.png",
+    "sha256": "f89cb6a4eb7c0216f777cf7789d0a254a8f50583d2098eac8b2c80b4b0db3d0d"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_00.png",
+    "sha256": "5e6bbe755db734e46b3996c13ec42deff1326b14cf20824dfe4afdc063e585c3"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_01.png",
+    "sha256": "b9517e2dbffb2ed2e4ef535d5996417d235fd915008f975b5f6c6fd9d1cf0b43"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_02.png",
+    "sha256": "011584e5564c028433d37f73899be4aa48ada6aa02acfbbc4eae6124449db56f"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_03.png",
+    "sha256": "a5a0a56aa3b1e94660f0f80c04c5dcdc748978fd49480208fdd6577e7d3af4c1"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_04.png",
+    "sha256": "0e202536fe12a7fe30471042e7c0dfdbd6e2fcd60cca65863784d2f8a864de3f"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_05.png",
+    "sha256": "ffb56c7125c3272e8cf65723a0a432a38a650cbc40e9dd0f5c516dc2620aa4f5"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_06.png",
+    "sha256": "f330452bd3da6020d198eefafd7d814bd8e19a753d0b70d0c8cfd9f83a2d5434"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_07.png",
+    "sha256": "363425cced46382e1101bd56c1611746c80a782dcf4e7d038a3641e5076903da"
+  },
+  "abilities/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_first_stone/seer_forewarn_first_stone_08.png",
+    "sha256": "dc99df6bdc92b9f83ac982d19f7d2ead00df6e89edb45f578552dbbd53b5c63a"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_00.png",
+    "sha256": "aabc80c64000ef2e7b2c44c44c6917bd04508c2274b6e4599ba1b33833fbc13d"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_01.png",
+    "sha256": "9554c596f73c3c334aa8d3c3852df6bab9ccb867c2f95b82533cd8e87a4eeb91"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_02.png",
+    "sha256": "adc5998a06320ce3bf50d74b74e274bb0e552d10c5b6ea2e8c656ffa16c72cf1"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_03.png",
+    "sha256": "431437b82c02550c93b093702ea0b41e3734068d9981741174fda477824a54d3"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_04.png",
+    "sha256": "d14af90e43a051af76ba44da96ec716f4cd90f3a470599d8924ab53880ba3f24"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_05.png",
+    "sha256": "1482ca831ebebaab486b179f452ce2f74a9b5f9a6732db9ebf1cf89b251a99a5"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_06.png",
+    "sha256": "a0ae8e593a763cfbadbeddf61114c0a7344cdb851286427388314b654561e6c3"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_07.png",
+    "sha256": "7c2298f4b26f0c5deef5e0d77681cc00ea2a2bde648201fb579c673d56774d5d"
+  },
+  "abilities/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/frames_unattuned/seer_forewarn_unattuned_08.png",
+    "sha256": "9b6860d76cc88e4662194da3bb2443af89f19eb60c293cc6bbddb7db9ae8e945"
+  },
+  "abilities/seer_forewarn/seer_forewarn_first_stone.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/seer_forewarn_first_stone.json",
+    "sha256": "957bc77b7a8ba5a7d055182238407056c749156f0d89822cc17e4fd14b2229e3"
+  },
+  "abilities/seer_forewarn/seer_forewarn_first_stone_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/seer_forewarn_first_stone_preview_4x.gif",
+    "sha256": "e431905a660dff0f5dee0dce14cf5ef83290d016d61bef1c8d95fd559f31dbc5"
+  },
+  "abilities/seer_forewarn/seer_forewarn_first_stone_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/seer_forewarn_first_stone_strip.png",
+    "sha256": "c51b031fef7635c8cf76b36bf2551ce0f1caae018810d8cf18f1e065410e3608"
+  },
+  "abilities/seer_forewarn/seer_forewarn_unattuned.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/seer_forewarn_unattuned.json",
+    "sha256": "2c910509b7c7631e1625a7fbde7688732d947bc5a9eae81ca570137bdfdbc367"
+  },
+  "abilities/seer_forewarn/seer_forewarn_unattuned_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/seer_forewarn_unattuned_preview_4x.gif",
+    "sha256": "7b868b721b62b6b02f210da055a423b5f9862b4f861af8f4870173db89fb1f4e"
+  },
+  "abilities/seer_forewarn/seer_forewarn_unattuned_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_forewarn/seer_forewarn_unattuned_strip.png",
+    "sha256": "d796423300f67309a96ff4ae452c8c8508503b1fe769e5a49b3095df6d956038"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_00.png",
+    "sha256": "d850a6ef5f57d73257384324af16aefe87016c35bb94bbb3a34ce6fd19c10031"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_01.png",
+    "sha256": "3825a5a681e760243e99a29939fa57295563f79940e6f7b6d34679a67a0e9e55"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_02.png",
+    "sha256": "80df8ec8048f343ae94e94ee6232bc8021e77ae0cb2ac1c2244a4d33642877df"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_03.png",
+    "sha256": "877b1dd756063f8de9a13daffd2b48e0132cfc53ee05774c035dd3734cf7e71b"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_04.png",
+    "sha256": "f6ad8a7fd3e0ef671323082ffe8aa3117e42a9ca2a555ae78181802b7341a306"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_05.png",
+    "sha256": "28bcf6caffa9cbc391dd7f49c25f64595256cc4bcc3069165d9577d53478cc1b"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_06.png",
+    "sha256": "900f3da26d92b26b906def4ff6280192b7f35fdaafe567c09d5ed6948c789868"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_07.png",
+    "sha256": "fa2ec2ae002ad22ed50e98281c893b42489b584fb00f2ee7f6d13495b81e24ba"
+  },
+  "abilities/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_first_stone/seer_starfall_omen_first_stone_08.png",
+    "sha256": "51c0f3c4b264d41eb70490d1a8227761189e6df92ba49c8e2154412c6e740404"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_00.png",
+    "sha256": "3d7b3ca48f7b23edcb20c31bf51fb17fc0fe2255168df66f0c93fbd47789484c"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_01.png",
+    "sha256": "9e926108a3048d3f9fcfe7c90f37b19180656833fabb2b38731b6bbe21e8e440"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_02.png",
+    "sha256": "003e9a3a740f95308f411d61fb5b8fb66b86d0002436fcf3e694e9de221ecb84"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_03.png",
+    "sha256": "28d4eb15232867af9b2792c96bfa9152dced57a0dc9662a597efd475aba12e4f"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_04.png",
+    "sha256": "cb10f29a2e2776e6ccffd43d36bd90b870512bc996679fdabf020f4e3d65560c"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_05.png",
+    "sha256": "993231c163e90f023a34316422efb24b621553f61fb0279d428901e900e20ea1"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_06.png",
+    "sha256": "e7505159a515735ebeadfb9e4d5db4749520f672628f4f4e66b2099b69b078d4"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_07.png",
+    "sha256": "fdde835aa5ee9321a82241232176fdd08461d8f5c58efabe232039dba96cbc05"
+  },
+  "abilities/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/frames_unattuned/seer_starfall_omen_unattuned_08.png",
+    "sha256": "16b6be60ceb164acef23a37b491c56e650c7a4636be290120cfa8f8e067b8be6"
+  },
+  "abilities/seer_starfall_omen/seer_starfall_omen_first_stone.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/seer_starfall_omen_first_stone.json",
+    "sha256": "20ebe54f48880267853f6f35bd254bd7fb37c146e949ade1d3b1b23bee010cae"
+  },
+  "abilities/seer_starfall_omen/seer_starfall_omen_first_stone_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/seer_starfall_omen_first_stone_preview_4x.gif",
+    "sha256": "47340bf71f3063176e53a8e92ef2780028475f57d68b294e1ff4b0fd67100f1f"
+  },
+  "abilities/seer_starfall_omen/seer_starfall_omen_first_stone_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/seer_starfall_omen_first_stone_strip.png",
+    "sha256": "6c834a547c560a1092de618c11381ebc2bf720d2c95ff64b709d19af50fff79c"
+  },
+  "abilities/seer_starfall_omen/seer_starfall_omen_unattuned.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/seer_starfall_omen_unattuned.json",
+    "sha256": "f25584b9537dd5b703d4d27a29da91a7334100c4ec24853bf782f018ed907e5e"
+  },
+  "abilities/seer_starfall_omen/seer_starfall_omen_unattuned_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/seer_starfall_omen_unattuned_preview_4x.gif",
+    "sha256": "047dcd896d1d724fdc3ee97efc1536a4d0b9a163b9d5f31238bea64ba1296a55"
+  },
+  "abilities/seer_starfall_omen/seer_starfall_omen_unattuned_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/seer_starfall_omen/seer_starfall_omen_unattuned_strip.png",
+    "sha256": "27f514f3bb546e035eda67fdbf76212df07a95989541a1d3f45d9a5fa918446a"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_00.png",
+    "sha256": "cf5eb126710ccf78627276e67f4e8c9efd1c44b4c202d9a08eed59c57b193db1"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_01.png",
+    "sha256": "88a9c2c4fcca8d4d95a8eaa0ab39e9bdb1b2b92875a8ef7d8092d793911009e8"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_02.png",
+    "sha256": "6b983c340ee7ea6afdc88cac84602165729d82ab59abeaf9d74dfa76def1d535"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_03.png",
+    "sha256": "0c27a6ac31f17dbd9cb02b89e68761a67767b7e6e8711b3cebff0762600927e3"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_04.png",
+    "sha256": "331b7f28f77c9dfb02245a463165dd207a5d351142700bbf98c2e15ab598a29f"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_05.png",
+    "sha256": "9e2aa1253ea614c52d35b7d9b2df34a933a0e3ad025982cccc4e3818bd7c0c9c"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_06.png",
+    "sha256": "862dbe56db6403b9a9a85319cb01190c21e630105625175c86bdb33571af2cc9"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_07.png",
+    "sha256": "cf5b9362818ff662487d5bc02296bc5756385437d1fd60a87123518bcbfd7f6d"
+  },
+  "abilities/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_first_stone/sollers_backstab_first_stone_08.png",
+    "sha256": "f097995cc57405a745805e1e778c36025154fa42f9de9ebec11944893ffdf18c"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_00.png",
+    "sha256": "cf5eb126710ccf78627276e67f4e8c9efd1c44b4c202d9a08eed59c57b193db1"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_01.png",
+    "sha256": "ded4fef68989efbf0381d944439143859b522b3d8f08e4a81cd924851e44182f"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_02.png",
+    "sha256": "d5044454597eacfaa01b4439030cb4608456fffb385822d2a8edc82695cf9a0a"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_03.png",
+    "sha256": "fd5d3cdb7a478451b20dc8476c8c04b0e697edada1c4594589fcc40837bedcf4"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_04.png",
+    "sha256": "528f46903586e3bdb318f8c202403c37b3aa7df051cf6be395eb2ff6672414e6"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_05.png",
+    "sha256": "e1d7b2263baa563c544cc49ee2ce2a9fc2e17fe5125a97c2fd40c000d74501be"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_06.png",
+    "sha256": "e59ee9cc115b2db053c5a662bfa0586aa4ddba4d1a374fde5133e822840554dc"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_07.png",
+    "sha256": "d6023b910c2c38ff108def0ec79fb0f1e45eacee2ef15cf7674579b93da4dd53"
+  },
+  "abilities/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/frames_unattuned/sollers_backstab_unattuned_08.png",
+    "sha256": "1db2390a1d3a918590332b9650fe8fa68194f636fb8204650307e04d3e920031"
+  },
+  "abilities/sollers_backstab/sollers_backstab_first_stone.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/sollers_backstab_first_stone.json",
+    "sha256": "b875cd9f599b3159c0a226d19e41df99f54bf6be7d937ed2d898d5b38f9b52ef"
+  },
+  "abilities/sollers_backstab/sollers_backstab_first_stone_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/sollers_backstab_first_stone_preview_4x.gif",
+    "sha256": "5dfd08c641958cbf5e0d2a139ff1e4c766e62f3c3ec12ae8b98f11d4d0b66b13"
+  },
+  "abilities/sollers_backstab/sollers_backstab_first_stone_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/sollers_backstab_first_stone_strip.png",
+    "sha256": "e8611ace34ff2124be25f5f227271fbdc38a99702b28ff1328a7a18571b5339a"
+  },
+  "abilities/sollers_backstab/sollers_backstab_unattuned.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/sollers_backstab_unattuned.json",
+    "sha256": "44856ee1ac0968ee340d56c6934fa1ccd1341c6ef53b2834ab1c920455c7ed63"
+  },
+  "abilities/sollers_backstab/sollers_backstab_unattuned_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/sollers_backstab_unattuned_preview_4x.gif",
+    "sha256": "f925fa2216948a2881fa2996420483a8db9ed82b325e11e43aad02542081ae68"
+  },
+  "abilities/sollers_backstab/sollers_backstab_unattuned_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_backstab/sollers_backstab_unattuned_strip.png",
+    "sha256": "5baadd239ff13977b5276ade11f77840dc0fc6a1e8e511e5d5c1dbb203050c86"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_00.png",
+    "sha256": "0651225468c801feb1e48c6fb157c3fd17047349321b325cd93b563013959df7"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_01.png",
+    "sha256": "6d9f1ab1717f3efeb7eecf5254c04b4a259f4182c453a94e2f350d6e283142bf"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_02.png",
+    "sha256": "f09440d1d84feb2904c6b55cb7c0d926557c57332953aa2f09e8f882b9aad4cc"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_03.png",
+    "sha256": "9f9bc7e54ff8c0bd92ff64cd61b3e865f17bbf13414337bdbf1ac6825cb5e3d9"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_04.png",
+    "sha256": "2f1756260cf3d9797d5ae8e5102175968b76aa079dcb6cbd5f3d514a81872f41"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_05.png",
+    "sha256": "f0df11f66a66336a0be2df6568e6ebf6139c7419b1171f70d78ef9f86ce3a7f8"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_06.png",
+    "sha256": "27c3ef0dba3aa5d569042d1cd2cd5247937753a045213c6d4fe470f87d0bcf32"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_07.png",
+    "sha256": "fb55df067a04f4b1f7b9037dd749bccc2a50dfa9ffabf792a4ef0949ee4e9dc1"
+  },
+  "abilities/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_first_stone/sollers_knife_flick_first_stone_08.png",
+    "sha256": "53b889467582605dc72f095d9b3b0b28b5ce9486526b2213e73235fc9cf0ebb8"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_00.png",
+    "sha256": "72f7afb545c87df17d354f7508ec6b034916eedca2d82aa7a99fde4e59618ee3"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_01.png",
+    "sha256": "58e229ed3847a54132064142f31c1f6809cd741417360242b74c08977b82accb"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_02.png",
+    "sha256": "8a896204befc95945ff32c94398c32205af8cad21c3ebe040803210255b487b1"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_03.png",
+    "sha256": "2f309c662c0711a8bcb862e9555a00f8392dd22ac17c5058bda6b6c469ef2849"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_04.png",
+    "sha256": "35f7b0f69c290f1ea72da475f72321f1f87792b48e49b770951fb81126a8e4ae"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_05.png",
+    "sha256": "2c69914088f30b5de717115e9458cb599b01e98a9c821638a6e5de170dfaa065"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_06.png",
+    "sha256": "ada46dd34f5c557ed86556b578b9b33577170ae7e36904e24fb73dc01bf15d76"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_07.png",
+    "sha256": "fb55df067a04f4b1f7b9037dd749bccc2a50dfa9ffabf792a4ef0949ee4e9dc1"
+  },
+  "abilities/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_08.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/frames_unattuned/sollers_knife_flick_unattuned_08.png",
+    "sha256": "bb78cdc6bd339be5c45799395cc50059ece9b9f0c8e3f7a57a3365b758f52322"
+  },
+  "abilities/sollers_knife_flick/sollers_knife_flick_first_stone.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/sollers_knife_flick_first_stone.json",
+    "sha256": "f77a7e1cfcd2a0a8ff51c3bdf6a16901a64885dfc234c964d437506230a45810"
+  },
+  "abilities/sollers_knife_flick/sollers_knife_flick_first_stone_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/sollers_knife_flick_first_stone_preview_4x.gif",
+    "sha256": "cfd3299978020b19b1afb59af6fc906f237967fe52a654cf716354483e61ee75"
+  },
+  "abilities/sollers_knife_flick/sollers_knife_flick_first_stone_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/sollers_knife_flick_first_stone_strip.png",
+    "sha256": "90dab9c99b0e88f0e857ca488c4d1b11093e2f88eb22c5fddd1f419ac2ef2561"
+  },
+  "abilities/sollers_knife_flick/sollers_knife_flick_unattuned.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/sollers_knife_flick_unattuned.json",
+    "sha256": "445043478c368920ada9a00f8cda2233b04f8564753b950704290283249c7fdf"
+  },
+  "abilities/sollers_knife_flick/sollers_knife_flick_unattuned_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/sollers_knife_flick_unattuned_preview_4x.gif",
+    "sha256": "291d91951530ccea34509f4435f1694b70c478438be55c568e4b623334e228ed"
+  },
+  "abilities/sollers_knife_flick/sollers_knife_flick_unattuned_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_knife_flick/sollers_knife_flick_unattuned_strip.png",
+    "sha256": "0e1b4cfb46e8ab0f24e4bb515ee1f58739addfe9acc540d34c943f0a52019d2c"
+  },
+  "abilities/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_00.png",
+    "sha256": "e262f551b39e5b5146ad5a1b3e2627c6ae84011115d784d1f2a5de9c33d558cb"
+  },
+  "abilities/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_01.png",
+    "sha256": "63dc02faec89f220f84f124a3fc2bc98e134a84d047c586a38d9aff39b5d1055"
+  },
+  "abilities/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_02.png",
+    "sha256": "bb0e8609420209e8beee7ff408a9f9f3d2c3a925a00457a85c934736e494b690"
+  },
+  "abilities/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_03.png",
+    "sha256": "77bc135af81ff3bf81ccd2dc66da1b79d20e5f8549d3a2849f715ec72c7e7964"
+  },
+  "abilities/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_04.png",
+    "sha256": "b7709ddf61713c5439f709e17a0511667703d45d13f3dafa3442b24ba91bb866"
+  },
+  "abilities/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_05.png",
+    "sha256": "e02d200903c66cd6b4744b549b29245328f6567ba14e8cce3a2baceb0620b1d9"
+  },
+  "abilities/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_06.png",
+    "sha256": "b0bfc4da4bb5fc3568bb7752b825fb1e14732b9f4ab932c5b7317b564160b2d2"
+  },
+  "abilities/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_first_stone/sollers_pilfer_first_stone_07.png",
+    "sha256": "f7549a2f54796cb29e731a0f4aedb820a2fdb3a213d3050d8916bae8a084b8d6"
+  },
+  "abilities/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_00.png",
+    "sha256": "e262f551b39e5b5146ad5a1b3e2627c6ae84011115d784d1f2a5de9c33d558cb"
+  },
+  "abilities/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_01.png",
+    "sha256": "63dc02faec89f220f84f124a3fc2bc98e134a84d047c586a38d9aff39b5d1055"
+  },
+  "abilities/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_02.png",
+    "sha256": "ffe25496e30fd77551dcc803702fe8945bfeb4172f4ddee4e3a34ef037b0c16c"
+  },
+  "abilities/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_03.png",
+    "sha256": "646aa3637979a79a0258247b8fb709ef926731f9ae03fc224183ef6e05164a14"
+  },
+  "abilities/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_04.png",
+    "sha256": "b7709ddf61713c5439f709e17a0511667703d45d13f3dafa3442b24ba91bb866"
+  },
+  "abilities/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_05.png",
+    "sha256": "19305049e530a46b32d22e8c934a8a14d2b38acdb6f636dc4bb3fc6de831ba27"
+  },
+  "abilities/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_06.png",
+    "sha256": "b0bfc4da4bb5fc3568bb7752b825fb1e14732b9f4ab932c5b7317b564160b2d2"
+  },
+  "abilities/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_07.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/frames_unattuned/sollers_pilfer_unattuned_07.png",
+    "sha256": "f7549a2f54796cb29e731a0f4aedb820a2fdb3a213d3050d8916bae8a084b8d6"
+  },
+  "abilities/sollers_pilfer/sollers_pilfer_first_stone.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/sollers_pilfer_first_stone.json",
+    "sha256": "8bf9dd3fcb5c1dfdecf2015824014eaf11756d9c029b561a3f6cf9fe7a90516f"
+  },
+  "abilities/sollers_pilfer/sollers_pilfer_first_stone_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/sollers_pilfer_first_stone_preview_4x.gif",
+    "sha256": "e28de79a20cfd1985521f95ea4ee510f5062defa6162f861eef7a3389937a834"
+  },
+  "abilities/sollers_pilfer/sollers_pilfer_first_stone_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/sollers_pilfer_first_stone_strip.png",
+    "sha256": "40d69ee04471561cc1767e662f353b76f34e2fa6bf0087464759880d2948cfd7"
+  },
+  "abilities/sollers_pilfer/sollers_pilfer_unattuned.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/sollers_pilfer_unattuned.json",
+    "sha256": "3a85605cb01d2f7b8770f3312f2b5f62e0b5f97e74b16bb2630f91a6a1241591"
+  },
+  "abilities/sollers_pilfer/sollers_pilfer_unattuned_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/sollers_pilfer_unattuned_preview_4x.gif",
+    "sha256": "e28de79a20cfd1985521f95ea4ee510f5062defa6162f861eef7a3389937a834"
+  },
+  "abilities/sollers_pilfer/sollers_pilfer_unattuned_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sollers_pilfer/sollers_pilfer_unattuned_strip.png",
+    "sha256": "8dda255514238a297bea1d2fbefacecdd8dfe2aebe7b0da31d6f7e632e2fc84c"
+  },
+  "abilities/stones.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/stones.json",
+    "sha256": "7ae9e4d23f5d23ce40f943d2b80b4754bbbfb1dbe31dc1b101072bcb938d1b82"
+  },
+  "abilities/sword_strike/frames_first_stone/sword_strike_first_stone_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_first_stone/sword_strike_first_stone_00.png",
+    "sha256": "54d95236c83a65378ac333257a28e9142505e49357a09ef22c516b3fe48950be"
+  },
+  "abilities/sword_strike/frames_first_stone/sword_strike_first_stone_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_first_stone/sword_strike_first_stone_01.png",
+    "sha256": "f16c31fab543fde7a9c36d04aaa6f72cbc41a36f18c9ce9e80752f5635816f1f"
+  },
+  "abilities/sword_strike/frames_first_stone/sword_strike_first_stone_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_first_stone/sword_strike_first_stone_02.png",
+    "sha256": "d91c2b181a9268e53361c03c9626d14aaec222d462a2324d59b04aafc7c8dddb"
+  },
+  "abilities/sword_strike/frames_first_stone/sword_strike_first_stone_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_first_stone/sword_strike_first_stone_03.png",
+    "sha256": "7de8e0055503e955d9e35b53e64dfd70cae934f0688c66e927e999f116daf862"
+  },
+  "abilities/sword_strike/frames_first_stone/sword_strike_first_stone_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_first_stone/sword_strike_first_stone_04.png",
+    "sha256": "3c665276fef113715842505b5b727a718fa3664937db25cc1281e052065fb1d3"
+  },
+  "abilities/sword_strike/frames_first_stone/sword_strike_first_stone_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_first_stone/sword_strike_first_stone_05.png",
+    "sha256": "f6f4908ee21e3047622cf01de5581bedba19ccf1fa28d965a70b9bc97f48ca8e"
+  },
+  "abilities/sword_strike/frames_first_stone/sword_strike_first_stone_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_first_stone/sword_strike_first_stone_06.png",
+    "sha256": "8820a56ea693fb0341f61155ee2d03228f2dfc8a5e62626326422192f3ccdfb1"
+  },
+  "abilities/sword_strike/frames_unattuned/sword_strike_unattuned_00.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_unattuned/sword_strike_unattuned_00.png",
+    "sha256": "1ac3741384acb53170192cbdb00d02612507b832400dbe73cc04a0ade171a643"
+  },
+  "abilities/sword_strike/frames_unattuned/sword_strike_unattuned_01.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_unattuned/sword_strike_unattuned_01.png",
+    "sha256": "e0b7181f59c76bc4c72faf268d0c5430fd791bc4bef8ccebf25bc2662ef160fd"
+  },
+  "abilities/sword_strike/frames_unattuned/sword_strike_unattuned_02.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_unattuned/sword_strike_unattuned_02.png",
+    "sha256": "3f46fd84b6ff35f26ba89ad9ff3c3acecb2c3ec7b0d71e3642739cf0615ea860"
+  },
+  "abilities/sword_strike/frames_unattuned/sword_strike_unattuned_03.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_unattuned/sword_strike_unattuned_03.png",
+    "sha256": "3cfdee2344afd63075cabed71c6a126d0a0ea0cf3c2e8cd66bd813bbd8970686"
+  },
+  "abilities/sword_strike/frames_unattuned/sword_strike_unattuned_04.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_unattuned/sword_strike_unattuned_04.png",
+    "sha256": "a1bc41be5a4179ad6382192567707a4d769f3f3d690f19ea938249d4f77e3fe8"
+  },
+  "abilities/sword_strike/frames_unattuned/sword_strike_unattuned_05.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_unattuned/sword_strike_unattuned_05.png",
+    "sha256": "928fed097ae44fe67fadac0c7e9006a6a0d718eba5e6843cb209e5f85cd45111"
+  },
+  "abilities/sword_strike/frames_unattuned/sword_strike_unattuned_06.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/frames_unattuned/sword_strike_unattuned_06.png",
+    "sha256": "3a382c259faa23e662d1d5aceeeacaea25e519b782ab08f192928d7fb73080a6"
+  },
+  "abilities/sword_strike/sword_strike_first_stone.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/sword_strike_first_stone.json",
+    "sha256": "7ba18d14f84a50ad31e56e5d17d32cc8e063646bf862ec43b054495dc497d2d9"
+  },
+  "abilities/sword_strike/sword_strike_first_stone_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/sword_strike_first_stone_preview_4x.gif",
+    "sha256": "a0a684f19ee5b61454d729af56898bbec71100370072b3e3b577b85b901f0ad3"
+  },
+  "abilities/sword_strike/sword_strike_first_stone_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/sword_strike_first_stone_strip.png",
+    "sha256": "9579109aa5129b7b0c352b384ef84877cce8eaf8a98e8256c0f7d79a19b20069"
+  },
+  "abilities/sword_strike/sword_strike_unattuned.json": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/sword_strike_unattuned.json",
+    "sha256": "7e9c81971219b32e8f6df091ebb852d609e4633921c3740cf14ea567eacf85ee"
+  },
+  "abilities/sword_strike/sword_strike_unattuned_preview_4x.gif": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/sword_strike_unattuned_preview_4x.gif",
+    "sha256": "06f27f62e33fc742a326e14715798d9e2db170704b99e8af88b16a7c4b31bd81"
+  },
+  "abilities/sword_strike/sword_strike_unattuned_strip.png": {
+    "source": "/workspace/caldrona_abilities_20261115_starting/sword_strike/sword_strike_unattuned_strip.png",
+    "sha256": "3cbeb91a77a01f6096377098e1b75318e7d91794399b702c8b3cfacb5b4c6b06"
+  }
+}

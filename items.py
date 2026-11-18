@@ -15,6 +15,7 @@ when that value is ``"poison"``.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,26 @@ from stats import POTION_HEAL
 
 ROOT = Path(__file__).resolve().parent
 ITEMS_DIR = ROOT / "assets" / "items"
+
+
+@dataclass(frozen=True)
+class WeaponProfile:
+    """Suggested weapon numbers from the starter pack.
+
+    ATK, SPD, REACH, PEN and the magic bonus are stored for Caleb to tune.
+    Battle damage does not read them, so equipping a weapon does not change
+    how hard a strike hits.
+    """
+    atk: int
+    spd: int
+    reach: int | str
+    pen: int
+    magic_bonus: int
+    tier: int
+    classes: tuple[str, ...]
+    weapon_type: str
+    basic_attack_fx: str | None
+    notes: str
 
 
 @dataclass(frozen=True)
@@ -37,6 +58,7 @@ class Item:
     icon: str
     effect: dict | None = None
     placeholder_icon: bool = False
+    weapon: WeaponProfile | None = None
 
 
 @dataclass(frozen=True)
@@ -50,7 +72,8 @@ class UseResult:
 
 
 def _item(item_id, name, category, description, buy, icon, *,
-          effect=None, stackable=True, max_stack=99, placeholder=False):
+          effect=None, stackable=True, max_stack=99, placeholder=False,
+          weapon=None):
     return Item(
         id=item_id,
         name=name,
@@ -63,12 +86,13 @@ def _item(item_id, name, category, description, buy, icon, *,
         icon=icon,
         effect=effect,
         placeholder_icon=placeholder,
+        weapon=weapon,
     )
 
 
-def _gear(item_id, name, category, description, buy, icon):
+def _gear(item_id, name, category, description, buy, icon, weapon=None, placeholder=False):
     return _item(item_id, name, category, description, buy, icon,
-                 stackable=False, max_stack=1)
+                 stackable=False, max_stack=1, weapon=weapon, placeholder=placeholder)
 
 
 # Buy prices for goods the main game already sells match that shop list.
@@ -96,6 +120,8 @@ _ROWS = (
     _item("minor_ether", "Minor Ether", "consumable",
           "A slim blue vial. Restores a little MP.", 30,
           "potions/minor_mana_potion.png", effect={"kind": "restore_mp", "amount": 4}),
+    # The starter pack calls this flask "Mana Potion". It stays Ether so the
+    # 8 MP tier is not entered twice. The cave-exit shop maps that pack name here.
     _item("ether", "Ether", "consumable",
           "A blue flask. Restores MP.", 60,
           "potions/mana_potion.png", effect={"kind": "restore_mp", "amount": 8}),
@@ -105,6 +131,8 @@ _ROWS = (
     _item("mana_elixir", "Mana Elixir", "consumable",
           "A gold-collared blue flask. Restores all MP.", 200,
           "potions/elixir_mana.png", effect={"kind": "restore_mp", "full": True}),
+    # Pack suggestion was heal 15. The catalog already heals 10, and that amount
+    # stays so bandages do not get stronger in this pass.
     _item("field_bandages", "Field Bandages", "consumable",
           "A linen roll. Restores a little HP.", 25,
           "goods/field_bandages.png", effect={"kind": "heal", "amount": 10}),
@@ -120,14 +148,10 @@ _ROWS = (
     _item("river_trout", "River Trout", "food",
           "A fresh catch. Restores a little HP.", 10,
           "food/river_trout.png", effect={"kind": "heal", "amount": 12}),
-    _gear("practice_sword", "Practice Sword", "weapon",
-          "A blunt wooden trainer.", 20, "weapons/practice_sword.png"),
     _gear("bronze_saber", "Bronze Saber", "weapon",
           "A curved bronze saber from Sunrest Arms.", 80, "weapons/bronze_saber.png"),
     _gear("wayfarer_spear", "Wayfarer Spear", "weapon",
           "A traveler's spear from Sunrest Arms.", 140, "weapons/wayfarer_spear.png"),
-    _gear("sunsteel_blade", "Sunsteel Blade", "weapon",
-          "A sunsteel blade from Sunrest Arms.", 240, "weapons/sunsteel_blade.png"),
     _gear("wood_axe", "Wood Axe", "tool",
           "An axe for timber.", 45, "weapons/wood_axe.png"),
     _gear("pickaxe", "Pickaxe", "tool",
@@ -211,8 +235,53 @@ _ROWS = (
           1, "currency/gil_coin.png"),
 )
 
-CATALOG: dict[str, Item] = {item.id: item for item in _ROWS}
-BY_NAME: dict[str, Item] = {item.name: item for item in _ROWS}
+def _starter_weapons():
+    """The 46 starter-pack weapons. Prices and stats are the pack's suggestions."""
+    path = ROOT / "data" / "weapons_manifest.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    weapons = []
+    for row in data["weapons"]:
+        stats = row["suggested_stats"]
+        profile = WeaponProfile(
+            atk=int(stats["ATK"]),
+            spd=int(stats["SPD"]),
+            reach=stats["REACH"],
+            pen=int(stats["PEN"]),
+            magic_bonus=int(row.get("suggested_magic_bonus") or 0),
+            tier=int(row["suggested_tier"]),
+            classes=tuple(row["classes"]),
+            weapon_type=row["weapon_type"],
+            basic_attack_fx=row.get("basic_attack_fx") or None,
+            notes=row.get("notes") or "",
+        )
+        weapons.append(_gear(
+            row["id"], row["name"], "weapon",
+            profile.notes or row["name"],
+            int(row["suggested_price_gold"]),
+            f"weapons/{row['id']}.png",
+            weapon=profile,
+        ))
+    return tuple(weapons)
+
+
+def _spellbook():
+    """Saint off-hand stub. No picture is shipped. The bonus is not applied."""
+    # TODO(Caleb): set suggested magic bonus. Battle and heals do not read it.
+    profile = WeaponProfile(
+        atk=0, spd=0, reach=0, pen=0, magic_bonus=0, tier=0,
+        classes=("Saint",), weapon_type="spellbook", basic_attack_fx=None,
+        notes="Off-hand only. Art comes later. Magic bonus is not applied.",
+    )
+    return _gear(
+        "spellbook", "Spellbook", "offhand",
+        "A Saint's off-hand book. The picture is not drawn yet.",
+        0, "", weapon=profile, placeholder=True,
+    )
+
+
+_ALL_ITEMS = (*_ROWS, *_starter_weapons(), _spellbook())
+CATALOG: dict[str, Item] = {item.id: item for item in _ALL_ITEMS}
+BY_NAME: dict[str, Item] = {item.name: item for item in _ALL_ITEMS}
 
 if len(BY_NAME) != len(CATALOG):
     raise RuntimeError("Item display names must be unique")

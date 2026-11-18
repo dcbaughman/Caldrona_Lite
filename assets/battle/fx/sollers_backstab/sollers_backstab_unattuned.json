@@ -1,0 +1,38 @@
+{
+  "id": "sollers_backstab",
+  "stone": "unattuned",
+  "frame_w": 64,
+  "frame_h": 64,
+  "frames": 9,
+  "ms_per_frame": [
+    70,
+    70,
+    40,
+    50,
+    70,
+    50,
+    70,
+    80,
+    90
+  ],
+  "total_ms": 590,
+  "strip": "sollers_backstab_unattuned_strip.png",
+  "scale_in_battle": 2,
+  "kind": "physical",
+  "target": "single enemy",
+  "note": "Vanish in smoke, reappear behind the foe, crit thrust + reverse flick.",
+  "cls": "Sollers",
+  "name": "Backstab",
+  "target_center": [
+    32,
+    32
+  ],
+  "attunement_tinted": true,
+  "stone_palette": {
+    "t_core": "#f2f1e9",
+    "t_hi": "#cdc7b9",
+    "t_mid": "#a49c8c",
+    "t_lo": "#6e685e",
+    "t_rim": "#3a3631"
+  }
+}

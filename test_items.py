@@ -27,17 +27,23 @@ class CatalogTests(unittest.TestCase):
         self.assertGreaterEqual(len(CATALOG), 1)
         self.assertEqual(len(BY_NAME), len(CATALOG))
         for item in CATALOG.values():
+            self.assertGreaterEqual(item.buy_price, 0)
+            self.assertEqual(item.sell_price, item.buy_price // 2)
+            if item.id == "spellbook":
+                self.assertTrue(item.placeholder_icon)
+                self.assertEqual(item.icon, "")
+                self.assertFalse(icon_file(item).is_file())
+                continue
             path = icon_file(item)
             self.assertTrue(path.is_file(), item.id)
             self.assertEqual(_png_size(path), (32, 32), item.id)
             self.assertTrue(item.icon.startswith(item.icon.split("/")[0] + "/"))
-            self.assertGreaterEqual(item.buy_price, 0)
-            self.assertEqual(item.sell_price, item.buy_price // 2)
 
     def test_only_revive_reuses_elixir_art_as_a_placeholder(self):
         placeholders = [item for item in CATALOG.values() if item.placeholder_icon]
-        self.assertEqual([item.id for item in placeholders], ["revive"])
+        self.assertEqual([item.id for item in placeholders], ["revive", "spellbook"])
         self.assertEqual(CATALOG["revive"].icon, CATALOG["elixir"].icon)
+        self.assertEqual(CATALOG["spellbook"].icon, "")
         self.assertFalse(CATALOG["antidote"].placeholder_icon)
         self.assertEqual(CATALOG["antidote"].icon, "potions/antidote_potion.png")
 

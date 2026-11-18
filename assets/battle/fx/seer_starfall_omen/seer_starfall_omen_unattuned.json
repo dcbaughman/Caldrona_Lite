@@ -1,0 +1,38 @@
+{
+  "id": "seer_starfall_omen",
+  "stone": "unattuned",
+  "frame_w": 96,
+  "frame_h": 96,
+  "frames": 9,
+  "ms_per_frame": [
+    60,
+    50,
+    50,
+    70,
+    70,
+    90,
+    90,
+    90,
+    100
+  ],
+  "total_ms": 670,
+  "strip": "seer_starfall_omen_unattuned_strip.png",
+  "scale_in_battle": 2,
+  "kind": "magic",
+  "target": "single enemy",
+  "note": "96x96. Falling omen-star, then a constellation read over the foe.",
+  "cls": "Seer",
+  "name": "Starfall Omen",
+  "target_center": [
+    48,
+    56
+  ],
+  "attunement_tinted": true,
+  "stone_palette": {
+    "t_core": "#f2f1e9",
+    "t_hi": "#cdc7b9",
+    "t_mid": "#a49c8c",
+    "t_lo": "#6e685e",
+    "t_rim": "#3a3631"
+  }
+}

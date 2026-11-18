@@ -1,0 +1,194 @@
+{
+  "npc": "Cave-exit merchant (Caleb is placing this NPC near the cavern exit)",
+  "status": "SUGGESTED stock and prices for Caleb to tune.",
+  "economy_context": "Cave foes drop 6-12 gold (Shalehorn 32); Sollers earns bonus victory gold. A tier-1 weapon (~50-60 g) is about 5 fights.",
+  "format_hint": "Main Caldrona shops.CATALOGS rows are (display name, price, 0); these rows map 1:1.",
+  "weapons": [
+    {
+      "id": "yew_seer_wand",
+      "name": "Yew Seer Wand",
+      "for_class": "Seer",
+      "icon": "weapons/yew_seer_wand.png",
+      "price_gold_suggested": 55,
+      "stats_suggested": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 1
+      }
+    },
+    {
+      "id": "hazel_divining_rod",
+      "name": "Hazel Divining Rod",
+      "for_class": "Seer",
+      "icon": "weapons/hazel_divining_rod.png",
+      "price_gold_suggested": 50,
+      "stats_suggested": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 1,
+        "PEN": 0
+      }
+    },
+    {
+      "id": "bronze_astrolabe_rod",
+      "name": "Bronze Astrolabe Rod",
+      "for_class": "Seer",
+      "icon": "weapons/bronze_astrolabe_rod.png",
+      "price_gold_suggested": 55,
+      "stats_suggested": {
+        "ATK": 3,
+        "SPD": 0,
+        "REACH": 1,
+        "PEN": 1
+      }
+    },
+    {
+      "id": "bronze_purse_knife",
+      "name": "Bronze Purse Knife",
+      "for_class": "Sollers",
+      "icon": "weapons/bronze_purse_knife.png",
+      "price_gold_suggested": 50,
+      "stats_suggested": {
+        "ATK": 3,
+        "SPD": 2,
+        "REACH": 0,
+        "PEN": 0
+      }
+    },
+    {
+      "id": "bronze_knife",
+      "name": "Bronze Knife",
+      "for_class": "Sollers",
+      "icon": "weapons/bronze_knife.png",
+      "price_gold_suggested": 50,
+      "stats_suggested": {
+        "ATK": 3,
+        "SPD": 2,
+        "REACH": 0,
+        "PEN": 0
+      }
+    },
+    {
+      "id": "bronze_throwing_knife",
+      "name": "Bronze Throwing Knife",
+      "for_class": "Sollers",
+      "icon": "weapons/bronze_throwing_knife.png",
+      "price_gold_suggested": 50,
+      "stats_suggested": {
+        "ATK": 3,
+        "SPD": 2,
+        "REACH": "ranged",
+        "PEN": 0
+      }
+    },
+    {
+      "id": "bronze_weighted_cosh",
+      "name": "Bronze Weighted Cosh",
+      "for_class": "Sollers",
+      "icon": "weapons/bronze_weighted_cosh.png",
+      "price_gold_suggested": 50,
+      "stats_suggested": {
+        "ATK": 3,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 0
+      }
+    },
+    {
+      "id": "whitewood_mending_wand",
+      "name": "Whitewood Mending Wand",
+      "for_class": "Saint",
+      "icon": "weapons/whitewood_mending_wand.png",
+      "price_gold_suggested": 55,
+      "stats_suggested": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 0
+      }
+    },
+    {
+      "id": "linen_bound_cudgel",
+      "name": "Linen-Bound Cudgel",
+      "for_class": "Saint",
+      "icon": "weapons/linen_bound_cudgel.png",
+      "price_gold_suggested": 55,
+      "stats_suggested": {
+        "ATK": 4,
+        "SPD": 0,
+        "REACH": 1,
+        "PEN": 0
+      }
+    },
+    {
+      "id": "pale_ash_crook",
+      "name": "Pale Ash Crook",
+      "for_class": "Saint",
+      "icon": "weapons/pale_ash_crook.png",
+      "price_gold_suggested": 55,
+      "stats_suggested": {
+        "ATK": 3,
+        "SPD": 1,
+        "REACH": 2,
+        "PEN": 0
+      }
+    },
+    {
+      "id": "bronze_mace",
+      "name": "Bronze Mace",
+      "for_class": "Saint",
+      "icon": "weapons/bronze_mace.png",
+      "price_gold_suggested": 60,
+      "stats_suggested": {
+        "ATK": 5,
+        "SPD": -1,
+        "REACH": 1,
+        "PEN": 1
+      }
+    }
+  ],
+  "consumables": [
+    {
+      "name": "Potion",
+      "icon": "shop/icons/potions/health_potion.png",
+      "price_gold_suggested": 15,
+      "status": "existing item",
+      "notes": "The existing Lite Potion (stats.POTION_HEAL = 30). Lite caps carried potions at battle.MAX_POTIONS = 3; shop should respect or raise that cap.",
+      "source": "/workspace/item_icons_v24/potions/health_potion.png"
+    },
+    {
+      "name": "Mana Potion",
+      "icon": "shop/icons/potions/mana_potion.png",
+      "price_gold_suggested": 30,
+      "status": "new item, needs code",
+      "notes": "Suggested new item: restore ~8 MP (members already have MP).",
+      "source": "/workspace/item_icons_v24/potions/mana_potion.png"
+    },
+    {
+      "name": "Antidote",
+      "icon": "shop/icons/potions/antidote_potion.png",
+      "price_gold_suggested": 12,
+      "status": "optional / future",
+      "notes": "Optional: only useful once Lite has poison.",
+      "source": "/workspace/item_icons_v24/potions/antidote_potion.png"
+    },
+    {
+      "name": "Field Bandages",
+      "icon": "shop/icons/goods/field_bandages.png",
+      "price_gold_suggested": 25,
+      "status": "new item, needs code",
+      "notes": "Price matches the main Caldrona shops. Suggested: heal 15 HP, usable outside battle.",
+      "source": "/workspace/item_icons_v24/goods/field_bandages.png"
+    },
+    {
+      "name": "Torch",
+      "icon": "shop/icons/goods/torch.png",
+      "price_gold_suggested": 10,
+      "status": "optional / future",
+      "notes": "Optional cave flavour; main Caldrona price.",
+      "source": "/workspace/item_icons_v24/goods/torch.png"
+    }
+  ],
+  "consumable_sources": "All consumable icons are the approved item library (item_icons_v24 potions/goods; potions/goods art is already swapped into main Caldrona). Copied byte-identical."
+}

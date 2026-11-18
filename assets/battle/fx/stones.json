@@ -1,0 +1,30 @@
+{
+  "unattuned": {
+    "t_core": "#f2f1e9",
+    "t_hi": "#cdc7b9",
+    "t_mid": "#a49c8c",
+    "t_lo": "#6e685e",
+    "t_rim": "#3a3631"
+  },
+  "first_stone": {
+    "t_core": "#eaffff",
+    "t_hi": "#9eeef5",
+    "t_mid": "#5cc9dc",
+    "t_lo": "#2f8fb4",
+    "t_rim": "#173c5c"
+  },
+  "second_stone_topaz": {
+    "t_core": "#fff3cf",
+    "t_hi": "#ffc35a",
+    "t_mid": "#ee8a24",
+    "t_lo": "#b5541a",
+    "t_rim": "#5a250c"
+  },
+  "gold_ref": {
+    "t_core": "#fffaf0",
+    "t_hi": "#e6c866",
+    "t_mid": "#c9a227",
+    "t_lo": "#8f7019",
+    "t_rim": "#5c4612"
+  }
+}

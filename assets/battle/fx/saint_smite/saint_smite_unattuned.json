@@ -1,0 +1,37 @@
+{
+  "id": "saint_smite",
+  "stone": "unattuned",
+  "frame_w": 64,
+  "frame_h": 64,
+  "frames": 8,
+  "ms_per_frame": [
+    60,
+    50,
+    50,
+    70,
+    70,
+    70,
+    80,
+    90
+  ],
+  "total_ms": 540,
+  "strip": "saint_smite_unattuned_strip.png",
+  "scale_in_battle": 2,
+  "kind": "physical+holy",
+  "target": "single enemy",
+  "note": "Gold holy column stays gold; the weapon stroke, ring and sparks follow attunement.",
+  "cls": "Saint",
+  "name": "Smite",
+  "target_center": [
+    32,
+    34
+  ],
+  "attunement_tinted": true,
+  "stone_palette": {
+    "t_core": "#f2f1e9",
+    "t_hi": "#cdc7b9",
+    "t_mid": "#a49c8c",
+    "t_lo": "#6e685e",
+    "t_rim": "#3a3631"
+  }
+}

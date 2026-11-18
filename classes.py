@@ -20,7 +20,11 @@ def current_job(member):
 
 
 def bind_job(member, job):
-    """A class choice is permanent for the current journey."""
+    """A class choice is permanent for the current journey.
+
+    Binding does not grant, equip, or remove weapons. Gear is found, bought,
+    or looted. ``classes`` on a weapon only says who may equip it later.
+    """
     if job not in JOBS or current_job(member):
         return False
     member["job"] = job

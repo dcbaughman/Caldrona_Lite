@@ -1,0 +1,38 @@
+{
+  "id": "sollers_knife_flick",
+  "stone": "unattuned",
+  "frame_w": 128,
+  "frame_h": 64,
+  "frames": 9,
+  "ms_per_frame": [
+    50,
+    40,
+    40,
+    40,
+    60,
+    60,
+    70,
+    80,
+    90
+  ],
+  "total_ms": 530,
+  "strip": "sollers_knife_flick_unattuned_strip.png",
+  "scale_in_battle": 2,
+  "kind": "physical",
+  "target": "single enemy",
+  "note": "Basic Sollers ability (ex-Cutpurse). Knife stays steel; trail and spark follow attunement. Use batch-1 parts/ for variable distance.",
+  "cls": "Sollers",
+  "name": "Knife Flick",
+  "target_center": [
+    104,
+    32
+  ],
+  "attunement_tinted": true,
+  "stone_palette": {
+    "t_core": "#f2f1e9",
+    "t_hi": "#cdc7b9",
+    "t_mid": "#a49c8c",
+    "t_lo": "#6e685e",
+    "t_rim": "#3a3631"
+  }
+}

@@ -321,6 +321,7 @@ class CaldronaLite:
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
         )
         self.supplies = {}
+        self.game_menu.supplies = lambda: self.supplies
         self.game_menu.roster = lambda: self.party
         self.game_menu.inventory = self._supply_inventory
         self.game_menu.use_item = self._use_menu_item
@@ -1153,6 +1154,10 @@ class CaldronaLite:
             else:
                 first_contact = not self.astral_sync
                 self.astral_sync = True
+                # The astral stone is the first stone. There is no journey save yet,
+                # so this flag lives on the member and will travel with the party.
+                for person in self.party:
+                    attune(person, "first_stone")
                 self._stone_step_latch = True
                 self._open_astral(reveal=first_contact)
         else:
@@ -1326,6 +1331,7 @@ class CaldronaLite:
                 level, xp = gain_xp(old_level, member.get("xp", 0), model.xp_reward)
                 grow(member, old_level, level)
                 member["level"], member["xp"] = level, xp
+                remember(member)
             retri = next((p for p in self.party if p["name"] == "Retri"), self.party[0])
             self.level, self.xp = retri.get("level", 1), retri.get("xp", 0)
             for member in model.party:

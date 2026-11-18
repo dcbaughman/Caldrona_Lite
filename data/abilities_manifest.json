@@ -1,0 +1,653 @@
+{
+  "status": "SUGGESTED: learn levels, MP costs and power are placeholders for Caleb to tune. Animations are final art; do not modify pixels.",
+  "level_context": "Caldrona_Lite xp_threshold(level)=30*level and victories give 2x gold as XP (~12-24 XP per cave foe), so Lv 5 is roughly 15-20 fights and Lv 7 roughly 35-45. All drawn abilities unlock by Lv 7.",
+  "learn_rule": "A member learns an ability the moment their level reaches learn_level for their bound job (classes.current_job). Strike is available at Lv 1 to every class whenever a sword-like weapon is equipped (weapons_manifest basic_attack_fx == \"sword_strike\").",
+  "attunement": "stone = \"unattuned\" (gray) until the member is attuned at the first stone, then \"first_stone\" (blue). Pick the matching effect variant. Saint Mend and Sanctuary are untinted holy gold (single variant). stones.json holds the palettes; second_stone_topaz is listed there for later but no topaz files ship here.",
+  "stones_file": "abilities/stones.json",
+  "classes": {
+    "Seer": {
+      "pace": "Later but stronger: first spell at Lv 2, signature nuke at Lv 5. Big MP growth already in stats.grow.",
+      "abilities": [
+        {
+          "id": "strike",
+          "name": "Strike",
+          "description": "Basic slash with any sword-like weapon (Practice Sword for Seer). Colour follows stone attunement.",
+          "target": "single enemy",
+          "learn_level_suggested": 1,
+          "mp_cost_suggested": 0,
+          "power_suggested": "1.0x weapon attack",
+          "effect_folder": "abilities/sword_strike/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/sword_strike/sword_strike_first_stone.json",
+              "strip": "abilities/sword_strike/sword_strike_first_stone_strip.png",
+              "frames_dir": "abilities/sword_strike/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/sword_strike/sword_strike_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/sword_strike/sword_strike_unattuned.json",
+              "strip": "abilities/sword_strike/sword_strike_unattuned_strip.png",
+              "frames_dir": "abilities/sword_strike/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/sword_strike/sword_strike_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 7,
+            "ms_per_frame": [
+              50,
+              40,
+              40,
+              70,
+              60,
+              70,
+              80
+            ],
+            "total_ms": 410,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              32
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "physical"
+          }
+        },
+        {
+          "id": "seer_foretell",
+          "name": "Foretell",
+          "description": "Reads one foe: reveals its weakness and the party deals extra damage to it for 3 turns.",
+          "target": "single enemy",
+          "learn_level_suggested": 2,
+          "mp_cost_suggested": 2,
+          "power_suggested": "+20% party damage taken by target, 3 turns",
+          "effect_folder": "abilities/seer_foretell/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/seer_foretell/seer_foretell_first_stone.json",
+              "strip": "abilities/seer_foretell/seer_foretell_first_stone_strip.png",
+              "frames_dir": "abilities/seer_foretell/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/seer_foretell/seer_foretell_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/seer_foretell/seer_foretell_unattuned.json",
+              "strip": "abilities/seer_foretell/seer_foretell_unattuned_strip.png",
+              "frames_dir": "abilities/seer_foretell/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/seer_foretell/seer_foretell_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 9,
+            "ms_per_frame": [
+              60,
+              50,
+              50,
+              80,
+              70,
+              70,
+              80,
+              90,
+              100
+            ],
+            "total_ms": 650,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              36
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "magic"
+          }
+        },
+        {
+          "id": "seer_starfall_omen",
+          "name": "Starfall Omen",
+          "description": "An omen star falls on one foe for heavy magic damage. Ignores armor (Seer path).",
+          "target": "single enemy",
+          "learn_level_suggested": 5,
+          "mp_cost_suggested": 5,
+          "power_suggested": "2.2x magic, ignores armor",
+          "effect_folder": "abilities/seer_starfall_omen/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/seer_starfall_omen/seer_starfall_omen_first_stone.json",
+              "strip": "abilities/seer_starfall_omen/seer_starfall_omen_first_stone_strip.png",
+              "frames_dir": "abilities/seer_starfall_omen/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/seer_starfall_omen/seer_starfall_omen_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/seer_starfall_omen/seer_starfall_omen_unattuned.json",
+              "strip": "abilities/seer_starfall_omen/seer_starfall_omen_unattuned_strip.png",
+              "frames_dir": "abilities/seer_starfall_omen/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/seer_starfall_omen/seer_starfall_omen_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 96,
+            "frame_h": 96,
+            "frames": 9,
+            "ms_per_frame": [
+              60,
+              50,
+              50,
+              70,
+              70,
+              90,
+              90,
+              90,
+              100
+            ],
+            "total_ms": 670,
+            "scale_in_battle": 2,
+            "target_center": [
+              48,
+              56
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "magic"
+          }
+        },
+        {
+          "id": "seer_forewarn",
+          "name": "Forewarn",
+          "description": "Warns one ally: higher evasion and they act first against the next attack.",
+          "target": "single ally",
+          "learn_level_suggested": 7,
+          "mp_cost_suggested": 4,
+          "power_suggested": "+30% evasion, 2 turns",
+          "effect_folder": "abilities/seer_forewarn/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/seer_forewarn/seer_forewarn_first_stone.json",
+              "strip": "abilities/seer_forewarn/seer_forewarn_first_stone_strip.png",
+              "frames_dir": "abilities/seer_forewarn/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/seer_forewarn/seer_forewarn_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/seer_forewarn/seer_forewarn_unattuned.json",
+              "strip": "abilities/seer_forewarn/seer_forewarn_unattuned_strip.png",
+              "frames_dir": "abilities/seer_forewarn/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/seer_forewarn/seer_forewarn_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 9,
+            "ms_per_frame": [
+              60,
+              60,
+              60,
+              60,
+              60,
+              70,
+              100,
+              110,
+              110
+            ],
+            "total_ms": 690,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              34
+            ],
+            "loop_frames": [
+              6,
+              7,
+              8
+            ],
+            "attunement_tinted": true,
+            "kind": "support"
+          }
+        }
+      ],
+      "planned_not_drawn": [
+        {
+          "id": "seer_twist_of_fate",
+          "name": "Twist of Fate",
+          "description": "Moves one unit forward or back in turn order.",
+          "learn_level_suggested": 9,
+          "effect": null,
+          "ship": false
+        },
+        {
+          "id": "seer_prophecy",
+          "name": "Prophecy (mastery)",
+          "description": "Foresees and cancels the next enemy action.",
+          "learn_level_suggested": 12,
+          "effect": null,
+          "ship": false
+        }
+      ]
+    },
+    "Sollers": {
+      "pace": "Early and fast: basic ability at Lv 1, everything drawn by Lv 4.",
+      "abilities": [
+        {
+          "id": "strike",
+          "name": "Strike",
+          "description": "Basic slash with any sword-like weapon (daggers, short swords). Colour follows stone attunement.",
+          "target": "single enemy",
+          "learn_level_suggested": 1,
+          "mp_cost_suggested": 0,
+          "power_suggested": "1.0x weapon attack",
+          "effect_folder": "abilities/sword_strike/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/sword_strike/sword_strike_first_stone.json",
+              "strip": "abilities/sword_strike/sword_strike_first_stone_strip.png",
+              "frames_dir": "abilities/sword_strike/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/sword_strike/sword_strike_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/sword_strike/sword_strike_unattuned.json",
+              "strip": "abilities/sword_strike/sword_strike_unattuned_strip.png",
+              "frames_dir": "abilities/sword_strike/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/sword_strike/sword_strike_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 7,
+            "ms_per_frame": [
+              50,
+              40,
+              40,
+              70,
+              60,
+              70,
+              80
+            ],
+            "total_ms": 410,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              32
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "physical"
+          }
+        },
+        {
+          "id": "sollers_knife_flick",
+          "name": "Knife Flick",
+          "description": "Quick thrown dagger at one foe with short recovery.",
+          "target": "single enemy",
+          "learn_level_suggested": 1,
+          "mp_cost_suggested": 0,
+          "power_suggested": "0.8x attack, acts sooner next turn",
+          "effect_folder": "abilities/sollers_knife_flick/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/sollers_knife_flick/sollers_knife_flick_first_stone.json",
+              "strip": "abilities/sollers_knife_flick/sollers_knife_flick_first_stone_strip.png",
+              "frames_dir": "abilities/sollers_knife_flick/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/sollers_knife_flick/sollers_knife_flick_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/sollers_knife_flick/sollers_knife_flick_unattuned.json",
+              "strip": "abilities/sollers_knife_flick/sollers_knife_flick_unattuned_strip.png",
+              "frames_dir": "abilities/sollers_knife_flick/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/sollers_knife_flick/sollers_knife_flick_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 128,
+            "frame_h": 64,
+            "frames": 9,
+            "ms_per_frame": [
+              50,
+              40,
+              40,
+              40,
+              60,
+              60,
+              70,
+              80,
+              90
+            ],
+            "total_ms": 530,
+            "scale_in_battle": 2,
+            "target_center": [
+              104,
+              32
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "physical"
+          }
+        },
+        {
+          "id": "sollers_pilfer",
+          "name": "Pilfer",
+          "description": "Steals an item or a pinch of gold from one foe.",
+          "target": "single enemy",
+          "learn_level_suggested": 2,
+          "mp_cost_suggested": 1,
+          "power_suggested": "steal chance ~50% + luck",
+          "effect_folder": "abilities/sollers_pilfer/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/sollers_pilfer/sollers_pilfer_first_stone.json",
+              "strip": "abilities/sollers_pilfer/sollers_pilfer_first_stone_strip.png",
+              "frames_dir": "abilities/sollers_pilfer/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/sollers_pilfer/sollers_pilfer_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/sollers_pilfer/sollers_pilfer_unattuned.json",
+              "strip": "abilities/sollers_pilfer/sollers_pilfer_unattuned_strip.png",
+              "frames_dir": "abilities/sollers_pilfer/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/sollers_pilfer/sollers_pilfer_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 8,
+            "ms_per_frame": [
+              60,
+              60,
+              50,
+              70,
+              60,
+              60,
+              70,
+              90
+            ],
+            "total_ms": 520,
+            "scale_in_battle": 2,
+            "target_center": [
+              34,
+              34
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "utility"
+          }
+        },
+        {
+          "id": "sollers_backstab",
+          "name": "Backstab",
+          "description": "Vanishes and strikes from behind; guaranteed critical against a delayed or marked foe.",
+          "target": "single enemy",
+          "learn_level_suggested": 4,
+          "mp_cost_suggested": 3,
+          "power_suggested": "1.6x attack, crit if target delayed/marked",
+          "effect_folder": "abilities/sollers_backstab/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/sollers_backstab/sollers_backstab_first_stone.json",
+              "strip": "abilities/sollers_backstab/sollers_backstab_first_stone_strip.png",
+              "frames_dir": "abilities/sollers_backstab/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/sollers_backstab/sollers_backstab_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/sollers_backstab/sollers_backstab_unattuned.json",
+              "strip": "abilities/sollers_backstab/sollers_backstab_unattuned_strip.png",
+              "frames_dir": "abilities/sollers_backstab/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/sollers_backstab/sollers_backstab_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 9,
+            "ms_per_frame": [
+              70,
+              70,
+              40,
+              50,
+              70,
+              50,
+              70,
+              80,
+              90
+            ],
+            "total_ms": 590,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              32
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "physical"
+          }
+        }
+      ],
+      "planned_not_drawn": [
+        {
+          "id": "sollers_smoke_veil",
+          "name": "Smoke Veil",
+          "description": "Drops out of enemy targeting for one round.",
+          "learn_level_suggested": 6,
+          "effect": null,
+          "ship": false
+        },
+        {
+          "id": "sollers_sleight_of_hand",
+          "name": "Sleight of Hand (mastery)",
+          "description": "Redirects a foe's next attack at another foe and pockets something.",
+          "learn_level_suggested": 9,
+          "effect": null,
+          "ship": false
+        }
+      ]
+    },
+    "Saint": {
+      "pace": "Steady: heal from Lv 1 (the party needs it), Smite at Lv 3, Sanctuary at Lv 5.",
+      "abilities": [
+        {
+          "id": "strike",
+          "name": "Strike",
+          "description": "Basic slash with any sword-like weapon (Practice Sword, Sunsteel Blade). Colour follows stone attunement.",
+          "target": "single enemy",
+          "learn_level_suggested": 1,
+          "mp_cost_suggested": 0,
+          "power_suggested": "1.0x weapon attack",
+          "effect_folder": "abilities/sword_strike/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/sword_strike/sword_strike_first_stone.json",
+              "strip": "abilities/sword_strike/sword_strike_first_stone_strip.png",
+              "frames_dir": "abilities/sword_strike/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/sword_strike/sword_strike_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/sword_strike/sword_strike_unattuned.json",
+              "strip": "abilities/sword_strike/sword_strike_unattuned_strip.png",
+              "frames_dir": "abilities/sword_strike/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/sword_strike/sword_strike_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 7,
+            "ms_per_frame": [
+              50,
+              40,
+              40,
+              70,
+              60,
+              70,
+              80
+            ],
+            "total_ms": 410,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              32
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "physical"
+          }
+        },
+        {
+          "id": "saint_mend",
+          "name": "Mend",
+          "description": "Heals one ally with holy light.",
+          "target": "single ally",
+          "learn_level_suggested": 1,
+          "mp_cost_suggested": 3,
+          "power_suggested": "heal 18 + 2x magic",
+          "effect_folder": "abilities/saint_mend/",
+          "effect_variants": {
+            "untinted": {
+              "json": "abilities/saint_mend/saint_mend.json",
+              "strip": "abilities/saint_mend/saint_mend_strip.png",
+              "frames_dir": "abilities/saint_mend/frames/",
+              "preview_gif_reference_only": "abilities/saint_mend/saint_mend_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 9,
+            "ms_per_frame": [
+              50,
+              50,
+              60,
+              70,
+              70,
+              80,
+              80,
+              90,
+              100
+            ],
+            "total_ms": 650,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              34
+            ],
+            "loop_frames": null,
+            "attunement_tinted": false,
+            "kind": "heal"
+          }
+        },
+        {
+          "id": "saint_smite",
+          "name": "Smite",
+          "description": "Weapon hit with holy damage; strong against undead.",
+          "target": "single enemy",
+          "learn_level_suggested": 3,
+          "mp_cost_suggested": 3,
+          "power_suggested": "1.3x attack + holy, 2x vs undead",
+          "effect_folder": "abilities/saint_smite/",
+          "effect_variants": {
+            "first_stone": {
+              "json": "abilities/saint_smite/saint_smite_first_stone.json",
+              "strip": "abilities/saint_smite/saint_smite_first_stone_strip.png",
+              "frames_dir": "abilities/saint_smite/frames_first_stone/",
+              "preview_gif_reference_only": "abilities/saint_smite/saint_smite_first_stone_preview_4x.gif"
+            },
+            "unattuned": {
+              "json": "abilities/saint_smite/saint_smite_unattuned.json",
+              "strip": "abilities/saint_smite/saint_smite_unattuned_strip.png",
+              "frames_dir": "abilities/saint_smite/frames_unattuned/",
+              "preview_gif_reference_only": "abilities/saint_smite/saint_smite_unattuned_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 8,
+            "ms_per_frame": [
+              60,
+              50,
+              50,
+              70,
+              70,
+              70,
+              80,
+              90
+            ],
+            "total_ms": 540,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              34
+            ],
+            "loop_frames": null,
+            "attunement_tinted": true,
+            "kind": "physical+holy"
+          }
+        },
+        {
+          "id": "saint_sanctuary",
+          "name": "Sanctuary",
+          "description": "Shields one ally: lower damage taken until their next turn.",
+          "target": "single ally",
+          "learn_level_suggested": 5,
+          "mp_cost_suggested": 4,
+          "power_suggested": "-50% damage taken until next turn",
+          "effect_folder": "abilities/saint_sanctuary/",
+          "effect_variants": {
+            "untinted": {
+              "json": "abilities/saint_sanctuary/saint_sanctuary.json",
+              "strip": "abilities/saint_sanctuary/saint_sanctuary_strip.png",
+              "frames_dir": "abilities/saint_sanctuary/frames/",
+              "preview_gif_reference_only": "abilities/saint_sanctuary/saint_sanctuary_preview_4x.gif"
+            }
+          },
+          "anim": {
+            "frame_w": 64,
+            "frame_h": 64,
+            "frames": 9,
+            "ms_per_frame": [
+              60,
+              60,
+              60,
+              70,
+              60,
+              70,
+              90,
+              110,
+              110
+            ],
+            "total_ms": 690,
+            "scale_in_battle": 2,
+            "target_center": [
+              32,
+              34
+            ],
+            "loop_frames": [
+              7,
+              8
+            ],
+            "attunement_tinted": false,
+            "kind": "support"
+          }
+        }
+      ],
+      "planned_not_drawn": [
+        {
+          "id": "saint_purify",
+          "name": "Purify",
+          "description": "Removes poison, bleed or curse.",
+          "learn_level_suggested": 7,
+          "effect": null,
+          "ship": false
+        },
+        {
+          "id": "saint_benediction",
+          "name": "Benediction (mastery)",
+          "description": "Heals the whole party with a small regen.",
+          "learn_level_suggested": 10,
+          "effect": null,
+          "ship": false
+        }
+      ]
+    }
+  }
+}

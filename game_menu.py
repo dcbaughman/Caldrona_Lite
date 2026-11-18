@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable
 
 
+from abilities import attuned_stone, class_abilities, is_usable, learned_abilities, remember
 from classes import JOBS, EMBLEMS, DESCRIPTIONS, current_job
 from equipment import (SLOTS, SLOT_LABELS, STAT_LABELS, available_count, can_wear,
                        equip, item_for, owned_items, preview_value, stat_value, worn_id)
@@ -43,6 +44,7 @@ class GameMenu:
         self.sync_index = 0
         self.sync_icons = {}
         self.inventory = lambda: {}
+        self.supplies = lambda: {}
         self.use_item = lambda name, member: "Item unavailable."
         self.gear_inventory = lambda: {}
         self.gear_changed = lambda member: None
@@ -114,6 +116,10 @@ class GameMenu:
             self._choose_member()
             self.draw()
             return None
+        if self._equip_page():
+            self._equip_selected()
+            self.draw()
+            return None
         if self.detail is not None:
             self.back()
             return None
@@ -135,6 +141,15 @@ class GameMenu:
 
     def _roster_page(self):
         return self.detail in (0, 3, 4) or self._sync_page()
+
+    def _equip_page(self):
+        return self.detail == 2
+
+    def _ability_page(self):
+        return self.detail == 1 and not self._sync_page()
+
+    def _gear_page(self):
+        return self._equip_page() or self._ability_page()
 
     def _sync_page(self):
         return self.detail == 8 or (self.detail == 1 and self.sync_unlocked())
@@ -163,6 +178,8 @@ class GameMenu:
             return
         if self.detail == 3:
             return
+        if self._ability_page():
+            return
         if self._sync_page():
             if not self.sync_unlocked():
                 self.feedback = "Find the blue stone to awaken Sync."
@@ -187,7 +204,7 @@ class GameMenu:
             return
         if not self.active or (self.detail is not None and not self._roster_page()):
             return
-        directions = ("up", "down", "left", "right") if self._sync_page() else ("up", "down")
+        directions = ("up", "down", "left", "right") if self._sync_page() or self._gear_page() else ("up", "down")
         if direction not in directions:
             self.held_direction = None
             self.repeating = False
@@ -201,6 +218,8 @@ class GameMenu:
             if self._sync_page() and direction in ("left", "right"):
                 self.sync_index = (self.sync_index + step) % len(JOBS)
                 self.feedback = ""
+            elif self._gear_page():
+                self._move_gear(direction, step)
             elif self._roster_page():
                 if self.detail == 0 and not self.item_targeting:
                     items = list(self.inventory())
@@ -553,6 +572,10 @@ class GameMenu:
                           anchor="w", fill="#ffffff", font=self.font(27), tags=tag)
             c.create_text(315, 401, text="FLOOR  1", anchor="w",
                           fill="#80eaf5", font=self.font(27), tags=tag)
+        elif self._ability_page():
+            self._draw_abilities()
+        elif self._equip_page():
+            self._draw_equip()
         elif self.detail in (0, 3):
             self._draw_items_or_status()
         elif self._sync_page():
@@ -708,6 +731,178 @@ class GameMenu:
         if count <= 4:
             return 0
         return min(max(0, self.item_index - 3), count - 4)
+
+    def _move_gear(self, direction, step):
+        members = self.roster()
+        if not members:
+            return
+        if self._equip_page() and direction in ("left", "right"):
+            self.equip_slot = 0 if direction == "left" else 1
+            self.item_index = 0
+        elif self._ability_page() and direction in ("left", "right"):
+            self.member_index = (self.member_index + step) % len(members)
+            self.item_index = 0
+        else:
+            rows = self._equip_rows() if self._equip_page() else self._ability_rows()
+            if rows:
+                self.item_index = (self.item_index + step) % len(rows)
+        self.feedback = ""
+
+    def _slot_name(self):
+        return OFFHAND if self.equip_slot else MAIN_HAND
+
+    def _equip_rows(self):
+        member = self.roster()[self.member_index]
+        slot = self._slot_name()
+        rows = []
+        if member.get(slot):
+            rows.append(("remove", None))
+        supplies = self.supplies()
+        for item_id, count in supplies.items():
+            if count <= 0:
+                continue
+            try:
+                item = get_item(item_id)
+            except KeyError:
+                continue
+            if slot == OFFHAND and item.category != "offhand":
+                continue
+            if slot == MAIN_HAND and (item.weapon is None or item.category == "offhand"):
+                continue
+            rows.append(("equip", item))
+        return rows
+
+    def _equip_selected(self):
+        members = self.roster()
+        if not members:
+            self.feedback = "No one is here."
+            return
+        rows = self._equip_rows()
+        if not rows:
+            self.feedback = "No gear in the pack for this slot."
+            return
+        self.item_index %= len(rows)
+        kind, item = rows[self.item_index]
+        member = members[self.member_index]
+        slot = self._slot_name()
+        supplies = self.supplies()
+        if kind == "remove":
+            _ok, reason = unequip(member, supplies, slot)
+            self.feedback = f"{member['name']} clears the {slot} slot." if reason == "removed" else "That slot is empty."
+        else:
+            ok, reason = equip(member, item.id, supplies, slot)
+            if ok:
+                self.feedback = f"{member['name']} equips {item.name}."
+            elif reason == "wrong_class":
+                job = current_job(member) or "Unbound"
+                classes = ", ".join(item.weapon.classes) if item.weapon else ""
+                self.feedback = f"{job} cannot equip {item.name}. ({classes})"
+            elif reason == "not_offhand":
+                self.feedback = f"{item.name} does not fit the off-hand."
+            elif reason == "not_owned":
+                self.feedback = "That is not in the pack."
+            else:
+                self.feedback = f"{item.name} does not fit the main hand."
+        if member.get(slot):
+            remember(member)
+
+    def _ability_rows(self):
+        member = self.roster()[self.member_index]
+        job = current_job(member)
+        return list(class_abilities(job))
+
+    def _draw_equip(self):
+        c, tag = self.canvas, self.TAG
+        members = self.roster()
+        if not members:
+            c.create_text(315, 170, text="No one is here.", anchor="w", fill="#ffffff", font=self.font(22), tags=tag)
+            return
+        self.member_index %= len(members)
+        member = members[self.member_index]
+        job = current_job(member) or "Unbound"
+        slot = self._slot_name()
+        c.create_text(315, 96, text="EQUIP", anchor="w", fill="#ffe37e", font=self.font(30, True), tags=tag)
+        c.create_text(315, 132, text=f"{member['name']}   {job}   LV {member.get('level', 1)}",
+                      anchor="w", fill="#ffffff", font=self.font(20), tags=tag)
+        for index, (key, label) in enumerate(((MAIN_HAND, "WEAPON"), (OFFHAND, "OFFHAND"))):
+            held = equipped(member, key)
+            name = held.name if held else "Empty"
+            mark = "▶ " if index == self.equip_slot else "  "
+            c.create_text(315, 168 + index * 28, text=f"{mark}{label}  {name}", anchor="w",
+                          fill="#ffe37e" if index == self.equip_slot else "#ffffff",
+                          font=self.font(18), tags=tag)
+        held = equipped(member, slot)
+        if held and held.weapon:
+            profile = held.weapon
+            reach = profile.reach
+            c.create_text(315, 230,
+                          text=f"Suggested ATK {profile.atk}  SPD {profile.spd}  REACH {reach}  PEN {profile.pen}",
+                          anchor="w", fill="#c5d8e4", font=self.font(16), tags=tag)
+            c.create_text(315, 252, text="Those numbers are not applied in battle.",
+                          anchor="w", fill="#9adbe8", font=self.font(15), tags=tag)
+            if profile.weapon_type == "spellbook":
+                c.create_text(315, 274, text="Magic bonus is stored and not applied.",
+                              anchor="w", fill="#9adbe8", font=self.font(15), tags=tag)
+        rows = self._equip_rows()
+        if rows:
+            self.item_index %= len(rows)
+        c.create_text(315, 304, text="PACK", anchor="w", fill="#ffe37e", font=self.font(18, True), tags=tag)
+        for row, (kind, item) in enumerate(rows[:4]):
+            selected = row == self.item_index
+            if kind == "remove":
+                label = "Put away"
+            else:
+                ok, _reason = can_equip(member, item.id, slot)
+                label = item.name if ok else f"{item.name}  (locked)"
+            c.create_text(320, 332 + row * 24, text=("▶ " if selected else "  ") + label, anchor="w",
+                          fill="#ffe37e" if selected else "#ffffff", font=self.font(16), tags=tag)
+        c.create_text(315, 430, text=self.feedback or "LEFT/RIGHT slot  ·  UP/DOWN pack  ·  CONFIRM equips",
+                      anchor="w", width=570, fill="#9adbe8", font=self.font(15), tags=tag)
+
+    def _draw_abilities(self):
+        c, tag = self.canvas, self.TAG
+        members = self.roster()
+        if not members:
+            c.create_text(315, 170, text="No one is here.", anchor="w", fill="#ffffff", font=self.font(22), tags=tag)
+            return
+        self.member_index %= len(members)
+        member = members[self.member_index]
+        job = current_job(member) or "Unbound"
+        stone = attuned_stone(member)
+        c.create_text(315, 91, text="ABILITIES", anchor="w", fill="#ffe37e", font=self.font(30, True), tags=tag)
+        c.create_text(315, 126, text=f"{member['name']}   {job}   LV {member.get('level', 1)}   STONE {stone}",
+                      anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
+        rows = self._ability_rows()
+        learned = {ability.id for ability in learned_abilities(member)}
+        if not rows:
+            c.create_text(315, 180, text="Bind a class at the stone to learn abilities.",
+                          anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
+        if rows:
+            self.item_index %= len(rows)
+        for row, ability in enumerate(rows):
+            known = ability.id in learned
+            usable = known and is_usable(member, ability)
+            if not known:
+                state = f"Lv {ability.learn_level}"
+                color = "#8ea0b8"
+            elif not usable:
+                state = "needs a sword"
+                color = "#ffffff"
+            else:
+                state = "ready"
+                color = "#ffffff"
+            selected = row == self.item_index
+            c.create_text(320, 168 + row * 36,
+                          text=("▶ " if selected else "  ") + f"{ability.name}    {state}    MP {ability.mp_cost}",
+                          anchor="w", fill="#ffe37e" if selected else color, font=self.font(18), tags=tag)
+        if rows:
+            chosen = rows[self.item_index]
+            c.create_text(315, 330, text=chosen.description, anchor="nw", width=560,
+                          fill="#c5d8e4", font=self.font(16), tags=tag)
+        c.create_text(315, 400, text="Costs and power are suggestions. Battle does not apply them yet.",
+                      anchor="w", width=570, fill="#9adbe8", font=self.font(15), tags=tag)
+        c.create_text(315, 428, text=self.feedback or "UP/DOWN ability  ·  LEFT/RIGHT member",
+                      anchor="w", fill="#9adbe8", font=self.font(15), tags=tag)
 
     def _item_icon(self, name):
         item = item_by_name(name)

@@ -5,6 +5,7 @@ import random
 import tkinter as tk
 from pathlib import Path
 
+from abilities import remember
 from classes import JOBS, DESCRIPTIONS, EMBLEMS, current_job, bind_job
 
 
@@ -187,8 +188,11 @@ class AstralScene:
             if self.confirm_bind:
                 member = self.party[self.member_index]
                 job = JOBS[self.selection]
-                self.feedback = (f"{member['name']} is bound to {job}." if bind_job(member, job)
-                                 else "This member is already bound.")
+                if bind_job(member, job):
+                    remember(member)
+                    self.feedback = f"{member['name']} is bound to {job}."
+                else:
+                    self.feedback = "This member is already bound."
             self.phase = "choose"
         elif self.selection == len(JOBS):
             self.close()

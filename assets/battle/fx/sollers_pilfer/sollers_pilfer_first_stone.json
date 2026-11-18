@@ -1,0 +1,37 @@
+{
+  "id": "sollers_pilfer",
+  "stone": "first_stone",
+  "frame_w": 64,
+  "frame_h": 64,
+  "frames": 8,
+  "ms_per_frame": [
+    60,
+    60,
+    50,
+    70,
+    60,
+    60,
+    70,
+    90
+  ],
+  "total_ms": 520,
+  "strip": "sollers_pilfer_first_stone_strip.png",
+  "scale_in_battle": 2,
+  "kind": "utility",
+  "target": "single enemy",
+  "note": "Steal. Smoke and coin are fixed colours; only the swipe and glints tint.",
+  "cls": "Sollers",
+  "name": "Pilfer",
+  "target_center": [
+    34,
+    34
+  ],
+  "attunement_tinted": true,
+  "stone_palette": {
+    "t_core": "#eaffff",
+    "t_hi": "#9eeef5",
+    "t_mid": "#5cc9dc",
+    "t_lo": "#2f8fb4",
+    "t_rim": "#173c5c"
+  }
+}

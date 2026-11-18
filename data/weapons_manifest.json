@@ -1,0 +1,1039 @@
+{
+  "package": "caldrona_lite_starter_push_20261117",
+  "status": "SUGGESTED values: every stat, tier and price is a placeholder for Caleb to tune. Art is final; do not modify pixels.",
+  "stat_scale": "Same ATK/SPD/REACH/PEN scale as the Caldrona historical weapons table (dagger 3/+2/0/0, mace 6/-1/1/1, quarterstaff 4/+1/2/0). REACH \"ranged\" = thrown. suggested_magic_bonus is an extra optional field for caster weapons (adds to magic for Seer spells / Saint heals); drop it if Lite keeps only four stats.",
+  "tiers": "0 = starting gear, 1 = cave-exit shop, 2 = mid Lite, 3 = late Lite / rare find",
+  "basic_attack_fx": "\"sword_strike\" = use abilities/sword_strike (Caleb: Strike is the shared basic attack for every sword-like weapon; blades and daggers here). null = no dedicated basic-attack animation yet (wands, staves, maces, coshes, thrown).",
+  "counts": {
+    "Seer": 13,
+    "Sollers": 21,
+    "Saint": 14,
+    "unique_icons": 46
+  },
+  "by_class": {
+    "Seer": [
+      "practice_sword",
+      "yew_seer_wand",
+      "hazel_divining_rod",
+      "bronze_astrolabe_rod",
+      "birch_rune_wand",
+      "scrying_orb_staff",
+      "iron_augur_staff",
+      "obsidian_scrying_mirror",
+      "smoky_quartz_focus",
+      "whalebone_wand",
+      "steel_starglass_rod",
+      "ruby_wand",
+      "ebony_omen_staff"
+    ],
+    "Sollers": [
+      "practice_sword",
+      "bronze_purse_knife",
+      "bronze_knife",
+      "iron_dagger",
+      "bronze_push_dagger",
+      "bronze_parrying_dagger",
+      "bronze_weighted_cosh",
+      "bronze_throwing_knife",
+      "iron_purse_knife",
+      "iron_push_dagger",
+      "iron_stiletto",
+      "iron_parrying_dagger",
+      "iron_weighted_cosh",
+      "iron_throwing_knife",
+      "steel_dirk",
+      "iron_shortsword",
+      "throwing_knife",
+      "golden_stiletto",
+      "shadow_kris",
+      "frost_fang",
+      "shadow_edge"
+    ],
+    "Saint": [
+      "practice_sword",
+      "whitewood_mending_wand",
+      "linen_bound_cudgel",
+      "pale_ash_crook",
+      "bronze_mace",
+      "hallowed_quarterstaff",
+      "whitewood_lily_staff",
+      "gilt_sunburst_rod",
+      "gilt_aspergillum",
+      "iron_mace",
+      "silvered_flanged_mace",
+      "alabaster_orb_scepter",
+      "healing_wand",
+      "sunsteel_blade"
+    ]
+  },
+  "weapons": [
+    {
+      "id": "practice_sword",
+      "name": "Practice Sword",
+      "icon": "weapons/practice_sword.png",
+      "weapon_type": "sword",
+      "classes": [
+        "Seer",
+        "Sollers",
+        "Saint"
+      ],
+      "suggested_tier": 0,
+      "suggested_stats": {
+        "ATK": 2,
+        "SPD": 0,
+        "REACH": 1,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 30,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Blunt wooden trainer; default starting weapon for any class.",
+      "source": "/workspace/item_icons_v24/weapons/practice_sword.png"
+    },
+    {
+      "id": "yew_seer_wand",
+      "name": "Yew Seer Wand",
+      "icon": "weapons/yew_seer_wand.png",
+      "weapon_type": "wand",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 2,
+      "suggested_price_gold": 55,
+      "basic_attack_fx": null,
+      "notes": "Long HP-style wand; spiral-carved handle, smoky quartz bead.",
+      "source": "/workspace/item_icons_weapons_daily_20261117/yew_seer_wand.png"
+    },
+    {
+      "id": "hazel_divining_rod",
+      "name": "Hazel Divining Rod",
+      "icon": "weapons/hazel_divining_rod.png",
+      "weapon_type": "rod",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 1,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 1,
+      "suggested_price_gold": 50,
+      "basic_attack_fx": null,
+      "notes": "Forked dowsing rod.",
+      "source": "/workspace/item_icons_weapons_daily_20261117/hazel_divining_rod.png"
+    },
+    {
+      "id": "bronze_astrolabe_rod",
+      "name": "Bronze Astrolabe Rod",
+      "icon": "weapons/bronze_astrolabe_rod.png",
+      "weapon_type": "rod",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 0,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 1,
+      "suggested_price_gold": 55,
+      "basic_attack_fx": null,
+      "notes": "",
+      "source": "/workspace/item_icons_weapons_daily_20261117/bronze_astrolabe_rod.png"
+    },
+    {
+      "id": "birch_rune_wand",
+      "name": "Birch Rune Wand",
+      "icon": "weapons/birch_rune_wand.png",
+      "weapon_type": "wand",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 2,
+      "suggested_price_gold": 55,
+      "basic_attack_fx": null,
+      "notes": "Approved long wand v2 (originally Runwit set).",
+      "source": "/workspace/item_icons_wands_wizard_20261116/v2/birch_rune_wand.png"
+    },
+    {
+      "id": "scrying_orb_staff",
+      "name": "Scrying Orb Staff",
+      "icon": "weapons/scrying_orb_staff.png",
+      "weapon_type": "staff",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 0,
+        "REACH": 2,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 3,
+      "suggested_price_gold": 120,
+      "basic_attack_fx": null,
+      "notes": "",
+      "source": "/workspace/item_icons_weapons_daily_20261117/scrying_orb_staff.png"
+    },
+    {
+      "id": "iron_augur_staff",
+      "name": "Iron Augur Staff",
+      "icon": "weapons/iron_augur_staff.png",
+      "weapon_type": "staff",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": -1,
+        "REACH": 2,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 2,
+      "suggested_price_gold": 120,
+      "basic_attack_fx": null,
+      "notes": "",
+      "source": "/workspace/item_icons_weapons_daily_20261117/iron_augur_staff.png"
+    },
+    {
+      "id": "obsidian_scrying_mirror",
+      "name": "Obsidian Scrying Mirror",
+      "icon": "weapons/obsidian_scrying_mirror.png",
+      "weapon_type": "focus",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 2
+      },
+      "suggested_magic_bonus": 3,
+      "suggested_price_gold": 115,
+      "basic_attack_fx": null,
+      "notes": "Hand mirror focus.",
+      "source": "/workspace/item_icons_weapons_daily_20261117/obsidian_scrying_mirror.png"
+    },
+    {
+      "id": "smoky_quartz_focus",
+      "name": "Smoky Quartz Focus",
+      "icon": "weapons/smoky_quartz_focus.png",
+      "weapon_type": "focus (off-hand)",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 0,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 3,
+      "suggested_price_gold": 105,
+      "basic_attack_fx": null,
+      "notes": "Off-hand orb on a stand; if Lite has one weapon slot, treat as a focus weapon.",
+      "source": "/workspace/item_icons_weapons_daily_20261117/smoky_quartz_focus.png"
+    },
+    {
+      "id": "whalebone_wand",
+      "name": "Whalebone Wand",
+      "icon": "weapons/whalebone_wand.png",
+      "weapon_type": "wand",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 3,
+      "suggested_price_gold": 115,
+      "basic_attack_fx": null,
+      "notes": "Approved long wand v2 (originally Runwit set).",
+      "source": "/workspace/item_icons_wands_wizard_20261116/v2/whalebone_wand.png"
+    },
+    {
+      "id": "steel_starglass_rod",
+      "name": "Steel Starglass Rod",
+      "icon": "weapons/steel_starglass_rod.png",
+      "weapon_type": "rod",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 1,
+        "REACH": 1,
+        "PEN": 2
+      },
+      "suggested_magic_bonus": 4,
+      "suggested_price_gold": 250,
+      "basic_attack_fx": null,
+      "notes": "",
+      "source": "/workspace/item_icons_weapons_daily_20261117/steel_starglass_rod.png"
+    },
+    {
+      "id": "ruby_wand",
+      "name": "Ruby Wand",
+      "icon": "weapons/ruby_wand.png",
+      "weapon_type": "wand",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 2
+      },
+      "suggested_magic_bonus": 4,
+      "suggested_price_gold": 240,
+      "basic_attack_fx": null,
+      "notes": "Approved long wand v2; replaces the old v24 ruby_wand art.",
+      "source": "/workspace/item_icons_wands_wizard_20261116/v2/ruby_wand.png"
+    },
+    {
+      "id": "ebony_omen_staff",
+      "name": "Ebony Omen Staff",
+      "icon": "weapons/ebony_omen_staff.png",
+      "weapon_type": "staff",
+      "classes": [
+        "Seer"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 5,
+        "SPD": -1,
+        "REACH": 2,
+        "PEN": 2
+      },
+      "suggested_magic_bonus": 5,
+      "suggested_price_gold": 260,
+      "basic_attack_fx": null,
+      "notes": "Higher tier.",
+      "source": "/workspace/item_icons_weapons_daily_20261117/ebony_omen_staff.png"
+    },
+    {
+      "id": "bronze_purse_knife",
+      "name": "Bronze Purse Knife",
+      "icon": "weapons/bronze_purse_knife.png",
+      "weapon_type": "knife",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 2,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 50,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Refined Cutpurse set.",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/bronze_purse_knife.png"
+    },
+    {
+      "id": "bronze_knife",
+      "name": "Bronze Knife",
+      "icon": "weapons/bronze_knife.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 2,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 50,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Live icon (v21 dagger redraw).",
+      "source": "/workspace/item_icons_v24/weapons/bronze_knife.png"
+    },
+    {
+      "id": "iron_dagger",
+      "name": "Iron Dagger",
+      "icon": "weapons/iron_dagger.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 2,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 55,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Live icon id; NOT the historical iron_dagger (name collision).",
+      "source": "/workspace/item_icons_v24/weapons/iron_dagger.png"
+    },
+    {
+      "id": "bronze_push_dagger",
+      "name": "Bronze Push Dagger",
+      "icon": "weapons/bronze_push_dagger.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 50,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Refined Cutpurse set.",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/bronze_push_dagger.png"
+    },
+    {
+      "id": "bronze_parrying_dagger",
+      "name": "Bronze Parrying Dagger",
+      "icon": "weapons/bronze_parrying_dagger.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 50,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Suggested special: small evasion bonus.",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/bronze_parrying_dagger.png"
+    },
+    {
+      "id": "bronze_weighted_cosh",
+      "name": "Bronze Weighted Cosh",
+      "icon": "weapons/bronze_weighted_cosh.png",
+      "weapon_type": "cosh",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 50,
+      "basic_attack_fx": null,
+      "notes": "Suggested special: chance to delay a foe (sets up Backstab).",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/bronze_weighted_cosh.png"
+    },
+    {
+      "id": "bronze_throwing_knife",
+      "name": "Bronze Throwing Knife",
+      "icon": "weapons/bronze_throwing_knife.png",
+      "weapon_type": "thrown knife",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 2,
+        "REACH": "ranged",
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 50,
+      "basic_attack_fx": null,
+      "notes": "Historical pack. Thrown; pairs with Knife Flick.",
+      "source": "/workspace/caldrona_weapons_push_20261115/historical_weapons/weapons/bronze_throwing_knife.png"
+    },
+    {
+      "id": "iron_purse_knife",
+      "name": "Iron Purse Knife",
+      "icon": "weapons/iron_purse_knife.png",
+      "weapon_type": "knife",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 2,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 110,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Refined Cutpurse set.",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/iron_purse_knife.png"
+    },
+    {
+      "id": "iron_push_dagger",
+      "name": "Iron Push Dagger",
+      "icon": "weapons/iron_push_dagger.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 2
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 110,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Refined Cutpurse set.",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/iron_push_dagger.png"
+    },
+    {
+      "id": "iron_stiletto",
+      "name": "Iron Stiletto",
+      "icon": "weapons/iron_stiletto.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 2,
+        "REACH": 0,
+        "PEN": 2
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 105,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Refined Cutpurse set.",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/iron_stiletto.png"
+    },
+    {
+      "id": "iron_parrying_dagger",
+      "name": "Iron Parrying Dagger",
+      "icon": "weapons/iron_parrying_dagger.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 110,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Suggested special: small evasion bonus.",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/iron_parrying_dagger.png"
+    },
+    {
+      "id": "iron_weighted_cosh",
+      "name": "Iron Weighted Cosh",
+      "icon": "weapons/iron_weighted_cosh.png",
+      "weapon_type": "cosh",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 110,
+      "basic_attack_fx": null,
+      "notes": "Suggested special: chance to delay a foe.",
+      "source": "/workspace/item_icons_weapons_daily_20261107_refined/iron_weighted_cosh.png"
+    },
+    {
+      "id": "iron_throwing_knife",
+      "name": "Iron Throwing Knife",
+      "icon": "weapons/iron_throwing_knife.png",
+      "weapon_type": "thrown knife",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 2,
+        "REACH": "ranged",
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 105,
+      "basic_attack_fx": null,
+      "notes": "Historical pack.",
+      "source": "/workspace/caldrona_weapons_push_20261115/historical_weapons/weapons/iron_throwing_knife.png"
+    },
+    {
+      "id": "steel_dirk",
+      "name": "Steel Dirk",
+      "icon": "weapons/steel_dirk.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 5,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 115,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Live icon.",
+      "source": "/workspace/item_icons_v24/weapons/steel_dirk.png"
+    },
+    {
+      "id": "iron_shortsword",
+      "name": "Iron Shortsword",
+      "icon": "weapons/iron_shortsword.png",
+      "weapon_type": "sword",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 1,
+        "REACH": 1,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 110,
+      "basic_attack_fx": "sword_strike",
+      "notes": "v23 sword redraw.",
+      "source": "/workspace/item_icons_v24/weapons/iron_shortsword.png"
+    },
+    {
+      "id": "throwing_knife",
+      "name": "Steel Throwing Knife",
+      "icon": "weapons/throwing_knife.png",
+      "weapon_type": "thrown knife",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 2,
+        "REACH": "ranged",
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 225,
+      "basic_attack_fx": null,
+      "notes": "Historical pack steel master (file throwing_knife.png).",
+      "source": "/workspace/caldrona_weapons_push_20261115/historical_weapons/weapons/throwing_knife.png"
+    },
+    {
+      "id": "golden_stiletto",
+      "name": "Golden Stiletto",
+      "icon": "weapons/golden_stiletto.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 5,
+        "SPD": 2,
+        "REACH": 0,
+        "PEN": 2
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 230,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Live icon.",
+      "source": "/workspace/item_icons_v24/weapons/golden_stiletto.png"
+    },
+    {
+      "id": "shadow_kris",
+      "name": "Shadow Kris",
+      "icon": "weapons/shadow_kris.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 6,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 235,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Live icon.",
+      "source": "/workspace/item_icons_v24/weapons/shadow_kris.png"
+    },
+    {
+      "id": "frost_fang",
+      "name": "Frost Fang",
+      "icon": "weapons/frost_fang.png",
+      "weapon_type": "dagger",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 6,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 235,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Live icon; frost element if Lite adds elements.",
+      "source": "/workspace/item_icons_v24/weapons/frost_fang.png"
+    },
+    {
+      "id": "shadow_edge",
+      "name": "Shadow Edge",
+      "icon": "weapons/shadow_edge.png",
+      "weapon_type": "sword",
+      "classes": [
+        "Sollers"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 6,
+        "SPD": 1,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 235,
+      "basic_attack_fx": "sword_strike",
+      "notes": "v24 elemental sword redraw.",
+      "source": "/workspace/item_icons_v24/weapons/shadow_edge.png"
+    },
+    {
+      "id": "whitewood_mending_wand",
+      "name": "Whitewood Mending Wand",
+      "icon": "weapons/whitewood_mending_wand.png",
+      "weapon_type": "wand",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 2,
+      "suggested_price_gold": 55,
+      "basic_attack_fx": null,
+      "notes": "Approved long wand v2; replaces the 11/16 Nasjand short version.",
+      "source": "/workspace/item_icons_wands_wizard_20261116/v2/whitewood_mending_wand.png"
+    },
+    {
+      "id": "linen_bound_cudgel",
+      "name": "Linen-Bound Cudgel",
+      "icon": "weapons/linen_bound_cudgel.png",
+      "weapon_type": "club",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 0,
+        "REACH": 1,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 55,
+      "basic_attack_fx": null,
+      "notes": "Nasjand white-healing set.",
+      "source": "/workspace/item_icons_weapons_daily_20261116/linen_bound_cudgel.png"
+    },
+    {
+      "id": "pale_ash_crook",
+      "name": "Pale Ash Crook",
+      "icon": "weapons/pale_ash_crook.png",
+      "weapon_type": "staff",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 1,
+        "REACH": 2,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 1,
+      "suggested_price_gold": 55,
+      "basic_attack_fx": null,
+      "notes": "Nasjand set.",
+      "source": "/workspace/item_icons_weapons_daily_20261116/pale_ash_crook.png"
+    },
+    {
+      "id": "bronze_mace",
+      "name": "Bronze Mace",
+      "icon": "weapons/bronze_mace.png",
+      "weapon_type": "mace",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 1,
+      "suggested_stats": {
+        "ATK": 5,
+        "SPD": -1,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 60,
+      "basic_attack_fx": null,
+      "notes": "Live icon (v19 blunt redraw).",
+      "source": "/workspace/item_icons_v24/weapons/bronze_mace.png"
+    },
+    {
+      "id": "hallowed_quarterstaff",
+      "name": "Hallowed Quarterstaff",
+      "icon": "weapons/hallowed_quarterstaff.png",
+      "weapon_type": "staff",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 1,
+        "REACH": 2,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 2,
+      "suggested_price_gold": 120,
+      "basic_attack_fx": null,
+      "notes": "Nasjand set.",
+      "source": "/workspace/item_icons_weapons_daily_20261116/hallowed_quarterstaff.png"
+    },
+    {
+      "id": "whitewood_lily_staff",
+      "name": "Whitewood Lily Staff",
+      "icon": "weapons/whitewood_lily_staff.png",
+      "weapon_type": "staff",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 0,
+        "REACH": 2,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 3,
+      "suggested_price_gold": 120,
+      "basic_attack_fx": null,
+      "notes": "Nasjand set.",
+      "source": "/workspace/item_icons_weapons_daily_20261116/whitewood_lily_staff.png"
+    },
+    {
+      "id": "gilt_sunburst_rod",
+      "name": "Gilt Sunburst Rod",
+      "icon": "weapons/gilt_sunburst_rod.png",
+      "weapon_type": "rod",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 3,
+        "SPD": 0,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 2,
+      "suggested_price_gold": 115,
+      "basic_attack_fx": null,
+      "notes": "Nasjand set.",
+      "source": "/workspace/item_icons_weapons_daily_20261116/gilt_sunburst_rod.png"
+    },
+    {
+      "id": "gilt_aspergillum",
+      "name": "Gilt Aspergillum",
+      "icon": "weapons/gilt_aspergillum.png",
+      "weapon_type": "mace",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 5,
+        "SPD": -1,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 1,
+      "suggested_price_gold": 120,
+      "basic_attack_fx": null,
+      "notes": "Nasjand set.",
+      "source": "/workspace/item_icons_weapons_daily_20261116/gilt_aspergillum.png"
+    },
+    {
+      "id": "iron_mace",
+      "name": "Iron Mace",
+      "icon": "weapons/iron_mace.png",
+      "weapon_type": "mace",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 6,
+        "SPD": -1,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 120,
+      "basic_attack_fx": null,
+      "notes": "Live icon.",
+      "source": "/workspace/item_icons_v24/weapons/iron_mace.png"
+    },
+    {
+      "id": "silvered_flanged_mace",
+      "name": "Silvered Flanged Mace",
+      "icon": "weapons/silvered_flanged_mace.png",
+      "weapon_type": "mace",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 2,
+      "suggested_stats": {
+        "ATK": 6,
+        "SPD": -1,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 120,
+      "basic_attack_fx": null,
+      "notes": "Suggested special: bonus vs undead.",
+      "source": "/workspace/item_icons_weapons_daily_20261116/silvered_flanged_mace.png"
+    },
+    {
+      "id": "alabaster_orb_scepter",
+      "name": "Alabaster Orb Scepter",
+      "icon": "weapons/alabaster_orb_scepter.png",
+      "weapon_type": "scepter",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 4,
+        "SPD": 0,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 4,
+      "suggested_price_gold": 250,
+      "basic_attack_fx": null,
+      "notes": "Nasjand set.",
+      "source": "/workspace/item_icons_weapons_daily_20261116/alabaster_orb_scepter.png"
+    },
+    {
+      "id": "healing_wand",
+      "name": "Healing Wand",
+      "icon": "weapons/healing_wand.png",
+      "weapon_type": "wand",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 2,
+        "SPD": 1,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "suggested_magic_bonus": 4,
+      "suggested_price_gold": 235,
+      "basic_attack_fx": null,
+      "notes": "Approved long wand v2; replaces the old v24 healing_wand art.",
+      "source": "/workspace/item_icons_wands_wizard_20261116/v2/healing_wand.png"
+    },
+    {
+      "id": "sunsteel_blade",
+      "name": "Sunsteel Blade",
+      "icon": "weapons/sunsteel_blade.png",
+      "weapon_type": "sword",
+      "classes": [
+        "Saint"
+      ],
+      "suggested_tier": 3,
+      "suggested_stats": {
+        "ATK": 7,
+        "SPD": 0,
+        "REACH": 1,
+        "PEN": 1
+      },
+      "suggested_magic_bonus": 0,
+      "suggested_price_gold": 240,
+      "basic_attack_fx": "sword_strike",
+      "notes": "Holy sword; v23 redraw.",
+      "source": "/workspace/item_icons_v24/weapons/sunsteel_blade.png"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": "saint_sanctuary",
+  "stone": "untinted",
+  "frame_w": 64,
+  "frame_h": 64,
+  "frames": 9,
+  "ms_per_frame": [
+    60,
+    60,
+    60,
+    70,
+    60,
+    70,
+    90,
+    110,
+    110
+  ],
+  "total_ms": 690,
+  "strip": "saint_sanctuary_strip.png",
+  "scale_in_battle": 2,
+  "kind": "support",
+  "target": "single ally",
+  "loop_frames": [
+    7,
+    8
+  ],
+  "note": "Halo descends into a light dome; frames 7-8 loop. Not tinted.",
+  "cls": "Saint",
+  "name": "Sanctuary",
+  "target_center": [
+    32,
+    34
+  ],
+  "attunement_tinted": false
+}

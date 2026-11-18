@@ -1,0 +1,38 @@
+{
+  "id": "seer_foretell",
+  "stone": "first_stone",
+  "frame_w": 64,
+  "frame_h": 64,
+  "frames": 9,
+  "ms_per_frame": [
+    60,
+    50,
+    50,
+    80,
+    70,
+    70,
+    80,
+    90,
+    100
+  ],
+  "total_ms": 650,
+  "strip": "seer_foretell_first_stone_strip.png",
+  "scale_in_battle": 2,
+  "kind": "magic",
+  "target": "single enemy",
+  "note": "Marks a foe (weakness read). Eye/sigil glow follows attunement.",
+  "cls": "Seer",
+  "name": "Foretell",
+  "target_center": [
+    32,
+    36
+  ],
+  "attunement_tinted": true,
+  "stone_palette": {
+    "t_core": "#eaffff",
+    "t_hi": "#9eeef5",
+    "t_mid": "#5cc9dc",
+    "t_lo": "#2f8fb4",
+    "t_rim": "#173c5c"
+  }
+}
