@@ -196,11 +196,8 @@ class BattleModel:
         member = self.party[self.actor]
         job = current_job(member)
         ability = find_ability(job, ability_id) if ability_id else None
-        if ability is None or ability not in learned_abilities(member):
+        if ability is None or ability.id == "strike" or ability not in learned_abilities(member):
             self.message = "That ability is not learned."
-            return False
-        if not is_usable(member, ability):
-            self.message = "Strike needs a sword-like weapon."
             return False
         self.effect = "Ability"
         self.damage = 0
@@ -709,10 +706,6 @@ class BattleScene:
             return
         ability = entries[self.selection]
         member = self.model.party[self.model.actor]
-        if not is_usable(member, ability):
-            self.model.message = "Strike needs a sword-like weapon."
-            self.draw_status()
-            return
         self.chosen_ability = ability
         self.ability_menu = False
         if ability.target == "single ally":

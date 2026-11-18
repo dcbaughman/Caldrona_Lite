@@ -59,6 +59,7 @@ class Item:
     effect: dict | None = None
     placeholder_icon: bool = False
     weapon: WeaponProfile | None = None
+    for_sale: bool = True
 
 
 @dataclass(frozen=True)
@@ -73,7 +74,7 @@ class UseResult:
 
 def _item(item_id, name, category, description, buy, icon, *,
           effect=None, stackable=True, max_stack=99, placeholder=False,
-          weapon=None):
+          weapon=None, for_sale=True):
     return Item(
         id=item_id,
         name=name,
@@ -87,6 +88,7 @@ def _item(item_id, name, category, description, buy, icon, *,
         effect=effect,
         placeholder_icon=placeholder,
         weapon=weapon,
+        for_sale=for_sale,
     )
 
 
@@ -113,10 +115,17 @@ _ROWS = (
     _item("antidote", "Antidote", "consumable",
           "Clears poison.", 30,
           "potions/antidote_potion.png", effect={"kind": "cure", "status": "poison"}),
-    _item("revive", "Revive", "consumable",
-          "Brings a fainted ally back with a quarter of their HP.", 150,
-          "potions/elixir_health.png",
-          effect={"kind": "revive", "percent": 25}, placeholder=True),
+    # Price 150 and the quarter-HP return are placeholders for Caleb.
+    # This replaces the #2 placeholder id `revive`. There is one revive item.
+    _item("ember_feather", "Ember Feather", "consumable",
+          "Revives a fainted ally with a quarter of their HP.", 150,
+          "potions/ember_feather.png",
+          effect={"kind": "revive", "percent": 25}),
+    # Not sold. Buy price 0 and sell price 0 are placeholders for Caleb.
+    _item("ember_talisman", "Ember Talisman", "consumable",
+          "Revives a fainted ally with all of their HP. Not sold.", 0,
+          "potions/ember_talisman.png",
+          effect={"kind": "revive", "full": True}, for_sale=False),
     _item("minor_ether", "Minor Ether", "consumable",
           "A slim blue vial. Restores a little MP.", 30,
           "potions/minor_mana_potion.png", effect={"kind": "restore_mp", "amount": 4}),
@@ -326,8 +335,11 @@ def use_item(item_id: str, member: dict) -> UseResult:
     if kind == "revive":
         if member["hp"] > 0:
             return UseResult(False, "not_fainted")
-        percent = effect.get("percent", 25)
-        healed = max(1, member["max_hp"] * percent // 100)
+        if effect.get("full"):
+            healed = member["max_hp"]
+        else:
+            percent = effect.get("percent", 25)
+            healed = max(1, member["max_hp"] * percent // 100)
         member["hp"] = min(member["max_hp"], healed)
         return UseResult(True, "revived", healed=member["hp"], revived=True)
     if kind == "restore_mp":

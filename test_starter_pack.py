@@ -7,18 +7,20 @@ import tkinter as tk
 import unittest
 import zlib
 from pathlib import Path
+from unittest.mock import patch
 
+import Caldrona_Lite as game
 from abilities import (
     BY_JOB, PLANNED, attuned_stone, class_abilities, frame_at, learned_abilities,
-    remember, strike_variant, usable_abilities, variant_for,
+    remember, strike_variant, variant_for,
 )
 from astral_scene import AstralScene
 from battle import BattleModel, BattleScene, ENEMIES
 from classes import JOBS, bind_job
-from display_settings import ScaledCanvas
+from display_settings import DisplayConfig, ScaledCanvas
 from equipment import can_equip, equip
-from items import CATALOG, icon_file
-from shops import CAVE_EXIT_NAME_TO_ID, cave_exit_prices, get_shop_stock
+from items import CATALOG, icon_file, use_item
+from shops import CAVE_EXIT_NAME_TO_ID, cave_exit_prices, get_shop_stock, shop_lists
 from stats import RETRI, member
 
 ROOT = Path(__file__).resolve().parent
@@ -143,19 +145,19 @@ class ArtHashTests(unittest.TestCase):
 class ClassGateTests(unittest.TestCase):
     def test_classes_field_only_restricts_equip_and_binding_grants_nothing(self):
         person = member("Retri", RETRI)
-        person["weapon"] = "practice_sword"
+        person["equipment"] = {"weapon": "practice_sword", "shield": None, "armor": None, "accessory": None}
         supplies = {"bronze_mace": 1, "yew_seer_wand": 1, "spellbook": 1}
-        before = (person.get("weapon"), person.get("offhand"), dict(supplies), person.get("magic"))
+        before = (dict(person["equipment"]), dict(supplies), person.get("magic"))
         self.assertTrue(bind_job(person, "Saint"))
-        self.assertEqual((person.get("weapon"), person.get("offhand"), supplies, person.get("magic")), before)
+        self.assertEqual((person["equipment"], supplies, person.get("magic")), before)
         self.assertFalse(bind_job(person, "Seer"))
         self.assertEqual(supplies, {"bronze_mace": 1, "yew_seer_wand": 1, "spellbook": 1})
 
         for job in JOBS:
             bare = member("Temur", RETRI)
             self.assertTrue(bind_job(bare, job))
-            self.assertIsNone(bare.get("weapon"))
-            self.assertIsNone(bare.get("offhand"))
+            self.assertIsNone((bare.get("equipment") or {}).get("weapon"))
+            self.assertIsNone((bare.get("equipment") or {}).get("shield"))
 
         seer = {"job": "Seer", "level": 1}
         sollers = {"job": "Sollers", "level": 1}
@@ -186,8 +188,8 @@ class ClassGateTests(unittest.TestCase):
         scene.confirm_bind = True
         scene.confirm()
         self.assertEqual(party[0]["job"], "Saint")
-        self.assertIsNone(party[0].get("weapon"))
-        self.assertIsNone(party[0].get("offhand"))
+        self.assertIsNone((party[0].get("equipment") or {}).get("weapon"))
+        self.assertIsNone((party[0].get("equipment") or {}).get("shield"))
         self.assertNotIn("bronze_mace", party[0].get("abilities", []))
 
     def test_saint_offhand_accepts_a_placeholder_spellbook(self):
@@ -195,32 +197,26 @@ class ClassGateTests(unittest.TestCase):
         book = SPELLBOOK
         self.assertNotIn("spellbook", CATALOG)
         self.assertTrue(book.placeholder_icon)
-        self.assertEqual(book.category, "offhand")
+        self.assertEqual(book.category, "shield")
         self.assertEqual(book.weapon.weapon_type, "spellbook")
         self.assertEqual(book.weapon.classes, ("Saint",))
         self.assertEqual(book.weapon.magic_bonus, 0)
         self.assertEqual(list(ROOT.joinpath("assets").rglob("*spellbook*")), [])
 
         saint = {"name": "Retri", "job": "Saint", "level": 1, "magic": 3}
-        supplies = {"spellbook": 1, "bronze_mace": 1}
-        self.assertTrue(equip(saint, "bronze_mace", supplies)[0])
-        self.assertEqual(can_equip(saint, "bronze_mace", "offhand")[1], "not_offhand")
-        self.assertEqual(can_equip(saint, "spellbook", "weapon")[1], "not_weapon")
-        self.assertTrue(equip(saint, "spellbook", supplies, "offhand")[0])
-        self.assertEqual(saint["weapon"], "bronze_mace")
-        self.assertEqual(saint["offhand"], "spellbook")
+        self.assertTrue(equip(saint, "bronze_mace")[0])
+        self.assertEqual(saint["equipment"]["weapon"], "bronze_mace")
+        self.assertTrue(equip(saint, "spellbook")[0])
+        self.assertEqual(saint["equipment"]["shield"], "spellbook")
+        self.assertEqual(saint["equipment"]["weapon"], "bronze_mace")
         self.assertEqual(saint["magic"], 3)
-        self.assertNotIn("spellbook", supplies)
-
         seer = {"job": "Seer", "level": 1, "magic": 8}
-        seer_pack = {"spellbook": 1}
-        self.assertEqual(can_equip(seer, "spellbook", "offhand")[1], "wrong_class")
-        self.assertEqual(seer_pack["spellbook"], 1)
-        self.assertIsNone(seer.get("offhand"))
+        self.assertEqual(can_equip(seer, "spellbook")[1], "wrong_class")
+        self.assertIsNone((seer.get("equipment") or {}).get("shield"))
 
     def test_weapon_stats_do_not_change_attack_damage(self):
         bare = {"name": "Retri", "job": "Saint", "level": 1, "hp": 60, "max_hp": 60, "strength": 8}
-        armed = dict(bare, weapon="sunsteel_blade")
+        armed = dict(bare, equipment={"weapon": "sunsteel_blade"})
         first = BattleModel(ENEMIES[0], party=[bare], rng=random.Random(3))
         second = BattleModel(ENEMIES[0], party=[armed], rng=random.Random(3))
         self.assertTrue(first.command("Attack"))
@@ -239,18 +235,18 @@ class AbilityTests(unittest.TestCase):
 
     def test_unlock_thresholds_follow_the_manifest(self):
         expect = {
-            "Seer": {1: {"strike"}, 2: {"strike", "seer_foretell"},
-                     4: {"strike", "seer_foretell"},
-                     5: {"strike", "seer_foretell", "seer_starfall_omen"},
-                     7: {"strike", "seer_foretell", "seer_starfall_omen", "seer_forewarn"}},
-            "Sollers": {1: {"strike", "sollers_knife_flick"},
-                        2: {"strike", "sollers_knife_flick", "sollers_pilfer"},
-                        3: {"strike", "sollers_knife_flick", "sollers_pilfer"},
-                        4: {"strike", "sollers_knife_flick", "sollers_pilfer", "sollers_backstab"}},
-            "Saint": {1: {"strike", "saint_mend"},
-                      2: {"strike", "saint_mend"},
-                      3: {"strike", "saint_mend", "saint_smite"},
-                      5: {"strike", "saint_mend", "saint_smite", "saint_sanctuary"}},
+            "Seer": {1: set(), 2: {"seer_foretell"},
+                     4: {"seer_foretell"},
+                     5: {"seer_foretell", "seer_starfall_omen"},
+                     7: {"seer_foretell", "seer_starfall_omen", "seer_forewarn"}},
+            "Sollers": {1: {"sollers_knife_flick"},
+                        2: {"sollers_knife_flick", "sollers_pilfer"},
+                        3: {"sollers_knife_flick", "sollers_pilfer"},
+                        4: {"sollers_knife_flick", "sollers_pilfer", "sollers_backstab"}},
+            "Saint": {1: {"saint_mend"},
+                      2: {"saint_mend"},
+                      3: {"saint_mend", "saint_smite"},
+                      5: {"saint_mend", "saint_smite", "saint_sanctuary"}},
         }
         for job, levels in expect.items():
             for level, ids in levels.items():
@@ -261,13 +257,14 @@ class AbilityTests(unittest.TestCase):
             got = {ability.id for ability in learned_abilities(self._who(job, 99))}
             self.assertTrue(set(planned).isdisjoint(got))
 
-    def test_strike_needs_a_sword_and_effects_do_not_change_numbers(self):
+    def test_strike_is_not_listed_and_effects_do_not_change_numbers(self):
+        from abilities import strike_variant
         saint = self._who("Saint", 1)
-        self.assertIn("strike", {a.id for a in learned_abilities(saint)})
-        self.assertNotIn("strike", {a.id for a in usable_abilities(saint)})
-        supplies = {"practice_sword": 1}
-        self.assertTrue(equip(saint, "practice_sword", supplies)[0])
-        self.assertEqual([a.id for a in usable_abilities(saint) if a.id == "strike"], ["strike"])
+        self.assertNotIn("strike", {a.id for a in learned_abilities(saint)})
+        self.assertIsNone(strike_variant(saint))
+        self.assertTrue(equip(saint, "practice_sword")[0])
+        self.assertIsNotNone(strike_variant(saint))
+        self.assertIn("unattuned", str(strike_variant(saint).frames[0]))
 
         before = (saint["hp"], saint["mp"], saint["magic"])
         model = BattleModel(ENEMIES[0], party=[saint], rng=random.Random(1))
@@ -278,7 +275,8 @@ class AbilityTests(unittest.TestCase):
         self.assertIn("not applied", model.message)
 
     def test_gray_and_blue_are_file_choices_and_saint_gold_is_untinted(self):
-        sword = self._who("Saint", 1, weapon="practice_sword")
+        sword = self._who("Saint", 1)
+        equip(sword, "practice_sword")
         gray = strike_variant(sword)
         self.assertIn("frames_unattuned", str(gray.frames[0]))
         sword["attuned_stone"] = "first_stone"
@@ -358,6 +356,9 @@ class ShopStockTests(unittest.TestCase):
         self.assertNotIn("torch", sold)
         self.assertIn("antidote", CATALOG)
         self.assertIn("torch", CATALOG)
+        self.assertNotIn("ember_feather", sold)
+        self.assertNotIn("ember_talisman", sold)
+        self.assertNotIn("revive", sold)
 
 
 class ExistingDataTests(unittest.TestCase):
@@ -411,20 +412,130 @@ class ExistingDataTests(unittest.TestCase):
         self.assertEqual(menu.activate(), "sync")
         menu.selection = 2
         menu.activate()
-        labels = [canvas.itemcget(item, "text") for item in canvas.find_withtag(menu.TAG)
-                  if canvas.type(item) == "text"]
-        self.assertTrue(any("Bronze Mace" in text for text in labels))
-        self.assertTrue(any("Yew Seer Wand" in text and "Seer" in text for text in labels))
-        self.assertTrue(any("OFF HAND" in text for text in labels))
-        menu.navigate("right", 1)
-        self.assertEqual(menu.kit_tab, "arts")
-        labels = [canvas.itemcget(item, "text") for item in canvas.find_withtag(menu.TAG)
-                  if canvas.type(item) == "text"]
-        self.assertTrue(any("Sanctuary" in text for text in labels))
-        self.assertTrue(any(text == "LV 5" for text in labels))
+        def labels():
+            return [canvas.itemcget(item, "text") for item in canvas.find_withtag(menu.TAG)
+                    if canvas.type(item) == "text"]
+        shown = " ".join(labels())
+        for word in ("EQUIP", "CATEGORY", "WEAPON", "SHIELD", "ACCESSORY", "Remove equipment", "FREE/TOTAL", "STATS"):
+            self.assertIn(word, shown)
+        self.assertIn("Bronze Mace", shown)
+        self.assertIn("Yew Seer Wand", shown)
+        self.assertNotIn("GEAR", shown)
+        self.assertTrue(canvas.find_withtag("item_slot"))
+        menu.navigate("down", 1)
+        self.assertEqual(menu.equip_category, 2)
+        self.assertIn("Spellbook", " ".join(labels()))
+        menu.back()
+        menu.selection = 3
+        menu.activate()
+        menu.navigate("right", 2)
+        self.assertEqual(menu.status_tab, "abilities")
+        shown = " ".join(labels())
+        self.assertIn("Saint", shown)
+        self.assertIn("Mend", shown)
+        self.assertIn("LV 5", shown)
+        self.assertNotIn("Strike", shown)
         self.assertTrue(canvas.find_withtag("ability_preview"))
         menu.close()
         self.assertIsNone(menu._fx_after)
+
+    def test_ember_feather_and_talisman(self):
+        feather = CATALOG["ember_feather"]
+        talisman = CATALOG["ember_talisman"]
+        self.assertNotIn("revive", CATALOG)
+        self.assertEqual(
+            _sha256(icon_file(feather)),
+            "248bb9972e21d486eaad84b01c49c0609de73184743f9524922feab234b5ecd4",
+        )
+        self.assertEqual(
+            _sha256(icon_file(talisman)),
+            "6de90a477ec287ca27afc6b0be8b4d3f0f418ea7e8f2fea166aeb9087580c8f9",
+        )
+        self.assertEqual(feather.effect, {"kind": "revive", "percent": 25})
+        self.assertEqual(feather.buy_price, 150)
+        self.assertFalse(feather.placeholder_icon)
+        self.assertEqual(talisman.effect, {"kind": "revive", "full": True})
+        self.assertEqual(talisman.buy_price, 0)
+        self.assertEqual(talisman.sell_price, 0)
+        self.assertFalse(talisman.for_sale)
+        for shop_id, ids in shop_lists().items():
+            self.assertNotIn("ember_talisman", ids, shop_id)
+            self.assertNotIn("ember_talisman", [item.id for item in get_shop_stock(shop_id)])
+        self.assertNotIn("ember_feather", shop_lists()["cave_exit_merchant"])
+
+        standing = {"name": "Temur", "hp": 10, "max_hp": 80}
+        self.assertFalse(use_item("ember_feather", standing).ok)
+        self.assertFalse(use_item("ember_talisman", standing).ok)
+        self.assertEqual(standing["hp"], 10)
+        fainted = {"name": "Temur", "hp": 0, "max_hp": 80}
+        feather_use = use_item("ember_feather", fainted)
+        self.assertTrue(feather_use.revived)
+        self.assertEqual(fainted["hp"], 20)
+        fainted["hp"] = 0
+        talisman_use = use_item("ember_talisman", fainted)
+        self.assertTrue(talisman_use.revived)
+        self.assertEqual(fainted["hp"], 80)
+
+        party = [
+            {"name": "Retri", "hp": 40, "max_hp": 60, "mp": 4, "max_mp": 8},
+            {"name": "Temur", "hp": 0, "max_hp": 80, "mp": 0, "max_mp": 6},
+        ]
+        model = BattleModel(ENEMIES[0], party=party, rng=random.Random(1), inventory={
+            "ember_feather": 1, "ember_talisman": 1,
+        })
+        names = [name for name, _count, _item_id in BattleScene._item_entries(
+            type("Scene", (), {"model": model})()
+        )]
+        self.assertIn("Ember Feather", names)
+        self.assertIn("Ember Talisman", names)
+        self.assertFalse(model.command("Use", target=0, item_id="ember_talisman"))
+        self.assertEqual(party[0]["hp"], 40)
+        self.assertEqual(model.inventory["ember_talisman"], 1)
+        model.pending_reply = False
+        self.assertTrue(model.command("Use", target=1, item_id="ember_feather"))
+        self.assertEqual(party[1]["hp"], 20)
+        party[1]["hp"] = 0
+        model.pending_reply = False
+        self.assertTrue(model.command("Use", target=1, item_id="ember_talisman"))
+        self.assertEqual(party[1]["hp"], 80)
+        self.assertEqual(model.inventory["ember_talisman"], 0)
+
+        def no_controller(app):
+            app.pygame = app.controller_api = None
+        with patch.object(tk.Tk, "mainloop"), patch.object(game.CaldronaLite, "_init_controller", no_controller), patch.object(game, "load_display", return_value=DisplayConfig()):
+            app = game.CaldronaLite()
+        self.addCleanup(app._close)
+        app.root.withdraw()
+        app._start_cavern()
+        app.dialogue.clear()
+        hero = app.party[0]
+        hero["hp"] = hero["max_hp"]
+        app.supplies["ember_feather"] = 1
+        app.supplies["ember_talisman"] = 1
+        menu = app.game_menu
+        menu.open()
+        menu.activate()
+        labels = [app.canvas.itemcget(item, "text") for item in app.canvas.find_withtag(menu.TAG)
+                  if app.canvas.type(item) == "text"]
+        shown = " ".join(labels)
+        self.assertIn("Ember Feather", shown)
+        self.assertIn("Ember Talisman", shown)
+        menu.navigate("down", 1)
+        menu.activate()
+        menu.activate()
+        self.assertEqual(hero["hp"], hero["max_hp"])
+        self.assertEqual(app.supplies["ember_feather"], 1)
+        self.assertIn("still standing", menu.feedback)
+        hero["hp"] = 0
+        menu.activate()
+        self.assertEqual(hero["hp"], max(1, hero["max_hp"] * 25 // 100))
+        self.assertEqual(app.supplies["ember_feather"], 0)
+        hero["hp"] = 0
+        menu.item_index = 1
+        menu.activate()
+        self.assertEqual(hero["hp"], hero["max_hp"])
+        self.assertEqual(app.supplies["ember_talisman"], 0)
+        menu.close()
 
 
 if __name__ == "__main__":

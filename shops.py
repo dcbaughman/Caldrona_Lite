@@ -56,6 +56,8 @@ def get_shop_stock(shop_id: str) -> list[Item]:
     items = []
     for item_id in rows:
         item = get_item(item_id)
+        if not item.for_sale:
+            raise ValueError(f"{item_id} is not sold in shops")
         if item_id in prices:
             price = prices[item_id]
             item = replace(item, buy_price=price, sell_price=price // 2)

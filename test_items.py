@@ -36,8 +36,9 @@ class CatalogTests(unittest.TestCase):
 
     def test_only_revive_reuses_elixir_art_as_a_placeholder(self):
         placeholders = [item for item in CATALOG.values() if item.placeholder_icon]
-        self.assertEqual([item.id for item in placeholders], ["revive"])
-        self.assertEqual(CATALOG["revive"].icon, CATALOG["elixir"].icon)
+        self.assertEqual(placeholders, [])
+        self.assertEqual(CATALOG["ember_feather"].icon, "potions/ember_feather.png")
+        self.assertNotEqual(CATALOG["ember_feather"].icon, CATALOG["elixir"].icon)
         self.assertFalse(CATALOG["antidote"].placeholder_icon)
         self.assertEqual(CATALOG["antidote"].icon, "potions/antidote_potion.png")
 
@@ -79,10 +80,10 @@ class EffectTests(unittest.TestCase):
 
     def test_revive_only_works_on_the_fainted(self):
         standing = self.member(hp=10, max_hp=80)
-        self.assertFalse(use_item("revive", standing).ok)
+        self.assertFalse(use_item("ember_feather", standing).ok)
         self.assertEqual(standing["hp"], 10)
         fainted = self.member(hp=0, max_hp=80)
-        result = use_item("revive", fainted)
+        result = use_item("ember_feather", fainted)
         self.assertTrue(result.revived)
         self.assertEqual(fainted["hp"], 20)
 
@@ -122,10 +123,10 @@ class BattleItemTests(unittest.TestCase):
             {"name": "Temur", "hp": 0, "max_hp": 80, "mp": 0, "max_mp": 6},
         ]
         model = BattleModel(ENEMIES[0], party=party, potions=3, rng=random.Random(1), inventory={
-            "greater_potion": 1, "revive": 1, "antidote": 1, "ether": 1,
+            "greater_potion": 1, "ember_feather": 1, "antidote": 1, "ether": 1,
         })
-        self.assertFalse(model.command("Use", target=0, item_id="revive"))
-        self.assertEqual(model.inventory["revive"], 1)
+        self.assertFalse(model.command("Use", target=0, item_id="ember_feather"))
+        self.assertEqual(model.inventory["ember_feather"], 1)
         self.assertFalse(model.pending_reply)
         self.assertTrue(model.command("Use", target=0, item_id="greater_potion"))
         self.assertEqual(party[0]["hp"], 60)
@@ -137,9 +138,9 @@ class BattleItemTests(unittest.TestCase):
         self.assertTrue(model.command("Use", target=0, item_id="ether"))
         self.assertEqual(party[0]["mp"], 8)
         model.pending_reply = False
-        self.assertTrue(model.command("Use", target=1, item_id="revive"))
+        self.assertTrue(model.command("Use", target=1, item_id="ember_feather"))
         self.assertEqual(party[1]["hp"], 20)
-        self.assertEqual(model.inventory["revive"], 0)
+        self.assertEqual(model.inventory["ember_feather"], 0)
         self.assertEqual(model.potions, 3)
 
 
@@ -278,7 +279,7 @@ class SlotFrameTests(unittest.TestCase):
         self.assertIsNone(scene.hover_index)
         self.assertFalse(_after_alive(app.canvas, hover_id))
         scene.start(BattleModel(ENEMIES[0], inventory={
-            "antidote": 1, "ether": 1, "elixir": 1, "revive": 1,
+            "antidote": 1, "ether": 1, "elixir": 1, "ember_feather": 1,
         }), 1)
         scene.selection = 2
         scene.confirm(1)

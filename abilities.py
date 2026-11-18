@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from classes import JOBS, current_job
-from equipment import equipped
+from equipment import equipped_item
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST_PATH = ROOT / "data" / "abilities_manifest.json"
@@ -140,32 +140,20 @@ def find_ability(job, ability_id) -> Ability | None:
     return None
 
 
-def sword_equipped(member) -> bool:
-    item = equipped(member)
-    return bool(item and item.weapon and item.weapon.basic_attack_fx == "sword_strike")
-
-
 def learned_abilities(member) -> tuple[Ability, ...]:
-    """Abilities whose suggested level has been reached for the bound job.
+    """Class abilities whose suggested level has been reached.
 
-    Strike is included at level 1. Using it still requires a sword-like weapon.
-    Undrawn abilities in ``PLANNED`` are never returned.
+    Strike is not an ability the player sees. It is the weapon's attack
+    animation. Undrawn abilities in ``PLANNED`` are never returned.
     """
     job = current_job(member)
     if job not in BY_JOB:
         return ()
     level = member.get("level", 1)
-    return tuple(ability for ability in BY_JOB[job] if level >= ability.learn_level)
-
-
-def is_usable(member, ability: Ability) -> bool:
-    if ability.id == "strike":
-        return sword_equipped(member)
-    return True
-
-
-def usable_abilities(member) -> tuple[Ability, ...]:
-    return tuple(ability for ability in learned_abilities(member) if is_usable(member, ability))
+    return tuple(
+        ability for ability in BY_JOB[job]
+        if ability.id != "strike" and level >= ability.learn_level
+    )
 
 
 def remember(member):
@@ -204,9 +192,15 @@ def frame_at(variant: AbilityVariant, elapsed_ms: float) -> Path:
 
 
 def strike_variant(member) -> AbilityVariant | None:
-    """The shared slash, when this member may swing a sword-like weapon."""
-    job = current_job(member)
-    ability = find_ability(job, "strike") if job else None
-    if ability is None or not is_usable(member, ability):
+    """Slash frames for Attack when the worn weapon asks for sword_strike.
+
+    The player never picks Strike. Gray or blue follows ``attuned_stone``.
+    """
+    item = equipped_item(member, "weapon")
+    if item is None or item.weapon is None or item.weapon.basic_attack_fx != "sword_strike":
+        return None
+    job = current_job(member) or "Saint"
+    ability = find_ability(job, "strike")
+    if ability is None:
         return None
     return variant_for(ability, member)
