@@ -1,53 +1,40 @@
 {
   "npc": "Cave-exit merchant (Caleb is placing this NPC near the cavern exit)",
-  "status": "SUGGESTED stock and prices for Caleb to tune.",
-  "economy_context": "Cave foes drop 6-12 gold (Shalehorn 32); Sollers earns bonus victory gold. A tier-1 weapon (~50-60 g) is about 5 fights.",
+  "status": "SUGGESTED stock and prices for Caleb to tune. Rung 1 is the first signature weapon of each type.",
+  "economy_context": "Cave foes drop 6-12 gold (Shalehorn 32); Sollers earns bonus victory gold. A rung-1 weapon (~50-60 g) is about 5 fights.",
   "format_hint": "Main Caldrona shops.CATALOGS rows are (display name, price, 0); these rows map 1:1.",
   "weapons": [
     {
-      "id": "yew_seer_wand",
-      "name": "Yew Seer Wand",
-      "for_class": "Seer",
-      "icon": "weapons/yew_seer_wand.png",
-      "price_gold_suggested": 55,
+      "id": "pilgrims_mace",
+      "name": "Pilgrim's Mace",
+      "for_class": "Saint",
+      "icon": "signature/saint/pilgrims_mace.png",
+      "price_gold_suggested": 60,
       "stats_suggested": {
-        "ATK": 2,
-        "SPD": 1,
-        "REACH": 0,
+        "ATK": 5,
+        "SPD": -1,
+        "REACH": 1,
         "PEN": 1
       }
     },
     {
-      "id": "hazel_divining_rod",
-      "name": "Hazel Divining Rod",
-      "for_class": "Seer",
-      "icon": "weapons/hazel_divining_rod.png",
-      "price_gold_suggested": 50,
-      "stats_suggested": {
-        "ATK": 2,
-        "SPD": 1,
-        "REACH": 1,
-        "PEN": 0
-      }
-    },
-    {
-      "id": "bronze_astrolabe_rod",
-      "name": "Bronze Astrolabe Rod",
-      "for_class": "Seer",
-      "icon": "weapons/bronze_astrolabe_rod.png",
+      "id": "prayer_book",
+      "name": "Prayer Book",
+      "for_class": "Saint",
+      "icon": "signature/saint/prayer_book.png",
       "price_gold_suggested": 55,
       "stats_suggested": {
-        "ATK": 3,
+        "ATK": 0,
         "SPD": 0,
-        "REACH": 1,
-        "PEN": 1
+        "REACH": 0,
+        "PEN": 0
       }
     },
     {
-      "id": "bronze_purse_knife",
-      "name": "Bronze Purse Knife",
+      "id": "purse_knife",
+      "name": "Purse Knife",
       "for_class": "Sollers",
-      "icon": "weapons/bronze_purse_knife.png",
+      "icon": "signature/sollers/purse_knife.png",
       "price_gold_suggested": 50,
       "stats_suggested": {
         "ATK": 3,
@@ -57,23 +44,10 @@
       }
     },
     {
-      "id": "bronze_knife",
-      "name": "Bronze Knife",
+      "id": "lineup_throwing_knife",
+      "name": "Throwing Knife",
       "for_class": "Sollers",
-      "icon": "weapons/bronze_knife.png",
-      "price_gold_suggested": 50,
-      "stats_suggested": {
-        "ATK": 3,
-        "SPD": 2,
-        "REACH": 0,
-        "PEN": 0
-      }
-    },
-    {
-      "id": "bronze_throwing_knife",
-      "name": "Bronze Throwing Knife",
-      "for_class": "Sollers",
-      "icon": "weapons/bronze_throwing_knife.png",
+      "icon": "signature/sollers/throwing_knife.png",
       "price_gold_suggested": 50,
       "stats_suggested": {
         "ATK": 3,
@@ -83,68 +57,68 @@
       }
     },
     {
-      "id": "bronze_weighted_cosh",
-      "name": "Bronze Weighted Cosh",
+      "id": "leather_sap",
+      "name": "Leather Sap",
       "for_class": "Sollers",
-      "icon": "weapons/bronze_weighted_cosh.png",
+      "icon": "signature/sollers/leather_sap.png",
       "price_gold_suggested": 50,
       "stats_suggested": {
-        "ATK": 3,
+        "ATK": 1,
         "SPD": 0,
         "REACH": 0,
         "PEN": 0
       }
     },
     {
-      "id": "whitewood_mending_wand",
-      "name": "Whitewood Mending Wand",
-      "for_class": "Saint",
-      "icon": "weapons/whitewood_mending_wand.png",
+      "id": "yew_seer_wand",
+      "name": "Yew Seer Wand",
+      "for_class": "Seer",
+      "icon": "signature/seer/yew_seer_wand.png",
       "price_gold_suggested": 55,
       "stats_suggested": {
         "ATK": 2,
         "SPD": 1,
         "REACH": 0,
-        "PEN": 0
+        "PEN": 1
       }
     },
     {
-      "id": "linen_bound_cudgel",
-      "name": "Linen-Bound Cudgel",
-      "for_class": "Saint",
-      "icon": "weapons/linen_bound_cudgel.png",
-      "price_gold_suggested": 55,
+      "id": "divining_rod",
+      "name": "Divining Rod",
+      "for_class": "Seer",
+      "icon": "signature/seer/divining_rod.png",
+      "price_gold_suggested": 50,
       "stats_suggested": {
-        "ATK": 4,
-        "SPD": 0,
+        "ATK": 2,
+        "SPD": 1,
         "REACH": 1,
         "PEN": 0
       }
     },
     {
-      "id": "pale_ash_crook",
-      "name": "Pale Ash Crook",
-      "for_class": "Saint",
-      "icon": "weapons/pale_ash_crook.png",
+      "id": "greywood_runestaff",
+      "name": "Greywood Runestaff",
+      "for_class": "Seer",
+      "icon": "signature/seer/greywood_runestaff.png",
       "price_gold_suggested": 55,
       "stats_suggested": {
         "ATK": 3,
-        "SPD": 1,
+        "SPD": 0,
         "REACH": 2,
         "PEN": 0
       }
     },
     {
-      "id": "bronze_mace",
-      "name": "Bronze Mace",
-      "for_class": "Saint",
-      "icon": "weapons/bronze_mace.png",
-      "price_gold_suggested": 60,
+      "id": "slate_rune_focus",
+      "name": "Slate Rune Focus",
+      "for_class": "Seer",
+      "icon": "signature/seer/slate_rune_focus.png",
+      "price_gold_suggested": 50,
       "stats_suggested": {
-        "ATK": 5,
-        "SPD": -1,
-        "REACH": 1,
-        "PEN": 1
+        "ATK": 0,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 0
       }
     }
   ],

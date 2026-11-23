@@ -182,5 +182,149 @@
   "weapons/sunsteel_blade.png": {
     "source": "/workspace/item_icons_v24/weapons/sunsteel_blade.png",
     "sha256": "afe07453c6e7d7617d968d7ebbd502026c72e922e8d597aa4bc3a7399bb28359"
+  },
+  "signature/saint/pilgrims_mace.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261118/oak_pilgrim_mace.png",
+    "sha256": "eb757eef926b6b9502d9a591b1f8caeb4d8d8efe760dc1368ad16ca7a976d6df"
+  },
+  "signature/saint/cairn_mace.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261118/limestone_banded_mace.png",
+    "sha256": "a9f7ebfd9e146354a1bc85c7a98c3dadfe23e736bdb304e2dbb09cb9e64ceb3e"
+  },
+  "signature/saint/font_aspergillum.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261116/gilt_aspergillum.png",
+    "sha256": "94be40ba2c000c480cb4a2d2e7926bb9df8df8e5bb815eb04e0356737f40d02a"
+  },
+  "signature/saint/crown_of_dawn.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261118/dawnsteel_crown_mace.png",
+    "sha256": "8848412f0cba8cafa236af547dc7398a6f7b2970ebe447b38cb259acf2751309"
+  },
+  "signature/saint/prayer_book.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261118/linen_prayer_book.png",
+    "sha256": "14313b38384b969ac40f4b778ed0bb23ceef7ae86fcc8185aa0cf34e3c482017"
+  },
+  "signature/saint/bound_psalter.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261118/tooled_leather_psalter.png",
+    "sha256": "0d5bc78503e2c124804c2c67d1e2a43ec364651689c35ffcdf672b65cda25d8a"
+  },
+  "signature/saint/vellum_codex.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261118/silvered_vellum_codex.png",
+    "sha256": "87057265419b032e17bc0519efb59cf57a8d392fafe46b7d3d7c1cd4219ae203"
+  },
+  "signature/saint/reliquary_tome.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261118/gilt_reliquary_tome.png",
+    "sha256": "99ef33f5b9f0db88cdb75a7616d60aff5135200031f2b9284425d60db1c0a577"
+  },
+  "signature/sollers/purse_knife.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261107_refined/bronze_purse_knife.png",
+    "sha256": "2f1c72b58b96f9ae58f633627d043c1f41f75e15b51b8113a167109125be8e67"
+  },
+  "signature/sollers/stiletto.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261107_refined/iron_stiletto.png",
+    "sha256": "193562cf1023ad0e0fb9ceba3c3e45b2796e7fddb6841e9a2209b0b0887bf8b6"
+  },
+  "signature/sollers/frost_fang.png": {
+    "source": "/workspace/item_icons_v24/weapons/frost_fang.png",
+    "sha256": "740b95a268969da032e7293987d544002b9f2d06deddc1ae4329939d261e0184"
+  },
+  "signature/sollers/shadow_kris.png": {
+    "source": "/workspace/item_icons_v24/weapons/shadow_kris.png",
+    "sha256": "93e0c5521d09dc01cc6122b4c478ade59c5c0de1b8da3e78f9008c6062b177e3"
+  },
+  "signature/sollers/throwing_knife.png": {
+    "source": "/workspace/caldrona_lite_starter_push_20261117/weapons/bronze_throwing_knife.png",
+    "sha256": "b898cbe97de85729e134b3a36171cad48849d56bc732e25b9b94afe315974654"
+  },
+  "signature/sollers/knife_fan.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261113/iron_throwing_knives.png",
+    "sha256": "cb97a42db3adbdedee01db81595e5072cf97241635faab29d44c076643145555"
+  },
+  "signature/sollers/venom_flight.png": {
+    "source": null,
+    "sha256": "7d424cd3f27472dd7f5e1760460f5f7baffe0b1e38ade1d79c87413325f8f8ce"
+  },
+  "signature/sollers/night_flight.png": {
+    "source": null,
+    "sha256": "5edd226330c466bbd5a7164131b7059c08967c49c3a6f0a4c28cf3beb91ba0c1"
+  },
+  "signature/sollers/leather_sap.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261107_refined/bronze_weighted_cosh.png",
+    "sha256": "0dbbbd1aa6d58aa6e40b290f2873d64cc16c1c7c12ed647bbf17b5231cfac91f"
+  },
+  "signature/sollers/shot_cosh.png": {
+    "source": null,
+    "sha256": "8a7466e2f2d9e2bdbcd3acde09bea58bcfff33248b9af2eb47c1825f4206a83a"
+  },
+  "signature/sollers/drowse_sap.png": {
+    "source": null,
+    "sha256": "a149f28211df114f93dfd444fbb0207e649c14fafc41d859414b66dc4af46a5f"
+  },
+  "signature/sollers/blackjack.png": {
+    "source": null,
+    "sha256": "48a90cf6f79a16cc1eba2f9ba8801e27ad5723b65ae06aa0d15f5293b793ac29"
+  },
+  "signature/seer/yew_seer_wand.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/yew_seer_wand.png",
+    "sha256": "062f69a8b7545887278f224b8aac8bfdbace56290826873034b0bc0057f3a9fc"
+  },
+  "signature/seer/birch_rune_wand.png": {
+    "source": "/workspace/item_icons_wands_wizard_20261116/v2/birch_rune_wand.png",
+    "sha256": "32dfb6fee2744ccc0391418ab19f53260cb02e29e78a35d78cf34a0dfe366cb3"
+  },
+  "signature/seer/whalebone_wand.png": {
+    "source": "/workspace/item_icons_wands_wizard_20261116/v2/whalebone_wand.png",
+    "sha256": "c96522371fb91a365f60ed8ccd86ca672118676120bc050762ee097990d30ae9"
+  },
+  "signature/seer/ruby_wand.png": {
+    "source": "/workspace/item_icons_wands_wizard_20261116/v2/ruby_wand.png",
+    "sha256": "f5901d2d948615c9555e99f4d48da37551bfa2ce3f067f9fa82f57269ec6cc00"
+  },
+  "signature/seer/divining_rod.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/hazel_divining_rod.png",
+    "sha256": "ca756e083e69a1677c4f007d1aeb32f7acfb00e6a00c8fa3e36fb2db0115f287"
+  },
+  "signature/seer/astrolabe_rod.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/bronze_astrolabe_rod.png",
+    "sha256": "99783ec5bd5cad71e2e266f1aee69019245d50e8812d9270d44523079fdc08cc"
+  },
+  "signature/seer/rune_scriber.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261115/steel_rune_scriber.png",
+    "sha256": "44f509c9b4d7be0af028f62e0e9aa2be2adf270686d9550af7db1d1c3c006096"
+  },
+  "signature/seer/starglass_rod.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/steel_starglass_rod.png",
+    "sha256": "953e7d30004a19757741233b2985187285796bd1d134365472ab209711b73710"
+  },
+  "signature/seer/greywood_runestaff.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261115/greywood_runestaff.png",
+    "sha256": "aff6f8229908c15e3126fa99eef46a7d5d3b1c1a2f745d232b7b5ab14276827c"
+  },
+  "signature/seer/augur_staff.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/iron_augur_staff.png",
+    "sha256": "03f168b1ce930563579ac87c29265967bc27585fb8b30bad93d6aed54eeae8d2"
+  },
+  "signature/seer/scrying_staff.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/scrying_orb_staff.png",
+    "sha256": "91e539c3dae288d4baf0a0fca78320702006dee92a33b98013929f503fb5d59c"
+  },
+  "signature/seer/omen_staff.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/ebony_omen_staff.png",
+    "sha256": "8827b46c2f330d1b760e8fec3bce36d580010269d1fe718b33df33feaacc6c6b"
+  },
+  "signature/seer/slate_rune_focus.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261115/slate_rune_focus.png",
+    "sha256": "4308cea9ed9bf2a447dcbeb16214669f99ad4c18659280e641909eaaef04c058"
+  },
+  "signature/seer/smoky_quartz_focus.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/smoky_quartz_focus.png",
+    "sha256": "d38247f5bb7f5517e5f042d0b0754e3985e5c969ef78abe42053323fb7e92b55"
+  },
+  "signature/seer/scrying_mirror.png": {
+    "source": "/workspace/item_icons_weapons_daily_20261117/obsidian_scrying_mirror.png",
+    "sha256": "b11279ff9b1630aec568e9bbb3be9b805603ee67b57921de1aa5ff2f364eba2e"
+  },
+  "signature/seer/starglass_orb.png": {
+    "source": null,
+    "sha256": "2e0ea42953e5bd3bcbdf47b1d92c32fb75841865f1bcd024ec517cc650833cf9"
   }
 }

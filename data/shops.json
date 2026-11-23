@@ -15,17 +15,15 @@
     "travel_rations"
   ],
   "cave_exit_merchant": [
+    "pilgrims_mace",
+    "prayer_book",
+    "purse_knife",
+    "lineup_throwing_knife",
+    "leather_sap",
     "yew_seer_wand",
-    "hazel_divining_rod",
-    "bronze_astrolabe_rod",
-    "bronze_purse_knife",
-    "bronze_knife",
-    "bronze_throwing_knife",
-    "bronze_weighted_cosh",
-    "whitewood_mending_wand",
-    "linen_bound_cudgel",
-    "pale_ash_crook",
-    "bronze_mace",
+    "divining_rod",
+    "greywood_runestaff",
+    "slate_rune_focus",
     "potion",
     "ether"
   ]

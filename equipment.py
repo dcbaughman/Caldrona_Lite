@@ -7,8 +7,16 @@ copies, so the same sword cannot be worn by two characters at once.
 Pack weapons are extra catalog rows. Their ATK, SPD, REACH, PEN, magic bonus,
 and suggested price are stored and are not added to ``bonuses``, so they do
 not change the damage, defense, or shop prices already in the game.
+
+Signature weapons from ``data/signature_lineup.json`` are four rungs per
+weapon type. Main hands use the weapon slot. Saint spellbooks, Sollers
+coshes, and Seer foci use the shield slot. Hooks are stored and not applied.
+The borrowed bronze/iron pool stays in the catalog so old ids still resolve.
+It is not part of ``class_kit`` and the cave-exit stall does not sell it.
 """
+import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
@@ -45,6 +53,15 @@ class Equipment:
     magic_bonus: int = 0
     basic_attack_fx: str = ""
     suggested_price: int = 0
+    # Signature lineup. ``rung`` 0 means this row is not part of the kit.
+    # ``tier`` stays the old bronze/iron suggestion when the row had one.
+    weapon_type: str = ""
+    rung: int = 0
+    hook: str = ""
+    element: str = ""
+    # Parsed placeholder. Each tuple is (kind, label, amount, qualifier).
+    hook_parts: tuple = ()
+    lineup_id: str = ""
 
     def __post_init__(self):
         if self.slot not in SLOTS:
@@ -140,12 +157,96 @@ def equip(member, slot, item_id, owned, roster):
         equipment.pop(slot, None)
     else:
         equipment[slot] = item.id
+        if item.hook_parts:
+            # TODO: no-op. Hook numbers stay on the item and do not change stats.
+            apply_signature_hook(member, item)
     # Reducing maximum HP/MP never revives or heals a character.
     if "hp" in member:
         member["hp"] = min(member["hp"], stat_value(member, "max_hp"))
     if "mp" in member:
         member["mp"] = min(member["mp"], stat_value(member, "max_mp"))
     return True, f"Equipped {item.name}." if item else f"Removed {SLOT_LABELS[slot].lower()}."
+
+
+# lineup id -> Equipment, in lineup order. Class kits read this, not the
+# borrowed pool that remains in CATALOG.
+SIGNATURE: dict[str, Equipment] = {}
+
+_ELEMENT_WORDS = {"holy", "ice", "dark", "poison", "fire", "starlight"}
+_ABILITY_VS = re.compile(r"\+(\d+)%\s+(.+?)\s+vs\s+(.+)")
+_ABILITY = re.compile(r"\+(\d+)%\s+(.+)")
+_STATUS = re.compile(r"(\d+)%\s+(.+)")
+_MAX_HP = re.compile(r"\+(\d+)\s+Max HP")
+_MAX_MP = re.compile(r"\+(\d+)\s+Max MP")
+
+
+def class_kit(job: str) -> tuple:
+    """Signature weapons this class may equip, in lineup order.
+
+    Practice swords, bronze/iron tiers, Saint wands and staves, and Sollers
+    shortswords stay in CATALOG. They are not returned here.
+    """
+    return tuple(item for item in SIGNATURE.values() if job in item.jobs)
+
+
+def _parse_hook(hook: str) -> tuple:
+    """Split a suggested hook into data. Combat does not read the result.
+
+    ``+N% Name`` is an ability percent. ``N% Name`` is a status chance.
+    Element words are stored on ``element`` and are not repeated here.
+    """
+    parts = []
+    for chunk in (hook or "").split("·"):
+        text = chunk.strip()
+        if not text or text.casefold() in _ELEMENT_WORDS:
+            continue
+        if (match := _ABILITY_VS.fullmatch(text)):
+            parts.append(("ability_vs", match.group(2), int(match.group(1)), match.group(3)))
+            continue
+        if (match := _ABILITY.fullmatch(text)):
+            parts.append(("ability", match.group(2), int(match.group(1)), ""))
+            continue
+        if (match := _STATUS.fullmatch(text)):
+            parts.append(("status", match.group(2), int(match.group(1)), ""))
+            continue
+        if (match := _MAX_HP.fullmatch(text)):
+            parts.append(("max_hp", "Max HP", int(match.group(1)), ""))
+            continue
+        if (match := _MAX_MP.fullmatch(text)):
+            parts.append(("max_mp", "Max MP", int(match.group(1)), ""))
+            continue
+        if text == "+MAG":
+            parts.append(("magic", "MAG", 0, ""))
+            continue
+        parts.append(("note", text, 0, ""))
+    return tuple(parts)
+
+
+def apply_signature_hook(member, item=None):
+    """No-op. Signature hooks are data until an effect system exists.
+
+    TODO: apply element attunement, ability percent, status chance, max HP,
+    max MP, and +MAG from ``item.hook_parts``. The numbers are placeholders
+    for Caleb to tune. This must not change HP, MP, or combat stats.
+    """
+    return None
+
+
+def _signature_price(row, existing):
+    """Placeholder gold. Existing catalog prices are left as they were."""
+    if existing is not None and existing.suggested_price:
+        return existing.suggested_price
+    if int(row["rung"]) == 1:
+        if row["type"] == "mace":
+            return 60
+        if row["type"] in {"dagger", "thrown knife", "cosh", "rod", "focus"}:
+            return 50
+        return 55
+    return {2: 110, 3: 175, 4: 250}[int(row["rung"])]
+
+
+def _icon_file(relative: str) -> Path:
+    return Path(__file__).resolve().parent / "assets" / "items" / relative
 
 
 def _pack_description(row):
@@ -194,4 +295,86 @@ def _load_pack_equipment():
         )
 
 
+def _signature_icon(row) -> str:
+    return f"signature/{row['class'].lower()}/{Path(row['icon']).name}"
+
+
+def _same_art(existing, row) -> bool:
+    """True when this catalog id is already the lineup icon, byte for byte."""
+    if not existing.icon:
+        return False
+    path = _icon_file(existing.icon)
+    if not path.is_file():
+        return False
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return digest == row["dest_sha256"]
+
+
+def _load_signature_lineup():
+    """Add the signature kit. Never deletes a catalog id or a PNG.
+
+    An id whose current icon already matches the lineup is updated in place
+    (same weapon, now carrying rung and hook data). An id that points at
+    different art keeps that row, and the signature weapon is added beside it.
+    """
+    path = Path(__file__).resolve().parent / "data" / "signature_lineup.json"
+    if not path.is_file():
+        return
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for row in data["weapons"]:
+        relative = _signature_icon(row)
+        icon_path = _icon_file(relative)
+        digest = hashlib.sha256(icon_path.read_bytes()).hexdigest()
+        if digest != row["dest_sha256"]:
+            raise RuntimeError(f"{relative} sha256 {digest} != {row['dest_sha256']}")
+        stats = row["suggested_stats"]
+        lineup_id = row["id"]
+        existing = CATALOG.get(lineup_id)
+        if existing is not None and _same_art(existing, row):
+            catalog_id = lineup_id
+            basic_attack_fx = existing.basic_attack_fx
+            tier = existing.tier
+            bonuses = dict(existing.bonuses)
+            characters = existing.characters
+        else:
+            catalog_id = lineup_id if existing is None else f"lineup_{lineup_id}"
+            if catalog_id in CATALOG:
+                raise RuntimeError(f"Signature id {catalog_id} is already in the catalog")
+            basic_attack_fx = "sword_strike" if row["type"] == "dagger" else ""
+            tier = 0
+            bonuses = {}
+            characters = ()
+            existing = None
+        reach = stats.get("REACH")
+        item = Equipment(
+            catalog_id,
+            row["name"],
+            row["slot"],
+            bonuses,
+            row.get("flavor") or row["name"],
+            characters=characters,
+            jobs=(row["class"],),
+            icon=relative,
+            atk=int(stats.get("ATK") or 0),
+            spd=int(stats.get("SPD") or 0),
+            reach=str(reach if reach is not None else ""),
+            pen=int(stats.get("PEN") or 0),
+            tier=tier,
+            magic_bonus=int(row.get("suggested_magic_bonus") or 0),
+            basic_attack_fx=basic_attack_fx,
+            suggested_price=_signature_price(row, existing),
+            weapon_type=row["type"],
+            rung=int(row["rung"]),
+            hook=row.get("hook") or "",
+            element=row.get("element") or "",
+            hook_parts=_parse_hook(row.get("hook") or ""),
+            lineup_id=lineup_id,
+        )
+        if item.slot not in ("weapon", "shield"):
+            raise RuntimeError(f"{lineup_id} slot {item.slot} is not weapon or shield")
+        CATALOG[item.id] = item
+        SIGNATURE[lineup_id] = item
+
+
 _load_pack_equipment()
+_load_signature_lineup()
