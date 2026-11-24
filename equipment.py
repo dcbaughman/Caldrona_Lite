@@ -75,13 +75,13 @@ class Equipment:
 # is being written. Nothing is automatically equipped or added to base stats.
 CATALOG = {
     item.id: item for item in (
-        Equipment("leather_vest", "Leather Vest", "armor", {"defense": 1}, "A simple, flexible vest."),
-        Equipment("quarry_coat", "Quarry Coat", "armor", {"defense": 2, "agility": -1}, "Sturdy protection for the caves."),
-        Equipment("training_sword", "Training Sword", "weapon", {"strength": 1}, "A reliable starter blade.", basic_attack_fx="sword_strike"),
-        Equipment("miner_blade", "Miner's Blade", "weapon", {"strength": 2, "agility": -1}, "A heavier blade with a strong edge.", basic_attack_fx="sword_strike"),
-        Equipment("wood_shield", "Wooden Shield", "shield", {"defense": 1}, "A light wooden shield."),
-        Equipment("lucky_charm", "Lucky Charm", "accessory", {"luck": 1}, "A small trinket for good fortune."),
-        Equipment("quartz_pendant", "Quartz Pendant", "accessory", {"magic_defense": 1, "max_mp": 2}, "A stone that steadies magic."),
+        Equipment("leather_vest", "Leather Vest", "armor", {"defense": 1}, "A simple, flexible vest.", icon="armor/leather_vest.png"),
+        Equipment("quarry_coat", "Quarry Coat", "armor", {"defense": 2, "agility": -1}, "Sturdy protection for the caves.", icon="armor/quarry_coat.png"),
+        Equipment("training_sword", "Training Sword", "weapon", {"strength": 1}, "A reliable starter blade.", icon="weapons/training_sword.png", basic_attack_fx="sword_strike"),
+        Equipment("miner_blade", "Miner's Blade", "weapon", {"strength": 2, "agility": -1}, "A heavier blade with a strong edge.", icon="weapons/miner_blade.png", basic_attack_fx="sword_strike"),
+        Equipment("wood_shield", "Wooden Shield", "shield", {"defense": 1}, "A light wooden shield.", icon="armor/wood_shield.png"),
+        Equipment("lucky_charm", "Lucky Charm", "accessory", {"luck": 1}, "A small trinket for good fortune.", icon="accessories/lucky_charm.png"),
+        Equipment("quartz_pendant", "Quartz Pendant", "accessory", {"magic_defense": 1, "max_mp": 2}, "A stone that steadies magic.", icon="accessories/quartz_pendant.png"),
     )
 }
 STARTING_GEAR = {
