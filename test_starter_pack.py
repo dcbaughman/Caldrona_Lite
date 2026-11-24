@@ -74,11 +74,21 @@ class PackEquipmentTests(unittest.TestCase):
         self.assertEqual(sunsteel.description, "A blade from Sunrest Arms.")
         self.assertEqual(sunsteel.bonuses, {})
         manifest = json.loads((ROOT / "data" / "weapons_manifest.json").read_text())
+        lineup = {
+            row["id"]: row
+            for row in json.loads((ROOT / "data" / "signature_lineup.json").read_text())["weapons"]
+        }
         hashes = json.loads((ROOT / "data" / "weapon_art_sha256.json").read_text())
         for row in manifest["weapons"]:
             item = CATALOG[row["id"]]
             self.assertEqual(item.jobs, tuple(row["classes"]))
-            self.assertEqual(item.atk, int(row["suggested_stats"]["ATK"]))
+            # An id whose art the signature kit adopted keeps the lineup's ATK.
+            # Every other pack row still matches the manifest, including the
+            # Steel Throwing Knife that shares a lineup id with different art.
+            if item.lineup_id == row["id"]:
+                self.assertEqual(item.atk, int(lineup[row["id"]]["suggested_stats"]["ATK"]))
+            else:
+                self.assertEqual(item.atk, int(row["suggested_stats"]["ATK"]))
             self.assertNotIn("strength", item.bonuses)
             path = gear_icon(item)
             self.assertEqual(_sha256(path), hashes[row["icon"]]["sha256"])
@@ -141,7 +151,9 @@ class PackEquipmentTests(unittest.TestCase):
         self.assertNotIn("Antidote", ids)
         self.assertNotIn("Torch", ids)
         self.assertIn("yew_seer_wand", ids)
-        self.assertIn("bronze_mace", ids)
+        self.assertNotIn("bronze_mace", ids)
+        self.assertNotIn("whitewood_mending_wand", ids)
+        self.assertNotIn("practice_sword", ids)
         prices = cave_exit_prices()
         self.assertEqual(prices["Potion"], 15)
         self.assertEqual(prices["Ether"], 30)

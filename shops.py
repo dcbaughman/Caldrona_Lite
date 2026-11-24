@@ -1,9 +1,9 @@
 """Cave-exit merchant stock. No shop NPC is placed and no shop screen is drawn.
 
-The stall lists tier-1 pack weapons plus Potion and Ether. Mana Potion in the
-pack file is Ether. Antidote, Torch, Field Bandages, Ember Feather, and Ember
-Talisman are not on this stall. Suggested stall prices stay in the json and
-do not replace the prices in ``consumables.py``.
+The stall lists rung-1 signature weapons (the first of each type) plus Potion
+and Ether. Mana Potion in the pack file is Ether. Antidote, Torch, Field
+Bandages, Ember Feather, and Ember Talisman are not on this stall. Suggested
+stall prices stay in the json and do not replace the prices in ``consumables.py``.
 """
 from __future__ import annotations
 
