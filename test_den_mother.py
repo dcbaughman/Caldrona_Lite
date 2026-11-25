@@ -47,6 +47,21 @@ class DenMotherTests(unittest.TestCase):
                 found.update(foe for foe in foes if foe in spirits)
             self.assertEqual(found, expected)
 
+    def test_emberwraith_rewards_magic_even_against_armor_piercing_attacks(self):
+        rng = Mock()
+        rng.randint.return_value = 256
+        for job in ("Tidecaller", "Seer"):
+            hero = member("Retri", RETRI)
+            hero.update(job=job, strength=12, magic=5, level=5)
+            battle = BattleModel(EMBERWRAITH, party=[hero], rng=rng)
+            self.assertTrue(battle.command("Attack"))
+            self.assertEqual(battle.damage, 1)
+
+        hero.update(job="Tidecaller", researched=["tidecaller_tide_dart"])
+        battle = BattleModel(EMBERWRAITH, party=[hero], rng=rng)
+        self.assertTrue(battle.command("Ability", ability_id="tidecaller_tide_dart"))
+        self.assertEqual(battle.damage, 14)
+
     def test_lost_spirits_use_finite_magic_and_have_distinct_fire_affinities(self):
         for foe, move, damage in ((EMBERWRAITH, "Broodfire", 10),
                                   (SILK_SARCOPHAGUS, "Spiral Seal", 25)):

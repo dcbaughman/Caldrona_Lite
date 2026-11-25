@@ -145,6 +145,7 @@ class Enemy:
     sprite_lift: int = 0
     sprite_bob: int = 0
     ink_outline: bool = False
+    physical_damage_percent: int = 100
 
     @property
     def loot(self):
@@ -173,29 +174,30 @@ ENEMIES = (
 GRASSLAND_ENEMIES = (
     Enemy("Cinder Hornet", "cinder-hornet.png", 30, (7, 10), 0, 15, "stings",
           mp=4, strength=8, agility=11, evasion=6, accuracy=7, level=3,
-          sprite_scale=(1, 1), sprite_lift=FIELD_GRID, ink_outline=True),
+          sprite_scale=(1, 1), sprite_lift=FIELD_GRID),
     Enemy("Ashmane Wolf", "ashmane-wolf.png", 38, (8, 12), 1, 19, "lunges",
           mp=4, strength=10, defense=1, agility=12, luck=8, accuracy=8, pursuit=12, level=4,
-          sprite_scale=(5, 4), ink_outline=True),
+          sprite_scale=(5, 4)),
     Enemy("Torshield Ram", "torshield-ram.png", 46, (9, 13), 3, 22, "rams",
           mp=4, strength=11, defense=3, magic_defense=2, agility=7, level=5,
-          sprite_scale=(7, 6), ink_outline=True),
+          sprite_scale=(7, 6)),
 )
 
 EMBERWRAITH = Enemy(
-    "Emberwraith", "emberwraith.png", 46, (9, 13), 1, 16, "lashes",
+    "Emberwraith", "emberwraith.png", 46, (9, 13), 4, 16, "lashes",
     mp=4, strength=9, magic=8, magic_defense=3, agility=9, luck=8, pursuit=6,
-    fire_damage_percent=50, status_immunities=("webbed",), level=5, ink_outline=True,
+    fire_damage_percent=50, status_immunities=("webbed",), level=5,
+    physical_damage_percent=5,
 )
 SILK_SARCOPHAGUS = Enemy(
     "Silk Sarcophagus", "silk-sarcophagus.png", 59, (11, 15), 2, 21, "sweeps",
     mp=4, strength=10, defense=2, magic=8, magic_defense=2, agility=8, luck=8, pursuit=9,
     fire_damage_percent=125, status_immunities=("webbed",), level=6,
-    sprite_lift=FIELD_GRID, sprite_bob=3, ink_outline=True,
+    sprite_lift=FIELD_GRID, sprite_bob=3,
 )
 
 DEPTHS_OUTER_ENEMIES = (
-    Enemy("Hollow Weaver", "spider.png", 40, (9, 13), 1, 12, "bites", mp=4,
+    Enemy("Hollow Weaver", "hollow-weaver.png", 40, (9, 13), 1, 12, "bites", mp=4,
           strength=8, agility=10, pursuit=5, fire_damage_percent=150,
           status_immunities=("webbed",), level=4),
     EMBERWRAITH,
@@ -204,7 +206,7 @@ DEPTHS_OUTER_ENEMIES = (
 DEPTHS_ENEMIES = (
     *DEPTHS_OUTER_ENEMIES,
     SILK_SARCOPHAGUS,
-    Enemy("Brood Stalker", "spider.png", 63, (13, 18), 2, 20, "lunges", mp=4, strength=12,
+    Enemy("Brood Stalker", "brood-stalker.png", 63, (13, 18), 2, 20, "lunges", mp=4, strength=12,
           defense=2, agility=13, luck=9, pursuit=15, fire_damage_percent=150,
           status_immunities=("poison", "webbed"), level=7),
 )
@@ -212,7 +214,7 @@ DEPTHS_ENEMIES = (
 DEN_MOTHER = Enemy("Den Mother", "den-mother.png", 335, (26, 36), 4, 76,
                    "bites", 12, 17, 4, 4, 5, 14, 8, 4, 7, level=9,
                    pursuit=68, fire_damage_percent=150, status_immunities=("poison", "webbed", "frozen"))
-SPIDERLING = Enemy("Spiderling", "spider.png", 18, (9, 12), 0, 0, "nibbles",
+SPIDERLING = Enemy("Spiderling", "spiderling.png", 18, (9, 12), 0, 0, "nibbles",
                    agility=9, fire_damage_percent=200, status_immunities=("poison", "webbed"))
 
 
@@ -472,7 +474,9 @@ class BattleModel(KitMixin):
 
     def _hit_target(self, damage, physical=False, element=None, *, include_mark=True, can_crit=False):
         if include_mark:damage = self.kit_outgoing(damage, physical)
-        if physical and damage > 0:self.statuses.remove(("enemy",self.target),"frozen")
+        if physical and damage > 0:
+            self.statuses.remove(("enemy", self.target), "frozen")
+            damage = max(1, damage * self.enemy.physical_damage_percent // 100)
         if element == "fire":
             damage = math.ceil(damage * self.enemy.fire_damage_percent / 100)
         if can_crit and ("enemy", self.target) not in self.critical_hits:  # no double crit (Backstab)

@@ -32,6 +32,7 @@ from display_settings import (DisplayConfig, ScaledCanvas, available_sizes,
                               load_display, pixel_scale, save_display)
 from game_menu import GameMenu
 from party_walk import DIRECTIONS, PartyTrail, facing, field_order
+from opening_trail import OpeningTrail
 from stats import RETRI, member, grow, restore_party
 from consumables import RARE_SUPPLIES, SUPPLIES, apply_supply, item_gain_text
 from equipment import STARTING_GEAR, item_for, stat_value
@@ -70,6 +71,7 @@ MUSIC_VOLUME = 0.65
 RETRI_PORTRAIT = ASSETS / "portraits" / "retri-v2.png"
 RETRI_PORTRAIT_REGION = None
 TEMUR_PORTRAIT = ASSETS / "portraits" / "temur.png"
+LARVEL_PORTRAIT = ASSETS / "portraits" / "larvel.png"
 MERREN_PORTRAIT = ASSETS / "portraits" / "merren.png"
 KORWARD_PORTRAIT = ASSETS / "portraits" / "korward.png"
 THEO_PORTRAIT = ASSETS / "portraits" / "theo-v4.png"
@@ -336,6 +338,7 @@ class CaldronaLite:
         self.dialogue.on_speaker = self._face_dialogue_speaker
         self.dialogue.register_portrait("Retri", RETRI_PORTRAIT, RETRI_PORTRAIT_REGION)
         self.dialogue.register_portrait("Temur", TEMUR_PORTRAIT)
+        self.dialogue.register_portrait("Larvel", LARVEL_PORTRAIT)
         self.dialogue.register_portrait("Merren", MERREN_PORTRAIT)
         self.dialogue.register_portrait("Korward", KORWARD_PORTRAIT)
         self.dialogue.register_portrait(MINER_NAME, THEO_PORTRAIT)
@@ -554,6 +557,9 @@ class CaldronaLite:
                 self._activate()
                 # A menu opened by Enter may clear movement keys during activation.
                 self.keys.add(key)
+            elif self.screen == "opening_trail" and not self.dialogue.active:
+                self._draw_menu()
+                self._start_title_music()
             else:
                 self._back()
         else:
@@ -834,6 +840,9 @@ class CaldronaLite:
         self._menu_footer("ESC BACK")
 
     def _activate(self) -> None:
+        if self.screen == "opening_trail":
+            self.opening_trail.interact(time.monotonic())
+            return
         if self.screen == "cordon_choice":
             self.cordon.choose()
             return
@@ -912,7 +921,7 @@ class CaldronaLite:
             return
         if self.screen == "menu":
             if self.selection == 0:
-                self._start_cavern(opening=True)
+                self.opening_trail = OpeningTrail(self, ASSETS, GRASSLAND_MUSIC, COLLAPSE_SOUND)
             elif self.selection == 1:
                 self._open_save_slots("load")
             else:
@@ -979,6 +988,10 @@ class CaldronaLite:
         self.settings_repeating = True
 
     def _back(self) -> None:
+        if self.screen == "opening_trail":
+            if self.dialogue.active:
+                self._activate()
+            return
         if self.screen == "route_map":
             self.cordon.close_map()
             return
@@ -1171,6 +1184,9 @@ class CaldronaLite:
 
     def _click(self, event: tk.Event) -> None:
         x, y = self.canvas.logical_x(event.x), self.canvas.logical_y(event.y)
+        if self.screen == "opening_trail":
+            self._activate()
+            return
         if self.screen == "route_map":
             self.cordon.close_map()
             return
@@ -1239,7 +1255,11 @@ class CaldronaLite:
                 self._activate()
                 return
 
-    def _start_cavern(self, *, opening: bool = False) -> None:
+    def _start_cavern(self, *, opening: bool = False, from_trail: bool = False) -> None:
+        trail_supplies = self.supplies.copy() if from_trail else {}
+        if from_trail:
+            self.dialogue.clear()
+            self.keys.clear()
         self.screen = "game"
         self.root.title("Caldrona Lite · Cavern")
         self.canvas.configure(background=INK)
@@ -1249,7 +1269,9 @@ class CaldronaLite:
         self.grassland_map = GrasslandInstance()
         self.outdoors = False
         self.cave_story = fresh_story()
-        self.opening_intro_active = opening
+        if from_trail:
+            self.cave_story["trail_search"] = True
+        self.opening_intro_active = opening or from_trail
         self.collapse_sound_path = COLLAPSE_SOUND
         self._area_step_latch = False
         self.grass_intro_seen = self.grass_intro_active = False
@@ -1259,7 +1281,7 @@ class CaldronaLite:
         self.merren_hint_seen = False
         self.merren_tile = (35, 5)
         self.x, self.y = self.cave.spawn
-        if opening:
+        if opening or from_trail:
             self.x, self.y = (ENTRY[0] + .5) * TILE, (ENTRY[1] + 1.5) * TILE
         self.direction = "down"
         self.walk_frame = 1
@@ -1303,6 +1325,8 @@ class CaldronaLite:
         self.encounters = EncounterMeter()
         self.hp, self.potions, self.gold = MAX_HP, MAX_POTIONS, 0
         self.supplies = {"Remedy": 2}
+        for supply, count in trail_supplies.items():
+            self.supplies[supply] = self.supplies.get(supply, 0) + count
         self.level, self.xp = 1, 0
         self.party = [member("Retri", RETRI)]
         initialize_research(self.party[0])
@@ -1311,7 +1335,7 @@ class CaldronaLite:
         self.materials_sold = {}
         self.bazaar_bought = set()
         self.gear_inventory = dict(STARTING_GEAR)
-        self.temur_story = "opening" if opening else "waiting"
+        self.temur_story = "searching" if from_trail else "opening" if opening else "waiting"
         self.temur_tile = (10, 7)
         self.temur_image = self._load_world_actor(ASSETS / "temur-world-v4.png")
         self.in_chamber = self.boss_intro = self.boss_cleared = self.astral_sync = False
@@ -1396,6 +1420,9 @@ class CaldronaLite:
         self.location_label = self.canvas.create_text(18, VIEW_H*SCALE-18, anchor="sw", fill="#e1e2d6",
                                 font=self._font(16), text="Sunrest Excavation",
                                 tags=("hud",))
+        self.cave_objective = self.canvas.create_text(
+            18, 18, anchor="nw", fill="#e1e2d6", font=self._font(16), tags=("hud",)
+        )
         self.mine_story = CaveStory(self, ASSETS, SCALE)
         # A visible speaker turns when its first dialogue page appears.
         self.dialogue_actors = {
@@ -1405,6 +1432,8 @@ class CaldronaLite:
         }
         temur_faces = self._npc_faces("temur", self.temur_image)
         self.dialogue_actors["temur"] = (self.temur_item, self.temur_tile, temur_faces)
+        if from_trail:
+            self.mine_story.prepare_larvel()
         self.korward_faces = {direction: poses[1] for direction, poses in self._load_player("Korward").items()}
         self.cordon_art = {name: grass_image(f"cordon-{name}") for name in ("rail", "side", "gate")}
         self.cordon = Cordon(self, self.cordon_art, SCALE, self.korward_faces)
@@ -1412,7 +1441,7 @@ class CaldronaLite:
         self.grass_temur_actor = (self.grass_temur_item, (33, 4), temur_faces)
         self._update_world(force=True)
         self._begin_gameplay_music()
-        if opening:
+        if self.opening_intro_active:
             self.mine_story.open_at_entrance()
 
     @property
@@ -1567,6 +1596,8 @@ class CaldronaLite:
             return False
         tile = self._facing_tile()
         if tile == self.outer_door:
+            if self.cave_story["trail_search"]:
+                return self.mine_story.at_shalehorn_door()
             self.in_chamber = True
             self.x, self.y = 70.5*TILE, 17.5*TILE
             self.direction = "up"
@@ -2256,6 +2287,8 @@ class CaldronaLite:
         location = ("Sunrest Grasslands" if self.outdoors else den_location(self._world_tile()) if in_den
                     else "Astral Hollow" if self.in_chamber else "Sunrest Excavation")
         self.canvas.itemconfigure(self.location_label, text=location)
+        searching = self.cave_story["trail_search"] and not self.outdoors and not in_den
+        self.canvas.itemconfigure(self.cave_objective, text="Find Temur" if searching else "")
         self._draw_den(camera)
         self.cordon.render(camera)
         self._place_player(camera)
@@ -2394,6 +2427,8 @@ class CaldronaLite:
                 label = "ATTUNE"
             elif tile == self.stone_tile and self.boss_cleared:
                 label = "ATTUNE"
+            elif self.mine_story.is_alcove(tile):
+                label = "INSPECT"
             elif tile == DEN_DOOR or (not self._in_den() and tile in (self.outer_door, self.inner_door)):
                 label = "INSPECT"
         if label is None:
@@ -2429,7 +2464,9 @@ class CaldronaLite:
         if "menu" in tapped:
             self._toggle_game_menu()
         direction = self._menu_direction()
-        if self.screen == "menu" and direction in ("up", "down") and now >= self.menu_nav_after:
+        if self.screen == "opening_trail":
+            self.opening_trail.update(direction,now)
+        elif self.screen == "menu" and direction in ("up", "down") and now >= self.menu_nav_after:
             new_selection = (self.selection + (-1 if direction == "up" else 1)) % len(self.menu_items)
             if new_selection != self.selection:
                 self.selection = new_selection

@@ -52,7 +52,7 @@ def validate(state):
     for key in ('x','y'):
         if type(state[key]) not in (int,float) or not math.isfinite(state[key]) or not 0 <= state[key] < 10000:
             raise SaveError('Invalid save position.')
-    if state['direction'] not in ('up','down','left','right') or state['temur_story'] not in ('waiting','joined','declined'):
+    if state['direction'] not in ('up','down','left','right') or state['temur_story'] not in ('waiting','joined','declined','searching'):
         raise SaveError('Invalid journey state.')
     for key in MAP_FIELDS:
         if not isinstance(state[key],dict) or any(not isinstance(k,str) or not count(v) for k,v in state[key].items()):
@@ -94,8 +94,12 @@ def validate(state):
         story=state['cave_story']
         if not isinstance(story,dict) or type(story.get('entrance_collapsed')) is not bool or type(story.get('miner_warned')) is not bool:
             raise SaveError('Invalid cave story progress.')
-        if not isinstance(story.get('inspected'),list) or any(name not in ('dropped_tools','abandoned_cart','last_lantern','blue_ore_cart','broken_support') for name in story['inspected']):
+        discoveries = ('dropped_tools', 'abandoned_cart', 'last_lantern', 'blue_ore_cart',
+                       'broken_support', 'corrupted_seal')
+        if not isinstance(story.get('inspected'), list) or any(name not in discoveries for name in story['inspected']):
             raise SaveError('Invalid mining discoveries.')
+        if type(story.get('trail_search', False)) is not bool:
+            raise SaveError('Invalid trail search progress.')
         flags = ('den_unsealed', 'den_cleared', 'black_stone_attuned', 'black_stone_claimed', 'white_stone_seen')
         if any(type(story.get(flag, False)) is not bool for flag in flags):
             raise SaveError('Invalid den progress.')
