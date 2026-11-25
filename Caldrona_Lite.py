@@ -71,7 +71,9 @@ MUSIC_VOLUME = 0.65
 RETRI_PORTRAIT = ASSETS / "portraits" / "retri-v2.png"
 RETRI_PORTRAIT_REGION = None
 TEMUR_PORTRAIT = ASSETS / "portraits" / "temur.png"
-LARVEL_PORTRAIT = ASSETS / "portraits" / "larvel.png"
+LARVEL_PORTRAIT = ASSETS / "portraits" / "larvel-v2.png"
+# Larvel's twin: same face turned the other way, with a mustache.
+RANDO_PORTRAIT = ASSETS / "portraits" / "rando.png"
 MERREN_PORTRAIT = ASSETS / "portraits" / "merren.png"
 KORWARD_PORTRAIT = ASSETS / "portraits" / "korward.png"
 THEO_PORTRAIT = ASSETS / "portraits" / "theo-v4.png"
@@ -339,6 +341,7 @@ class CaldronaLite:
         self.dialogue.register_portrait("Retri", RETRI_PORTRAIT, RETRI_PORTRAIT_REGION)
         self.dialogue.register_portrait("Temur", TEMUR_PORTRAIT)
         self.dialogue.register_portrait("Larvel", LARVEL_PORTRAIT)
+        self.dialogue.register_portrait("Rando", RANDO_PORTRAIT)
         self.dialogue.register_portrait("Merren", MERREN_PORTRAIT)
         self.dialogue.register_portrait("Korward", KORWARD_PORTRAIT)
         self.dialogue.register_portrait(MINER_NAME, THEO_PORTRAIT)
