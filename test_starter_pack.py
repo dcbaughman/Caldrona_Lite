@@ -56,7 +56,37 @@ def _png_rgba(path):
     return pixels
 
 
+# Paths are relative to assets/items/. Hashes are the wired 32x32 PNGs.
+STARTING_GEAR_ICONS = {
+    "leather_vest": ("armor/leather_vest.png", "a0f00bb7911bc83682a71249299554fbd17ad524b8861327ba631b0473e3a24e"),
+    "quarry_coat": ("armor/quarry_coat.png", "a711eec3b296df456d6a246e69787aeeadf18d5e389fb2e174a96074297d522d"),
+    "wood_shield": ("armor/wood_shield.png", "155bc8ac083c8b16317eeb4859cb7fac3c8aaeb44152a1bddf464eccca560b5b"),
+    "training_sword": ("weapons/training_sword.png", "eb907a33b966c4d3181f10480fdf9510f982e08d14b4f15261b5db1ffce9815b"),
+    "miner_blade": ("weapons/miner_blade.png", "7253e3d684954fa01625c7e4d2fbb5415206361068c69bdc8721c9a7dc9f6e39"),
+    "lucky_charm": ("accessories/lucky_charm.png", "0c1f4a35278d353e9dd08804fc48f5e3a0adc27bc464d4bd290a08a6e999a2bc"),
+    "quartz_pendant": ("accessories/quartz_pendant.png", "5370122248b370525c15fc0acd2ba1e7f247597e5f9eda6abfca1239668e3678"),
+}
+
+
 class PackEquipmentTests(unittest.TestCase):
+    def test_starting_gear_icons_resolve_to_recorded_files(self):
+        self.assertEqual(len(STARTING_GEAR_ICONS), 7)
+        for item_id, (relative, digest) in STARTING_GEAR_ICONS.items():
+            item = CATALOG[item_id]
+            self.assertIn(item_id, STARTING_GEAR)
+            self.assertEqual(item.icon, relative, item_id)
+            path = gear_icon(item)
+            self.assertIsNotNone(path, item_id)
+            self.assertTrue(path.is_file(), item_id)
+            self.assertEqual(path, ROOT / "assets" / "items" / relative)
+            header = path.read_bytes()
+            self.assertEqual(header[1:4], b"PNG", item_id)
+            size = (int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big"))
+            self.assertEqual(size, (32, 32), item_id)
+            self.assertEqual(_sha256(path), digest, item_id)
+        self.assertEqual(CATALOG["training_sword"].basic_attack_fx, "sword_strike")
+        self.assertEqual(CATALOG["miner_blade"].basic_attack_fx, "sword_strike")
+
     def test_pack_weapons_join_his_catalog_without_replacing_it(self):
         self.assertEqual(STARTING_GEAR["training_sword"], 1)
         self.assertEqual(CATALOG["training_sword"].bonuses["strength"], 1)
