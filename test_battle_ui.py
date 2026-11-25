@@ -213,13 +213,12 @@ class BattleIntegrationTests(unittest.TestCase):
                 app._activate()
                 self.assertEqual(c.coords(lab.sprite_item), first)
 
-        for foe in (EMBERWRAITH, SILK_SARCOPHAGUS, *GRASSLAND_ENEMIES):
-            base = load_enemy_sprite(c, game.ASSETS / "battle", replace(foe, sprite_scale=(1, 1)))
-            original = tk.PhotoImage(master=c, file=str(game.ASSETS / "battle" / foe.sprite))
-            outlines = [(x, y) for y in range(base.height()) for x in range(base.width())
-                        if original.transparency_get(x, y) and not base.transparency_get(x, y)]
-            self.assertGreater(len(outlines), 25)
-            self.assertTrue(all(base.get(x, y) == (8, 7, 11) for x, y in outlines))
+        for foe in (*GRASSLAND_ENEMIES, EMBERWRAITH, SILK_SARCOPHAGUS):
+            native = replace(foe, sprite_scale=(1, 1))
+            source = tk.PhotoImage(master=c, file=str(game.ASSETS / "battle" / foe.sprite))
+            rendered = load_enemy_sprite(c, game.ASSETS / "battle", native)
+            self.assertEqual(rendered.tk.call(rendered, "data", "-format", "png"),
+                             source.tk.call(source, "data", "-format", "png"))
 
     def test_flying_enemies_cycle_wing_poses_in_combat_and_the_lab(self):
         from battle import GRASSLAND_ENEMIES

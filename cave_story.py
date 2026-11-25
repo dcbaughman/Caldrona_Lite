@@ -8,12 +8,19 @@ from stats import TEMUR, member
 
 ENTRY = (8, 3)
 TILE = 16
-TEMUR_APPROACH = (10, 13)
-TEMUR_STOP = (9, 7)
+MINER_APPROACH = (10, 13)
+INTRO_STOP = (9, 7)
 RECRUIT_OPTIONS = ("Travel with Temur", "Continue alone")
 ENTRY_SHOULDERS = ((7, 3), (9, 3))
 MINER=(48,7)
 MINER_NAME = "Theo"
+# Forecourt north wall, east of Shalehorn's door: the Selvar seal, then the fallen stair
+# flush against the corner. Pixel anchors are world pixels (sprite top-left).
+SELVAR_SEAL = (50, 4)
+SEALED_STAIR = ((51, 4), (52, 4))
+MAINTENANCE_ALCOVE = (SELVAR_SEAL, *SEALED_STAIR)
+SELVAR_SEAL_AT = (806, 62)
+SEALED_STAIR_AT = (822, 62)
 SIGNS={
  'dropped_tools':((7,5),'tools',"A pick and a snapped brace. Whoever left these was in a hurry."),
  'abandoned_cart':((9,28),'cart',"The cart is still loaded. Deep gouges score the wood, far wider than a pick."),
@@ -25,15 +32,18 @@ SIGNS={
 def fresh_story():
  return {'entrance_collapsed':False,'miner_warned':False,'inspected':[],
          'den_unsealed':False,'den_cleared':False,'black_stone_attuned':False,
-         'white_stone_seen':False,'depths_chests':[]}
+         'white_stone_seen':False,'depths_chests':[],'trail_search':False}
 
 def old_story():
  return dict(fresh_story(), entrance_collapsed=True)
+
 
 class CaveStory:
  def __init__(self,app,assets,scale):
   self.app = app
   self.scale = scale
+  self.scrape_sound = assets / "audio" / "shalehorn-scrape.wav"
+  self.heard_scrape = False
   self.shift = 0
   self.started = 0
   self.walk = None
@@ -41,7 +51,8 @@ class CaveStory:
   art = assets / "mine-polish"
   self.images = {
    name: tk.PhotoImage(master=app.root, file=str(art / f"{name}.png")).zoom(scale)
-   for name in ("cart", "tools", "lantern", "entrance-open", "entrance-blocked")
+   for name in ("cart", "tools", "lantern", "entrance-open", "entrance-blocked", "sealed-passage",
+                "selvar-inscription-cut", "selvar-closeup")
   }
   self.images["miner-down"] = app._load_world_actor(art / "miner-down.png")
   detail = assets / "entrance-detail"
@@ -72,8 +83,20 @@ class CaveStory:
   props.extend((key, self.images[art]) for key, (_, art, _) in SIGNS.items())
   for name, image in props:
    self.items[name] = c.create_image(0, 0, image=image, anchor="s", tags="cave_story_prop")
+  # Both pieces sit in the wall row with the quarry door's crown height.
+  self.alcove_items = [
+   (c.create_image(0, 0, image=self.images[name], anchor="nw", state="hidden", tags="cave_story_prop"), at)
+   for name, at in (("sealed-passage", SEALED_STAIR_AT), ("selvar-inscription-cut", SELVAR_SEAL_AT))
+  ]
+  # Close-up of the full inscription, framed above the dialogue box while Retri reads it.
+  self.closeup_item = c.create_image(480, 177, image=self.images["selvar-closeup"],
+                                     state="hidden", tags="selvar_closeup")
 
- def blocked(self,tile):return tile==MINER or tile in {value[0] for value in SIGNS.values()}
+ def is_alcove(self, tile):
+  return self.app.cave_story["trail_search"] and tile in MAINTENANCE_ALCOVE
+
+ def blocked(self,tile):
+  return tile == MINER or self.is_alcove(tile) or any(tile == sign[0] for sign in SIGNS.values())
 
  def render(self):
   a=self.app;c=a.canvas;cx,cy=a._camera();s=self.scale
@@ -89,12 +112,31 @@ class CaveStory:
    baseline = tile[1] * 16 + (12 if key == "entry" else 16)
    c.coords(self.items[key], ((tile[0] + .5) * 16 - cx) * s, (baseline - cy) * s)
    c.itemconfigure(self.items[key],state='hidden' if a.outdoors else 'normal')
-  c.tag_raise('cave_story_prop');c.tag_raise('world_party');c.tag_raise('hud');c.tag_raise('dialogue')
+  shown = "normal" if a.cave_story["trail_search"] and not a.outdoors else "hidden"
+  for item, (px, py) in self.alcove_items:
+   c.coords(item, (px - cx) * s, (py - cy) * s)
+   c.itemconfigure(item, state=shown)
+  if not a.dialogue.active:
+   self.hide_closeup()
+  c.tag_raise('cave_story_prop');c.tag_raise('world_party');c.tag_raise('hud')
+  c.tag_raise('selvar_closeup');c.tag_raise('dialogue')
+
+ def show_closeup(self):
+  c = self.app.canvas
+  c.itemconfigure(self.closeup_item, state="normal")
+  c.tag_raise("selvar_closeup")
+  c.tag_raise("dialogue")
+
+ def hide_closeup(self):
+  self.app.canvas.itemconfigure(self.closeup_item, state="hidden")
 
  def warning(self):
   a=self.app;a.cave_story['miner_warned']=True;a.keys.clear();a.held_direction=None
   if a.boss_cleared:
    lines=[DialogueLine(MINER_NAME,"The shaking has stopped. You drove it off! There's an old survey opening beyond the blue seam. It should lead outside.")]
+  elif a.cave_story["trail_search"]:
+   lines = [DialogueLine(MINER_NAME, "Heard someone on the old stair just before it gave way."),
+            DialogueLine(MINER_NAME, "Hear that scraping? Shalehorn's still guarding the blue seam. The shrine will see you right if you're going through.")]
   else:
    lines=[DialogueLine(MINER_NAME,"Don't go through that door unprepared. We uncovered a blue rock, and Shalehorn came straight for it."),
           DialogueLine(MINER_NAME,"It guards that stone. Anyone who gets near it is attacked. Its digging and charges are tearing the cave apart."),
@@ -104,7 +146,8 @@ class CaveStory:
 
  def maybe_warn(self):
   a=self.app
-  if not a.outdoors and not a.in_chamber and not a.cave_story['miner_warned'] and a.x/16>=45 and a.y/16<=10:
+  if (not a.outdoors and not a.in_chamber and not a.cave_story["trail_search"]
+      and not a.cave_story['miner_warned'] and a.x/16>=45 and a.y/16<=10):
    self.warning();return True
   return False
 
@@ -116,6 +159,17 @@ class CaveStory:
   if tile==MINER:self.warning();return True
   if tile==ENTRY:
    a.dialogue.show([DialogueLine('Retri',"The entrance is buried. I can't shift these rocks alone. There has to be another way out.")]);return True
+  if self.is_alcove(tile) and tile in SEALED_STAIR:
+   a.dialogue.show([DialogueLine("Retri", "The old stair has come down. Slabs choke the way up.", thought=True)])
+   return True
+  if self.is_alcove(tile):
+   if "corrupted_seal" not in a.cave_story["inspected"]:
+    a.cave_story["inspected"].append("corrupted_seal")
+   self.play_scrape()
+   a.dialogue.show([DialogueLine("Retri", "Fresh cuts cross the old carving. Temur’s charcoal lies beside the fallen stair.", thought=True)],
+                   on_complete=self.hide_closeup)
+   self.show_closeup()
+   return True
   for key,(point,_,text) in SIGNS.items():
    if tile==point:
     if key not in a.cave_story['inspected']:a.cave_story['inspected'].append(key)
@@ -123,11 +177,30 @@ class CaveStory:
     return True
   return False
 
+ def play_scrape(self):
+  if not self.heard_scrape:
+   self.heard_scrape = True
+   self.app._play_sfx(self.scrape_sound, volume=.58)
+
+ def at_shalehorn_door(self):
+  self.play_scrape()
+  self.app.dialogue.show([DialogueLine("Retri", "That's Shalehorn on the other side. With the stair gone, I'll have to go through its den.", thought=True)])
+  return True
+
  def open_at_entrance(self):
   a = self.app
-  a.dialogue.show([
-   DialogueLine("Retri", "The calls came from inside. I'll see if anyone's still here.", thought=True),
-  ], on_complete=self.walk_inside)
+  line = ("Temur went in this way. He can't have gone far." if a.cave_story["trail_search"]
+          else "The calls came from inside. I'll see if anyone's still here.")
+  a.dialogue.show([DialogueLine("Retri", line, thought=True)], on_complete=self.walk_inside)
+
+ def prepare_larvel(self):
+  a = self.app
+  self.larvel_frames = a._load_player("Larvel")
+  faces = {direction: frames[1] for direction, frames in self.larvel_frames.items()}
+  self.larvel_item = a.canvas.create_image(
+   0, 0, image=faces["left"], state="hidden", tags="world_party"
+  )
+  a.dialogue_actors["larvel"] = (self.larvel_item, INTRO_STOP, faces)
 
  def walk_inside(self):
   self._start_walk(
@@ -180,9 +253,10 @@ class CaveStory:
    a._update_world()
    return
   cx, cy = a._camera()
-  item, _, faces = a.dialogue_actors["temur"]
+  item, _, faces = a.dialogue_actors[actor]
   a.canvas.coords(item, (x - cx) * self.scale, (y - cy - stride % 2) * self.scale)
-  a.canvas.itemconfigure(item, image=faces[direction], state="normal")
+  image = self.larvel_frames[direction][stride % 2 * 2] if actor == "larvel" and stride else faces[direction]
+  a.canvas.itemconfigure(item, image=image, state="normal")
 
  def start_collapse(self, now=None):
   a = self.app
@@ -193,18 +267,35 @@ class CaveStory:
   self.shift = 0
   a._play_sfx(a.collapse_sound_path)
 
- def temur_approaches(self, now):
+ def meet_after_collapse(self, now):
+  searching = self.app.cave_story["trail_search"]
   self._start_walk(
-   "temur", TEMUR_APPROACH,
-   (((10, 7), "up", 1.12), (TEMUR_STOP, "left", .24)),
-   self._temur_arrives, now,
+   "larvel" if searching else "temur", MINER_APPROACH,
+   (((10, 7), "up", 1.12), (INTRO_STOP, "left", .24)),
+   self._larvel_arrives if searching else self._temur_arrives, now,
   )
+
+ def _larvel_arrives(self, now):
+  a = self.app
+  a.screen = "game"
+  a.direction = "right"
+  a._update_world()
+  a.dialogue.show([
+   DialogueLine("Larvel", "You hurt? I heard the roof come down. Larvel. I work this seam."),
+   DialogueLine("Retri", "I'm fine. Did you see someone carrying folded papers?"),
+   DialogueLine("Larvel", "Aye. Took the lower workings. I'll check the side drift for the rest of my crew."),
+   DialogueLine("Retri", "Thanks. I'll find Temur."),
+  ], on_complete=lambda: self._walk_away("larvel", INTRO_STOP, self._larvel_leaves))
+
+ def _larvel_leaves(self, now):
+  self.app.canvas.itemconfigure(self.larvel_item, state="hidden")
+  self._finish_opening()
 
  def _temur_arrives(self, now):
   a = self.app
-  a.temur_tile = TEMUR_STOP
+  a.temur_tile = INTRO_STOP
   item, _, faces = a.dialogue_actors["temur"]
-  a.dialogue_actors["temur"] = (item, TEMUR_STOP, faces)
+  a.dialogue_actors["temur"] = (item, INTRO_STOP, faces)
   a.direction = "right"
   self.offer_temur(after_collapse=True)
 
@@ -272,14 +363,17 @@ class CaveStory:
  def temur_departs(self):
   a = self.app
   a.temur_story = "departing"
+  self._walk_away("temur", a.temur_tile, self._temur_leaves)
+
+ def _walk_away(self, actor, start, on_complete):
   beats = []
-  if a.temur_tile != (10, 7):
+  if start != (10, 7):
    beats.append(((10, 7), "right", .24))
   # Continue down the corridor until the sprite is outside the current frame.
-  _, cy = a._camera()
+  _, cy = self.app._camera()
   exit_y = max(13, math.ceil((cy + 180 + TILE / 2) / TILE))
   beats.append(((10, exit_y), "down", (exit_y - 7) * .20))
-  self._start_walk("temur", a.temur_tile, tuple(beats), self._temur_leaves)
+  self._start_walk(actor, start, tuple(beats), on_complete)
 
  def _temur_leaves(self, now):
   a = self.app
@@ -332,4 +426,4 @@ class CaveStory:
    c.delete("entrance_debris")
    self.shift = 0
    a._update_world(force=True)
-   self.temur_approaches(now)
+   self.meet_after_collapse(now)

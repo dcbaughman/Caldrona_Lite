@@ -26,6 +26,18 @@ MOTIONS = {
         "Alternating leg twitch", 19, ((0, 0), (1, 0), (2, -1), (1, 0), (-1, 0)),
         "spider-stride.png", (0, 1, 2, 3, 0),
     ),
+    "hollow-weaver.png": EnemyMotion(
+        "Measured leg taps", 25, ((0, 0), (1, -1), (1, -2), (0, -1), (-1, 0)),
+        "hollow-weaver-stride.png", (0, 1, 1, 2, 3),
+    ),
+    "brood-stalker.png": EnemyMotion(
+        "Braced lunge", 23, ((0, 0), (-1, 1), (-2, 2), (3, -1), (1, 0)),
+        "brood-stalker-stride.png", (0, 1, 2, 3, 0), ticks_per_second=10,
+    ),
+    "spiderling.png": EnemyMotion(
+        "Quick scuttle", 15, ((0, 0), (1, 0), (2, -1), (-1, 0), (0, 0)),
+        "spiderling-stride.png", (0, 1, 2, 3, 0), ticks_per_second=16,
+    ),
     "bat.png": EnemyMotion(
         "Wing flutter", 12, ((0, 0), (0, -3), (1, -6), (1, -4), (0, -1), (-1, -3)),
         "bat-wings.png", (0, 1, 0, 2, 3, 2), pose_fps=12,
@@ -46,7 +58,10 @@ MOTIONS = {
         "Hoof stamp", 22, ((0, 0), (-1, -1), (-1, -3), (2, 1), (1, 0)),
         "torshield-ram-stride.png", (0, 1, 2, 3, 0), ticks_per_second=8,
     ),
-    "emberwraith.png": EnemyMotion("Ember pulse", 13, ((0, 0), (-1, -1), (-1, -3), (1, -4), (2, -2), (1, 0))),
+    "emberwraith.png": EnemyMotion(
+        "Ground-level ooze", 6, ((0, 0), (-1, 0), (2, 0), (4, 0), (3, 0), (1, 0), (0, 0)),
+        "emberwraith-ooze.png", (0, 1, 2, 3, 4, 5, 0), ticks_per_second=9,
+    ),
     "silk-sarcophagus.png": EnemyMotion("Silk drift", 0, ()),
     "den-mother.png": EnemyMotion(
         "Leg twitch and Last Brood", 22, ((0, 0), (-1, 0), (-2, -1), (-2, -2), (1, 0), (1, 1)),
