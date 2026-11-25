@@ -230,8 +230,10 @@ class SignatureLineupTests(unittest.TestCase):
         self.assertIn("unattuned", str(variant.frames[0]))
         saint["equipment"] = {"weapon": "miner_blade"}
         self.assertIsNotNone(strike_variant(saint))
+        # Lineup weapons now pick swing art by family: a mace plays the blunt impact.
         saint["equipment"] = {"weapon": SIGNATURE["pilgrims_mace"].id}
-        self.assertIsNone(strike_variant(saint))
+        self.assertEqual(SIGNATURE["pilgrims_mace"].basic_attack_fx, "blunt_impact")
+        self.assertIsNotNone(strike_variant(saint))
         sollers = member("Temur", RETRI)
         sollers["job"] = "Sollers"
         sollers["equipment"] = {"weapon": SIGNATURE["purse_knife"].id}

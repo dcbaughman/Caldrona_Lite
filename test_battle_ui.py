@@ -901,7 +901,9 @@ class BattleIntegrationTests(unittest.TestCase):
                     for item in c.find_withtag(scene.DYNAMIC):
                         x1, y1, x2, y2 = c.bbox(item)
                         self.assertGreaterEqual(x1, 0)
-                        self.assertLessEqual(x2, c._value(930))
+                        # 934 is the inner edge of the party panel (frame 526-942, 8px border);
+                        # the active-row highlight runs to 933. Tk's bbox pads by one pixel.
+                        self.assertLessEqual(x2, c._value(934) + 1)
                         self.assertGreaterEqual(y1, c._value(328))
                         self.assertLessEqual(y2, c._value(518))
                     scene.confirm(0)
@@ -929,6 +931,8 @@ class BattleIntegrationTests(unittest.TestCase):
             self.assertTrue(any(name in label for label in labels()))
             self.assertIn(hp, labels())
         party[1]["hp"] = 800
+        # The highlight follows the CTB turn; the model derives actor from it.
+        scene.model.ctb.current = ("party", 1)
         scene.model.actor = 1
         scene.draw_status()
         self.assertIn("HP 800 / 1030", labels())

@@ -169,6 +169,8 @@ class AttackFXTests(unittest.TestCase):
                     self.assertFalse(canvas.find_withtag(number_tag))
 
                     scene.update(impact + .001)
+                    # Foes bob while idle; the arrow lands on where the target is at impact.
+                    target_x, target_y = scene.enemy_positions[target]
                     self.assertEqual(arrow_tip(), [canvas._value(target_x), canvas._value(target_y)])
                     self.assertTrue(canvas.find_withtag("bow_impact"))
                     for item_id in canvas.find_withtag("bow_shot"):

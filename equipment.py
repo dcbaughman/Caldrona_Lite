@@ -388,7 +388,9 @@ def _load_signature_lineup():
             catalog_id = lineup_id if existing is None else f"lineup_{lineup_id}"
             if catalog_id in CATALOG:
                 raise RuntimeError(f"Signature id {catalog_id} is already in the catalog")
-            basic_attack_fx = "sword_strike" if row["type"] == "dagger" else ""
+            # New lineup weapons pick their swing art by family, like the starter pack.
+            basic_attack_fx = ("sword_strike" if row["type"] == "dagger" else _basic_attack_effect(
+                {"weapon_type": row["type"], "id": catalog_id, "classes": (row["class"],)}))
             tier = 0
             bonuses = {}
             characters = ()
