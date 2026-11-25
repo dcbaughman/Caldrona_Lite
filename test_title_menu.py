@@ -50,8 +50,8 @@ class TitleMenuTests(unittest.TestCase):
         app.keys.clear()
 
         app._activate()
-        self.assertEqual(app.screen, "notice")
-        self.assertIn("NO SAVED CAVERN JOURNEY YET.", _texts(app.canvas))
+        self.assertEqual(app.screen, "save_slots")
+        self.assertIn("CONTINUE JOURNEY", _texts(app.canvas))
         app._back()
         self.assertEqual(app.screen, "menu")
 
@@ -88,39 +88,46 @@ class TitleMenuTests(unittest.TestCase):
 
     def test_title_fades_out_before_the_cavern_theme_fades_in(self):
         app = self.app
-        app._play_music = Mock()
-        app._music_bed = "title"
-        app.pygame = None
-        app._begin_gameplay_music()
-        app._play_music.assert_called_with(game.CAVERN_MUSIC)
+        app.pygame = Mock(error=RuntimeError)
+        music = app.pygame.mixer.music
+        music.get_busy.return_value = True
+        app._music_track = game.TITLE_MUSIC
+        app._music_gain = game.MUSIC_VOLUME
+        with patch.object(game.time, "monotonic", return_value=10):
+            app._begin_gameplay_music()
+        app._flush_pending_music(10.35)
+        music.load.assert_not_called()
+        self.assertAlmostEqual(app._music_gain, game.MUSIC_VOLUME / 2)
+        app._flush_pending_music(10.71)
+        music.load.assert_called_once_with(str(game.CAVERN_MUSIC))
+        self.assertEqual(app._music_gain, 0)
+        app._flush_pending_music(11.5)
+        self.assertEqual(app._music_gain, game.MUSIC_VOLUME)
 
-        class Music:
-            def __init__(self):
-                self.fadeouts = []
+    def test_quick_area_changes_keep_the_latest_music_request(self):
+        app = self.app
+        app.pygame = Mock(error=RuntimeError)
+        music = app.pygame.mixer.music
+        music.get_busy.return_value = True
+        app._music_track = game.CAVERN_MUSIC
+        app._music_gain = game.MUSIC_VOLUME
+        with patch.object(game.time, "monotonic", return_value=10):
+            app._play_music(game.DEN_MUSIC)
+        app._flush_pending_music(10.2)
+        with patch.object(game.time, "monotonic", return_value=10.2):
+            app._play_music(game.GOLDENLANDS_MUSIC)
+        app._flush_pending_music(10.41)
+        music.load.assert_called_once_with(str(game.GOLDENLANDS_MUSIC))
 
-            def get_busy(self):
-                return True
-
-            def fadeout(self, ms):
-                self.fadeouts.append(ms)
-
-        class Mixer:
-            def __init__(self):
-                self.music = Music()
-
-            def get_init(self):
-                return True
-
-        app._play_music.reset_mock()
-        app.pygame = type("Pygame", (), {
-            "mixer": Mixer(), "error": RuntimeError, "quit": staticmethod(lambda: None),
-        })()
-        app._music_bed = "title"
-        app._begin_gameplay_music()
-        app._play_music.assert_not_called()
-        self.assertEqual(app.pygame.mixer.music.fadeouts, [game.TITLE_FADE_OUT_MS])
-        app._flush_pending_music(time.monotonic() + 1)
-        app._play_music.assert_called_with(game.CAVERN_MUSIC, loops=-1, fade_ms=700)
+        app._flush_pending_music(11.2)
+        with patch.object(game.time, "monotonic", return_value=12):
+            app._play_music(game.DEN_MUSIC)
+        app._flush_pending_music(12.2)
+        with patch.object(game.time, "monotonic", return_value=12.2):
+            app._play_music(game.GOLDENLANDS_MUSIC)
+        app._flush_pending_music(12.5)
+        self.assertEqual(app._music_gain, game.MUSIC_VOLUME)
+        music.load.assert_called_once()
 
 
 if __name__ == "__main__":

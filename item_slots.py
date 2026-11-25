@@ -22,20 +22,17 @@ BRONZE = "#8d6230"
 GLINT_COLORS = ("#ffffff", "#fff6d0", "#ffe08a", "#f0c45a", "#d4a441", "#a87a32")
 
 
-def draw_item_slot(canvas: tk.Canvas, cx: float, cy: float, image, *tags) -> tuple:
-    """Draw one 40px slot centered at ``(cx, cy)`` and return its outer box.
-
-    The well is 32px and black, so a 32px icon sits inside the bevel and any
-    transparent pixel shows black rather than the menu navy.
-    """
-    half = OUTER // 2
+def draw_item_slot(canvas: tk.Canvas, cx: float, cy: float, image, *tags, size=OUTER) -> tuple:
+    """Draw a black well and a gold bevel around an icon."""
+    half = size // 2
+    inset = 3 if size < OUTER else 4
     x1, y1, x2, y2 = cx - half, cy - half, cx + half, cy + half
     slot_tags = (*tags, SLOT_TAG)
     canvas.create_rectangle(x1, y1, x2, y2, fill=SHADOW, outline="", tags=slot_tags)
     canvas.create_rectangle(x1, y1, x2 - 2, y2 - 2, fill=HIGHLIGHT, outline="", tags=slot_tags)
     canvas.create_rectangle(x1 + 2, y1 + 2, x2 - 2, y2 - 2, fill=GOLD, outline="", tags=slot_tags)
     canvas.create_rectangle(x1 + 3, y1 + 3, x2 - 3, y2 - 3, fill=BRONZE, outline="", tags=slot_tags)
-    canvas.create_rectangle(x1 + 4, y1 + 4, x2 - 4, y2 - 4, fill=BLACK, outline="", tags=slot_tags)
+    canvas.create_rectangle(x1 + inset, y1 + inset, x2 - inset, y2 - inset, fill=BLACK, outline="", tags=slot_tags)
     if image is not None:
         canvas.create_image(cx, cy, image=image, tags=slot_tags)
     return (x1, y1, x2, y2)

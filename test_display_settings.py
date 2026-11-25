@@ -36,6 +36,19 @@ class DisplayScalingTests(unittest.TestCase):
                 self.assertIs(canvas._image(self.source), image)
                 canvas.destroy()
 
+    def test_refresh_updates_the_displayed_image_after_its_pixels_change(self):
+        canvas = ScaledCanvas(self.root, 24)
+        item = canvas.create_image(0, 0, anchor="nw", image=self.source)
+        display = canvas._image(self.source)
+        self.assertTrue(display.transparency_get(0, 0))
+        self.source.put("#afa766", (0, 0))
+        canvas.refresh_image(self.source)
+        self.assertEqual(display.get(1, 1), (175, 167, 102))
+        self.assertEqual(canvas.itemcget(item, "image"), str(display))
+        self.source.transparency_set(0, 0, True)
+        canvas.refresh_image(self.source)
+        self.assertTrue(display.transparency_get(1, 1))
+
 
 if __name__ == "__main__":
     unittest.main()

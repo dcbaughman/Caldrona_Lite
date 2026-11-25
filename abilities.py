@@ -14,13 +14,14 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from classes import JOBS, current_job
+from classes import NOKTAKORO, SENBRANKA, current_job
 from equipment import item_for, worn_id
+from research import Lesson, lessons_for, researched_ids
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST_PATH = ROOT / "data" / "abilities_manifest.json"
 FX_ROOT = ROOT / "assets" / "battle" / "fx"
-STONES = ("unattuned", "first_stone")
+STONES = ("unattuned", "first_stone", NOKTAKORO, SENBRANKA)
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,12 @@ class AbilityVariant:
     target_center: tuple[int, int]
     loop_frames: tuple[int, ...] | None
     json_path: Path
+    travel_ms: int = 0
+    contact_ms: int = 0
+    tier: int = 1
+    camera_shake: int = 0
+    camera_pan: int = 0
+    flash_color: str = "#b4c5dc"
 
 
 @dataclass(frozen=True)
@@ -80,6 +87,12 @@ def _load_variant(key: str, spec: dict) -> AbilityVariant:
         target_center=(int(center[0]), int(center[1])),
         loop_frames=None if not loop else tuple(int(frame) for frame in loop),
         json_path=json_path,
+        travel_ms=int(meta.get("travel_ms", 0)),
+        contact_ms=int(meta.get("contact_ms", 0)),
+        tier=int(meta.get("tier", 1)),
+        camera_shake=int(meta.get("camera_shake", 0)),
+        camera_pan=int(meta.get("camera_pan", 0)),
+        flash_color=str(meta.get("flash_color", "#b4c5dc")),
     )
 
 
@@ -87,8 +100,7 @@ def _load():
     data = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     by_job: dict[str, tuple[Ability, ...]] = {}
     planned: dict[str, tuple[str, ...]] = {}
-    for job in JOBS:
-        block = data["classes"][job]
+    for job, block in data["classes"].items():
         abilities = []
         for row in block["abilities"]:
             anim = row["anim"]
@@ -115,10 +127,24 @@ def _load():
 
 
 BY_JOB, PLANNED = _load()
+_APPROVED_MANIFEST = FX_ROOT / "approved_attacks" / "manifest.json"
+EXTRA_FX = {
+    name: {key: _load_variant(key, spec) for key, spec in variants.items()}
+    for name, variants in json.loads(_APPROVED_MANIFEST.read_text(encoding="utf-8")).items()
+}
+
+
+_RESEARCH_MANIFEST = FX_ROOT / "research_moves" / "manifest.json"
+RESEARCH_FX = {
+    name: {key: _load_variant(key, spec) for key, spec in variants.items()}
+    for name, variants in json.loads(_RESEARCH_MANIFEST.read_text(encoding="utf-8")).items()
+} if _RESEARCH_MANIFEST.exists() else {}
 
 
 def attuned_stone(member) -> str:
     """Gray until the first stone. Topaz is listed for later and has no files."""
+    if current_job(member) in (None, "", "Unbound"):
+        return "unattuned"
     stone = member.get("attuned_stone") or "unattuned"
     if stone not in STONES:
         return "unattuned"
@@ -140,12 +166,11 @@ def find_ability(job, ability_id) -> Ability | None:
     return None
 
 
-def learned_abilities(member) -> tuple[Ability, ...]:
-    """Class abilities whose suggested level has been reached.
-
-    Strike is not an ability the player sees. It is the weapon's attack
-    animation. Undrawn abilities in ``PLANNED`` are never returned.
-    """
+def learned_abilities(member) -> tuple[Ability | Lesson, ...]:
+    """Return researched lessons, with level-based support for older callers."""
+    if "researched" in member:
+        known = researched_ids(member)
+        return tuple(lesson for lesson in lessons_for(member) if lesson.id in known)
     job = current_job(member)
     if job not in BY_JOB:
         return ()
@@ -161,14 +186,50 @@ def remember(member):
     member["abilities"] = [ability.id for ability in learned_abilities(member)]
 
 
+def _choose_variant(variants, member):
+    if "untinted" in variants:
+        return variants["untinted"]
+    stone = attuned_stone(member)
+    return variants.get(stone) or variants["unattuned"]
+
+
 def variant_for(ability: Ability, member) -> AbilityVariant:
     """Pick the shipped file set. Never builds a recolored image."""
-    if "untinted" in ability.variants or not ability.attunement_tinted:
-        return ability.variants["untinted"]
-    stone = attuned_stone(member)
-    if stone not in ability.variants:
-        stone = "unattuned"
-    return ability.variants[stone]
+    return _choose_variant(ability.variants, member)
+
+
+# Placeholder FX for kit moves with no drawn effect yet (movesets.md [N]/[P] moves).
+# Each borrows an existing shipped frame set; nothing is recolored.
+PLACEHOLDER_ART = {
+    "seer_twist_of_fate": "seer_star_thread", "seer_prophecy": "seer_veil_sight",
+    "tidecaller_rolling_tide": "unbound_first_aid", "tidecaller_undertow": "seer_gale",
+    "tidecaller_rinse": "saint_litany", "tidecaller_swell": "unbound_steady_breath",
+    "tidecaller_ebb": "sollers_stitch_up", "tidecaller_sea_mist": "seer_premonition",
+    "tidecaller_spring_tide": "saint_restoration",
+    "weaver_read_the_strand": "seer_glimpse", "weaver_onyx_lash": "seer_echo_glass",
+    "weaver_weft_snare": "seer_mist_ray", "weaver_hush": "seer_mind_flare",
+    "weaver_tether_pact": "seer_star_thread", "weaver_closing_verse": "seer_final_omen",
+    "sollers_sleight_of_hand": "sollers_feint",
+    "reliquary_mourners_veil": "unbound_cover", "reliquary_lid_shut": "unbound_hold_line",
+    "reliquary_hollow_tithe": "seer_moon_pulse", "reliquary_grave_weight": "seer_destiny_mark",
+    "reliquary_ashen_hush": "sollers_smokescreen", "reliquary_twin_reliquary": "seer_farseal",
+    "saint_purify": "saint_litany", "saint_benediction": "saint_restoration",
+}
+
+
+def lesson_variant(lesson, member):
+    if isinstance(lesson, Ability):
+        return variant_for(lesson, member)
+    shared_art = {"weaver_black_thread": "seer_mist_ray", "weaver_silkbolt": "seer_mist_ray",
+                  "tidecaller_tide_dart": "seer_gale",
+                  "reliquary_retribution": "seer_farseal",
+                  **PLACEHOLDER_ART}.get(lesson.id, lesson.id)
+    if shared_art in RESEARCH_FX:
+        return _choose_variant(RESEARCH_FX[shared_art], member)
+    if shared_art in EXTRA_FX:
+        return _choose_variant(EXTRA_FX[shared_art], member)
+    art = find_ability(current_job(member), lesson.id)
+    return variant_for(art, member) if art is not None else None
 
 
 def frame_index(variant: AbilityVariant, elapsed_ms: float) -> int:
@@ -192,15 +253,13 @@ def frame_at(variant: AbilityVariant, elapsed_ms: float) -> Path:
 
 
 def strike_variant(member) -> AbilityVariant | None:
-    """Slash frames for Attack when the worn weapon asks for sword_strike.
-
-    The player never picks Strike. Gray or blue follows ``attuned_stone``.
-    """
+    """Basic Attack artwork for the equipped weapon and active stone."""
     item = item_for(worn_id(member, "weapon"))
-    if item is None or item.basic_attack_fx != "sword_strike":
+    if item is None:
         return None
-    job = current_job(member) or "Saint"
-    ability = find_ability(job, "strike")
-    if ability is None:
+    if item.basic_attack_fx in EXTRA_FX:
+        return _choose_variant(EXTRA_FX[item.basic_attack_fx], member)
+    if item.basic_attack_fx != "sword_strike":
         return None
+    ability = find_ability(current_job(member), "strike") or find_ability("Saint", "strike")
     return variant_for(ability, member)

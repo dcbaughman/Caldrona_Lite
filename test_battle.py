@@ -1,25 +1,88 @@
 """Deterministic coverage for encounter gating and turn resolution."""
+from dataclasses import replace
 import random
 import unittest
 from unittest.mock import Mock
 
 from battle import (BattleModel, EncounterMeter, ENEMIES, MAX_HP, SAFE_STEPS,
-                    DEN_MOTHER, DEN_MOTHER_CHANCE, SHALEHORN, cave_encounter)
+                    DEN_MOTHER, SHALEHORN, cave_encounter)
+from combat_math import critical_chance, physical_damage
+from stats import RETRI, member
 
 
 class BattleTests(unittest.TestCase):
-    def test_rare_den_mother_is_a_strong_solo_encounter(self):
-        rng = Mock()
-        rng.random.return_value = DEN_MOTHER_CHANCE / 2
-        self.assertEqual(cave_encounter(rng), [DEN_MOTHER])
+    def test_physical_damage_curve_and_variance(self):
+        self.assertEqual(physical_damage(8, 1, 256), 8)
+        self.assertEqual(physical_damage(11, 1, 256), 11)
+        self.assertEqual(physical_damage(20, 4, 240), 31)
+        self.assertEqual(physical_damage(20, 4, 271), 35)
+        self.assertEqual(physical_damage(20, 255, 256), 1)
+        self.assertEqual(critical_chance(4, 10, 3), 0)
+        self.assertEqual(critical_chance(8, 6, 3), 5)
+        self.assertEqual(critical_chance(110, 6, 3), 100)
+
+    def test_critical_doubles_a_weapon_hit_before_the_flat_mark_bonus(self):
+        foe = replace(ENEMIES[0], hp=200)
+        damage_rng = Mock()
+        damage_rng.randint.return_value = 256
+        crit_rng = Mock()
+        crit_rng.randint.return_value = 5
+        for action, ability_id in (("Attack", None), ("Ability", "unbound_quick_cut")):
+            hits = []
+            for charm in (False, True):
+                actor = member("Retri", RETRI)
+                actor["equipment"] = {"weapon": "training_sword"}
+                if charm:
+                    actor["equipment"]["accessory"] = "lucky_charm"
+                actor["researched"] = ["unbound_quick_cut"]
+                model = BattleModel(foe, party=[actor], rng=damage_rng, crit_rng=crit_rng)
+                model.marks[0] = 5
+                self.assertTrue(model.command(action, ability_id=ability_id))
+                self.assertEqual(bool(model.critical_hits), charm)
+                self.assertEqual("Critical hit!" in model.message, charm)
+                hits.append(model.damage)
+            self.assertEqual(hits[1], (hits[0] - 5) * 2 + 5)
+
+    def test_luck_reduces_enemy_crit_rate_and_guard_still_mitigates_damage(self):
+        foe = replace(ENEMIES[0], luck=12, attack=(20, 20))
+        crit_rng = Mock()
+        crit_rng.randint.return_value = 3
+        for charm, expected in ((False, 16), (True, 8)):
+            actor = member("Retri", RETRI)
+            if charm:
+                actor["equipment"] = {"accessory": "lucky_charm"}
+            model = BattleModel(foe, party=[actor], crit_rng=crit_rng)
+            model.command("Guard")
+            model.reply()
+            self.assertEqual(model.hits, {0: expected})
+            self.assertEqual(model.critical_hits, set() if charm else {("party", 0)})
+
+    def test_magic_and_missed_attacks_skip_the_crit_roll(self):
+        actor = member("Retri", RETRI)
+        actor.update(job="Seer", luck=100, researched=["seer_gale"])
+        crit_rng = Mock()
+        status_rng = Mock()
+        status_rng.random.return_value = .99
+        model = BattleModel(ENEMIES[0], party=[actor], crit_rng=crit_rng, status_rng=status_rng)
+        model.statuses.apply(("party", 0), "darkness")
+        self.assertTrue(model.command("Attack"))
+        self.assertEqual(model.damage, 0)
+        model.pending_reply = False
+        self.assertTrue(model.command("Ability", ability_id="seer_gale"))
+        self.assertGreater(model.damage, 0)
+        self.assertFalse(model.critical_hits)
+        crit_rng.randint.assert_not_called()
+
+    def test_den_mother_is_reserved_for_her_lair(self):
         self.assertGreater(DEN_MOTHER.hp, max(enemy.hp for enemy in ENEMIES))
-        self.assertLess(DEN_MOTHER.hp, SHALEHORN.hp)
+        self.assertGreater(DEN_MOTHER.hp, SHALEHORN.hp)
         self.assertGreater(DEN_MOTHER.attack[0], max(enemy.attack[0] for enemy in ENEMIES))
         self.assertGreater(DEN_MOTHER.gold, max(enemy.gold for enemy in ENEMIES))
-        rng.random.return_value = DEN_MOTHER_CHANCE
+        rng = Mock()
         rng.randint.return_value = 2
         rng.choice.return_value = ENEMIES[0]
         self.assertEqual(cave_encounter(rng), [ENEMIES[0], ENEMIES[0]])
+        rng.choice.assert_called_with(ENEMIES)
 
     def test_potion_targets_another_member_and_cannot_revive(self):
         party = [{"name": "Retri", "hp": 60, "max_hp": 60},

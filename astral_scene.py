@@ -1,4 +1,4 @@
-"""The blue stone's reveal and permanent, per-member class choice."""
+"""Stone reveals and permanent, per-member astral class choices."""
 from __future__ import annotations
 
 import random
@@ -6,7 +6,28 @@ import tkinter as tk
 from pathlib import Path
 
 from abilities import remember
-from classes import JOBS, DESCRIPTIONS, EMBLEMS, current_job, bind_job
+from classes import BLUE_STONE, NOKTAKORO, SENBRANKA, STONE_NAMES, STONE_PATHS, DESCRIPTIONS, EMBLEMS, bind_job, current_job
+from den_art import STONE_OUTLINE, black_stone, white_stone
+
+
+_ONDASTELA_CONTOUR = (
+    (16, 29), (19, 24), (21, 21), (25, 17), (28, 14), (32, 13),
+    (35, 14), (38, 16), (40, 20), (42, 26), (46, 30), (46, 33),
+    (43, 38), (40, 41), (37, 44), (31, 47), (28, 49), (25, 48),
+    (22, 45), (19, 41), (18, 37), (16, 34),
+)
+
+
+def _ondastela_frame(canvas, path):
+    """Ink the faceted stone inside its existing glow on the native pixel grid."""
+    art = tk.PhotoImage(master=canvas, file=str(path))
+    contour = _ONDASTELA_CONTOUR
+    for (x1, y1), (x2, y2) in zip(contour, contour[1:] + contour[:1]):
+        steps = max(abs(x2 - x1), abs(y2 - y1))
+        for step in range(steps + 1):
+            art.put(STONE_OUTLINE, (round(x1 + (x2 - x1) * step / steps),
+                                    round(y1 + (y2 - y1) * step / steps)))
+    return art.zoom(2)
 
 
 class AstralScene:
@@ -26,12 +47,15 @@ class AstralScene:
                 tile = tk.PhotoImage(master=canvas, width=width, height=height)
                 tile.tk.call(tile, "copy", self.sky, "-from", x, y, x+width, y+height)
                 self.sky_tiles.append((x, y, tile))
-        self.stones = [tk.PhotoImage(master=canvas, file=str(folder / f"stone-{i}.png")).zoom(2)
-                       for i in range(3)]
-        self.silhouettes = {job: tk.PhotoImage(master=canvas, file=str(folder / (job.lower() + ".png")))
-                            for job in JOBS}
+        self.stones = [_ondastela_frame(canvas, folder / f"stone-{i}.png") for i in range(3)]
+        self.silhouettes = {
+            job: tk.PhotoImage(master=canvas, file=str(folder / "constellations" / f"{job.lower()}.png"))
+            for job in EMBLEMS
+        }
         self.icons = {job: tk.PhotoImage(master=canvas, file=str(assets / "sync" / EMBLEMS[job]))
-                      for job in JOBS}
+                      for job in EMBLEMS}
+        self.noktakoro_art = black_stone(canvas, 3)
+        self.senbranka_art = white_stone(canvas, 6)
         rng = random.Random(731)
         self.stars = [(rng.randrange(35, 925), rng.randrange(24, 514),
                        rng.choice(("#375c9a", "#608fca", "#9ecbea")))
@@ -42,7 +66,9 @@ class AstralScene:
         self.twinkle_step = None
         self.active = False
 
-    def start(self, party, now, reveal=True):
+    def start(self, party, now, reveal=True, *, stone=BLUE_STONE):
+        self.stone = stone
+        self.paths = STONE_PATHS[stone]
         self.party = party
         self.member_index = 0
         self.selection = 0
@@ -64,6 +90,8 @@ class AstralScene:
         c, tag = self.canvas, self.TAG
         for x, y, tile in self.sky_tiles:
             c.create_image(x, y, image=tile, anchor="nw", tags=tag)
+        if self.stone == NOKTAKORO:
+            c.create_rectangle(0, 0, 960, 540, fill="#180e2b", stipple="gray50", outline="", tags=tag)
         c.create_rectangle(15, 15, 945, 525, outline="#bc9a5a", width=3, tags=tag)
         c.create_rectangle(21, 21, 939, 519, outline="#355d9d", width=2, tags=tag)
         for x, y, color in self.stars:
@@ -75,15 +103,24 @@ class AstralScene:
             vertical = c.create_line(x, y-3, x, y+3, fill="#7295c6", tags=tag)
             self.twinkle_items.append((horizontal, vertical, offset))
 
+    def _stone_image(self):
+        if self.stone == SENBRANKA:
+            return self.senbranka_art
+        return self.noktakoro_art if self.stone == NOKTAKORO else self.stones[self.stone_index]
+
     def draw(self):
         c, tag = self.canvas, self.TAG
         c.delete(tag)
         self._background()
         if self.phase == "reveal":
-            c.create_text(480, 90, text="THE BLUE STONE", fill="#f4d98a",
+            epithet = {BLUE_STONE: "WAVE STAR", NOKTAKORO: "HEART OF NIGHT", SENBRANKA: "WITHOUT FRACTURE"}
+            name = f"{STONE_NAMES[self.stone].upper()} · {epithet[self.stone]}"
+            c.create_text(480, 90, text=name, fill="#f4d98a",
                           font=self.font(32, True), tags=tag)
-            self.stone_item = c.create_image(480, 244, image=self.stones[self.stone_index], tags=tag)
-            c.create_text(480, 389, text="A quiet light answers your touch.", fill="#c4eaff",
+            self.stone_item = c.create_image(480, 244, image=self._stone_image(), tags=tag)
+            whisper = ("Pinch where your shadow meets your fingers. Now pull." if self.stone == NOKTAKORO
+                       else "A quiet light answers your touch.")
+            c.create_text(480, 389, text=whisper, fill="#c4eaff",
                           font=self.font(25), tags=tag)
             c.create_text(480, 461, text="ENTER / CROSS TO CONTINUE", fill="#9adbe8",
                           font=self.font(19), tags=tag)
@@ -91,18 +128,18 @@ class AstralScene:
 
         member = self.party[self.member_index]
         bound = current_job(member)
-        c.create_text(480, 39, text="ASTRAL RESONANCE", fill="#f4d98a",
+        c.create_text(480, 39, text=STONE_NAMES[self.stone].upper(), fill="#f4d98a",
                       font=self.font(28, True), tags=tag)
-        c.create_text(480, 78, text=f"◀  {member['name'].upper()}  ·  {(bound or 'UNBOUND').upper()}  ▶",
+        c.create_text(480, 78, text=f"L1  ·  {member['name'].upper()}  ·  {(bound or 'UNBOUND').upper()}  ·  R1",
                       fill="#dff4ff", font=self.font(20, True), tags=tag)
-        c.create_text(480, 109, text="LEFT / RIGHT: PARTY MEMBER", fill="#8bcbe5",
+        c.create_text(480, 109, text="L1 / R1: PARTY MEMBER", fill="#8bcbe5",
                       font=self.font(15), tags=tag)
-        self.stone_item = c.create_image(156, 158, image=self.stones[self.stone_index], tags=tag)
-        if self.selection < len(JOBS):
-            c.create_image(750, 158, image=self.silhouettes[JOBS[self.selection]], tags=tag)
+        self.stone_item = c.create_image(156, 168, image=self._stone_image(), tags=tag)
+        if self.selection < len(self.paths):
+            c.create_image(750, 136, image=self.silhouettes[self.paths[self.selection]], tags=tag)
         c.create_text(156, 91, text="CHOOSE YOUR PATH", fill="#9adbe8",
                       font=self.font(16), tags=tag)
-        for index, job in enumerate((*JOBS, "Leave unattuned")):
+        for index, job in enumerate((*self.paths, "Leave unattuned")):
             top = 237 + index * 57
             selected = self.selection == index
             c.create_rectangle(245, top, 915, top+50, fill="#18285d" if selected else "#101b43",
@@ -110,11 +147,11 @@ class AstralScene:
             if selected:
                 c.create_text(257, top+25, text="▶", anchor="w", fill="#ffe37e",
                               font=self.font(20, True), tags=tag)
-            if index < len(JOBS):
+            if index < len(self.paths):
                 c.create_image(307, top+25, image=self.icons[job], tags=tag)
                 c.create_text(350, top+25, text=job.upper(), anchor="w",
-                              fill="#ffe37e" if selected else "#f2f4fb", font=self.font(23, selected), tags=tag)
-                c.create_text(500, top+25, text=DESCRIPTIONS[job], anchor="w", width=395,
+                              fill="#ffe37e" if selected else "#f2f4fb", font=self.font(20, selected), tags=tag)
+                c.create_text(580, top+25, text=DESCRIPTIONS[job], anchor="w", width=322,
                               fill="#c3dded", font=self.font(16), tags=tag)
             else:
                 c.create_text(300, top+25, text="LEAVE UNATTUNED", anchor="w",
@@ -129,7 +166,7 @@ class AstralScene:
                       fill="#9adbe8", font=self.font(15), tags=tag)
         if self.phase == "confirm":
             c.create_rectangle(232, 160, 728, 363, fill="#10183e", outline="#d1bc7f", width=4, tags=tag)
-            c.create_text(480, 195, text=f"BIND {member['name'].upper()} TO {JOBS[self.selection].upper()}?",
+            c.create_text(480, 195, text=f"BIND {member['name'].upper()} TO {self.paths[self.selection].upper()}?",
                           fill="#ffe399", font=self.font(25, True), tags=tag)
             c.create_text(480, 233, text="This choice is permanent.", fill="#ffffff",
                           font=self.font(22), tags=tag)
@@ -147,7 +184,7 @@ class AstralScene:
         index = (0, 1, 2, 1)[int(max(0.0, now - self.started) / 0.35) % 4]
         if index != self.stone_index:
             self.stone_index = index
-            self.canvas.itemconfigure(self.stone_item, image=self.stones[index])
+            self.canvas.itemconfigure(self.stone_item, image=self._stone_image())
         step = int(max(0.0, now - self.started) / 0.35)
         if step != self.twinkle_step:
             self.twinkle_step = step
@@ -157,10 +194,18 @@ class AstralScene:
                 self.canvas.itemconfigure(horizontal, fill=color)
                 self.canvas.itemconfigure(vertical, fill=color)
 
+    def change_member(self, step):
+        if not self.active or self.phase != "choose" or len(self.party) < 2:
+            return
+        self.member_index = (self.member_index + step) % len(self.party)
+        self.feedback = ""
+        self.draw()
+
     def navigate(self, direction, now):
         if self.phase == "reveal":
             return
-        if direction not in ("up", "down", "left", "right"):
+        directions = ("left", "right") if self.phase == "confirm" else ("up", "down")
+        if direction not in directions:
             self.held = None
             return
         if direction != self.held:
@@ -169,14 +214,9 @@ class AstralScene:
         if now < self.repeat_at:
             return
         if self.phase == "confirm":
-            if direction in ("left", "right"):
-                self.confirm_bind = direction == "left"
-        elif direction in ("left", "right"):
-            step = -1 if direction == "left" else 1
-            self.member_index = (self.member_index + step) % len(self.party)
-            self.feedback = ""
+            self.confirm_bind = direction == "left"
         else:
-            self.selection = (self.selection + (-1 if direction == "up" else 1)) % 4
+            self.selection = (self.selection + (-1 if direction == "up" else 1)) % (len(self.paths) + 1)
             self.feedback = ""
         self.repeat_at = now + 0.22
         self.draw()
@@ -187,14 +227,14 @@ class AstralScene:
         elif self.phase == "confirm":
             if self.confirm_bind:
                 member = self.party[self.member_index]
-                job = JOBS[self.selection]
-                if bind_job(member, job):
+                job = self.paths[self.selection]
+                if bind_job(member, job, self.stone):
                     remember(member)
                     self.feedback = f"{member['name']} is bound to {job}."
                 else:
                     self.feedback = "This member is already bound."
             self.phase = "choose"
-        elif self.selection == len(JOBS):
+        elif self.selection == len(self.paths):
             self.close()
             return "close"
         elif current_job(self.party[self.member_index]):
@@ -225,13 +265,9 @@ class AstralScene:
                 self.confirm_bind = False
                 return self.confirm()
             return None
-        if 60 <= y <= 100 and 260 <= x <= 700:
-            self.member_index = (self.member_index + (-1 if x < 480 else 1)) % len(self.party)
-            self.feedback = ""
-            self.draw()
-        elif 245 <= x <= 915 and 237 <= y < 465:
+        if 245 <= x <= 915 and 237 <= y < 465:
             index = int((y - 237) // 57)
-            if 0 <= index <= len(JOBS):
+            if 0 <= index <= len(self.paths):
                 self.selection = index
                 return self.confirm()
         return None

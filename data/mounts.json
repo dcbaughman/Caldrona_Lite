@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "mounts": {
+    "sheep_bird_mount": {
+      "enabled": false,
+      "status": "asset_only",
+      "asset_manifest": "assets/mounts/sheep-bird/manifest.json"
+    }
+  }
+}

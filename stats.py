@@ -18,6 +18,16 @@ def member(name, base):
     return result
 
 
+def restore_party(party, *, clear_ailments=False):
+    """Restore each member to full HP and MP, including fallen allies."""
+    for person in party:
+        if clear_ailments or person["hp"] <= 0:
+            person.pop("ailments", None)
+        person["hp"] = stat_value(person, "max_hp")
+        if "max_mp" in person:
+            person["mp"] = stat_value(person, "max_mp")
+
+
 def grow(member, old_level, new_level):
     """Apply a member’s individual level gains."""
     for level in range(old_level + 1, new_level + 1):
@@ -32,7 +42,7 @@ def grow(member, old_level, new_level):
                 member[stat] = member.get(stat, 0) + 1
             member["max_mp"] = member.get("max_mp", 0) + 1
             member["mp"] = min(stat_value(member, "max_mp"), member.get("mp", 0) + 1)
-        if job == "Seer":
+        if job in ("Seer", "Weaver", "Tidecaller"):
             member["magic"] = member.get("magic", 0) + 1
             member["max_mp"] = member.get("max_mp", 0) + 1
             member["mp"] = min(stat_value(member, "max_mp"), member.get("mp", 0) + 1)

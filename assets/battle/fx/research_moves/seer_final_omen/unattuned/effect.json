@@ -1,0 +1,36 @@
+{
+  "frames": 18,
+  "ms_per_frame": [
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    140,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55
+  ],
+  "total_ms": 1075,
+  "frame_w": 128,
+  "frame_h": 128,
+  "scale_in_battle": 2,
+  "target_center": [
+    64,
+    64
+  ],
+  "contact_ms": 330,
+  "tier": 4,
+  "camera_shake": 6,
+  "camera_pan": 9,
+  "flash_color": "#b4c5dc"
+}

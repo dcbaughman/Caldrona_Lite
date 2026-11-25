@@ -1,0 +1,26 @@
+{
+  "frame_size": [
+    44,
+    48
+  ],
+  "pop_frames": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "pop_ms_per_frame": 80,
+  "hold_frames": [
+    3,
+    4,
+    5,
+    4
+  ],
+  "hold_ms_per_frame": 280,
+  "thaw_frames": [
+    6,
+    7
+  ],
+  "thaw_ms_per_frame": 140,
+  "transparent": true
+}

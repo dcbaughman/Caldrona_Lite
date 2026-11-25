@@ -13,8 +13,10 @@ ITEMS_DIR = ROOT / "assets" / "items"
 SUPPLY_ICONS = {
     "Potion": "potions/health_potion.png",
     "Ether": "potions/mana_potion.png",
+    "Remedy": "potions/antidote_potion.png",
     "Ember Feather": "potions/ember_feather.png",
     "Ember Talisman": "potions/ember_talisman.png",
+    "Pitch Torch": "goods/torch.png",
 }
 
 

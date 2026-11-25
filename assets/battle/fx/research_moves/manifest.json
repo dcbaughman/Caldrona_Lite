@@ -1,0 +1,368 @@
+{
+  "unbound_hard_edge": {
+    "unattuned": {
+      "json": "research_moves/unbound_hard_edge/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_hard_edge/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_hard_edge/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_hard_edge/first_stone/frames"
+    }
+  },
+  "unbound_low_sweep": {
+    "unattuned": {
+      "json": "research_moves/unbound_low_sweep/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_low_sweep/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_low_sweep/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_low_sweep/first_stone/frames"
+    }
+  },
+  "unbound_counter_cut": {
+    "unattuned": {
+      "json": "research_moves/unbound_counter_cut/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_counter_cut/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_counter_cut/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_counter_cut/first_stone/frames"
+    }
+  },
+  "unbound_last_stand": {
+    "unattuned": {
+      "json": "research_moves/unbound_last_stand/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_last_stand/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_last_stand/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_last_stand/first_stone/frames"
+    }
+  },
+  "unbound_field_dress": {
+    "untinted": {
+      "json": "research_moves/unbound_field_dress/untinted/effect.json",
+      "frames_dir": "research_moves/unbound_field_dress/untinted/frames"
+    }
+  },
+  "unbound_steady_breath": {
+    "untinted": {
+      "json": "research_moves/unbound_steady_breath/untinted/effect.json",
+      "frames_dir": "research_moves/unbound_steady_breath/untinted/frames"
+    }
+  },
+  "unbound_flint_burst": {
+    "unattuned": {
+      "json": "research_moves/unbound_flint_burst/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_flint_burst/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_flint_burst/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_flint_burst/first_stone/frames"
+    }
+  },
+  "unbound_ember_arc": {
+    "ember": {
+      "json": "research_moves/unbound_ember_arc/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_ember_arc/ember/frames"
+    },
+    "unattuned": {
+      "json": "research_moves/unbound_ember_arc/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_ember_arc/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_ember_arc/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_ember_arc/first_stone/frames"
+    }
+  },
+  "unbound_cover": {
+    "unattuned": {
+      "json": "research_moves/unbound_cover/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_cover/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_cover/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_cover/first_stone/frames"
+    }
+  },
+  "unbound_read_stance": {
+    "unattuned": {
+      "json": "research_moves/unbound_read_stance/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_read_stance/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_read_stance/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_read_stance/first_stone/frames"
+    }
+  },
+  "unbound_hold_line": {
+    "unattuned": {
+      "json": "research_moves/unbound_hold_line/unattuned/effect.json",
+      "frames_dir": "research_moves/unbound_hold_line/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/unbound_hold_line/first_stone/effect.json",
+      "frames_dir": "research_moves/unbound_hold_line/first_stone/frames"
+    }
+  },
+  "seer_glimpse": {
+    "unattuned": {
+      "json": "research_moves/seer_glimpse/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_glimpse/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_glimpse/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_glimpse/first_stone/frames"
+    }
+  },
+  "seer_farseal": {
+    "unattuned": {
+      "json": "research_moves/seer_farseal/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_farseal/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_farseal/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_farseal/first_stone/frames"
+    }
+  },
+  "seer_mind_flare": {
+    "unattuned": {
+      "json": "research_moves/seer_mind_flare/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_mind_flare/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_mind_flare/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_mind_flare/first_stone/frames"
+    }
+  },
+  "seer_echo_glass": {
+    "unattuned": {
+      "json": "research_moves/seer_echo_glass/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_echo_glass/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_echo_glass/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_echo_glass/first_stone/frames"
+    }
+  },
+  "seer_premonition": {
+    "unattuned": {
+      "json": "research_moves/seer_premonition/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_premonition/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_premonition/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_premonition/first_stone/frames"
+    }
+  },
+  "seer_star_thread": {
+    "unattuned": {
+      "json": "research_moves/seer_star_thread/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_star_thread/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_star_thread/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_star_thread/first_stone/frames"
+    }
+  },
+  "seer_destiny_mark": {
+    "unattuned": {
+      "json": "research_moves/seer_destiny_mark/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_destiny_mark/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_destiny_mark/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_destiny_mark/first_stone/frames"
+    }
+  },
+  "seer_moon_pulse": {
+    "unattuned": {
+      "json": "research_moves/seer_moon_pulse/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_moon_pulse/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_moon_pulse/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_moon_pulse/first_stone/frames"
+    }
+  },
+  "seer_veil_sight": {
+    "unattuned": {
+      "json": "research_moves/seer_veil_sight/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_veil_sight/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_veil_sight/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_veil_sight/first_stone/frames"
+    }
+  },
+  "seer_final_omen": {
+    "unattuned": {
+      "json": "research_moves/seer_final_omen/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_final_omen/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_final_omen/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_final_omen/first_stone/frames"
+    }
+  },
+  "seer_gale": {
+    "unattuned": {
+      "json": "research_moves/seer_gale/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_gale/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_gale/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_gale/first_stone/frames"
+    }
+  },
+  "seer_mist_ray": {
+    "unattuned": {
+      "json": "research_moves/seer_mist_ray/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_mist_ray/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_mist_ray/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_mist_ray/first_stone/frames"
+    }
+  },
+  "seer_lunar_drop": {
+    "unattuned": {
+      "json": "research_moves/seer_lunar_drop/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_lunar_drop/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_lunar_drop/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_lunar_drop/first_stone/frames"
+    }
+  },
+  "seer_star_pulse": {
+    "unattuned": {
+      "json": "research_moves/seer_star_pulse/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_star_pulse/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_star_pulse/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_star_pulse/first_stone/frames"
+    }
+  },
+  "seer_dream_tide": {
+    "unattuned": {
+      "json": "research_moves/seer_dream_tide/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_dream_tide/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_dream_tide/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_dream_tide/first_stone/frames"
+    }
+  },
+  "seer_astral_flood": {
+    "unattuned": {
+      "json": "research_moves/seer_astral_flood/unattuned/effect.json",
+      "frames_dir": "research_moves/seer_astral_flood/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/seer_astral_flood/first_stone/effect.json",
+      "frames_dir": "research_moves/seer_astral_flood/first_stone/frames"
+    }
+  },
+  "sollers_feint": {
+    "unattuned": {
+      "json": "research_moves/sollers_feint/unattuned/effect.json",
+      "frames_dir": "research_moves/sollers_feint/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/sollers_feint/first_stone/effect.json",
+      "frames_dir": "research_moves/sollers_feint/first_stone/frames"
+    }
+  },
+  "sollers_shadowstep": {
+    "unattuned": {
+      "json": "research_moves/sollers_shadowstep/unattuned/effect.json",
+      "frames_dir": "research_moves/sollers_shadowstep/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/sollers_shadowstep/first_stone/effect.json",
+      "frames_dir": "research_moves/sollers_shadowstep/first_stone/frames"
+    }
+  },
+  "sollers_venom_edge": {
+    "unattuned": {
+      "json": "research_moves/sollers_venom_edge/unattuned/effect.json",
+      "frames_dir": "research_moves/sollers_venom_edge/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/sollers_venom_edge/first_stone/effect.json",
+      "frames_dir": "research_moves/sollers_venom_edge/first_stone/frames"
+    }
+  },
+  "sollers_smokescreen": {
+    "unattuned": {
+      "json": "research_moves/sollers_smokescreen/unattuned/effect.json",
+      "frames_dir": "research_moves/sollers_smokescreen/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/sollers_smokescreen/first_stone/effect.json",
+      "frames_dir": "research_moves/sollers_smokescreen/first_stone/frames"
+    }
+  },
+  "sollers_cutpurse_mark": {
+    "unattuned": {
+      "json": "research_moves/sollers_cutpurse_mark/unattuned/effect.json",
+      "frames_dir": "research_moves/sollers_cutpurse_mark/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/sollers_cutpurse_mark/first_stone/effect.json",
+      "frames_dir": "research_moves/sollers_cutpurse_mark/first_stone/frames"
+    }
+  },
+  "sollers_stitch_up": {
+    "untinted": {
+      "json": "research_moves/sollers_stitch_up/untinted/effect.json",
+      "frames_dir": "research_moves/sollers_stitch_up/untinted/frames"
+    }
+  },
+  "sollers_smoke_spark": {
+    "unattuned": {
+      "json": "research_moves/sollers_smoke_spark/unattuned/effect.json",
+      "frames_dir": "research_moves/sollers_smoke_spark/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/sollers_smoke_spark/first_stone/effect.json",
+      "frames_dir": "research_moves/sollers_smoke_spark/first_stone/frames"
+    }
+  },
+  "sollers_fox_fire": {
+    "unattuned": {
+      "json": "research_moves/sollers_fox_fire/unattuned/effect.json",
+      "frames_dir": "research_moves/sollers_fox_fire/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "research_moves/sollers_fox_fire/first_stone/effect.json",
+      "frames_dir": "research_moves/sollers_fox_fire/first_stone/frames"
+    }
+  },
+  "saint_vigil_strike": {
+    "untinted": {
+      "json": "research_moves/saint_vigil_strike/untinted/effect.json",
+      "frames_dir": "research_moves/saint_vigil_strike/untinted/frames"
+    }
+  },
+  "saint_restoration": {
+    "untinted": {
+      "json": "research_moves/saint_restoration/untinted/effect.json",
+      "frames_dir": "research_moves/saint_restoration/untinted/frames"
+    }
+  },
+  "saint_litany": {
+    "untinted": {
+      "json": "research_moves/saint_litany/untinted/effect.json",
+      "frames_dir": "research_moves/saint_litany/untinted/frames"
+    }
+  },
+  "saint_votive_flame": {
+    "untinted": {
+      "json": "research_moves/saint_votive_flame/untinted/effect.json",
+      "frames_dir": "research_moves/saint_votive_flame/untinted/frames"
+    }
+  }
+}

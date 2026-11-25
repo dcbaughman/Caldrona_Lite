@@ -78,22 +78,35 @@ class ScaledCanvas(tk.Canvas):
             return source
         key = str(source)
         if key not in self._images:
-            divisor = gcd(self.scale_units, 12)
-            numerator, denominator = self.scale_units // divisor, 12 // divisor
-            # Tk combines -subsample and -zoom by sampling FIRST, which loses
-            # detail even for a 2x enlargement. Enlarge before sampling, using
-            # the reduced fraction so integer fullscreen scales need no sampling.
-            enlarged = source.zoom(numerator, numerator) if numerator != 1 else source
-            resized = enlarged.subsample(denominator, denominator) if denominator != 1 else enlarged
             image = tk.PhotoImage(
                 master=self.master,
                 width=self._value(source.width()),
                 height=self._value(source.height()),
             )
-            image.tk.call(image, "copy", resized, "-from", 0, 0,
-                          image.width(), image.height())
+            self._copy_scaled_image(source, image)
             self._images[key] = image
         return self._images[key]
+
+    def refresh_image(self, source: tk.PhotoImage) -> None:
+        """Refresh the scaled copy after a live photo changes its pixels."""
+        cached = self._images.get(str(source))
+        if cached is not None:
+            self._copy_scaled_image(source, cached)
+
+    def _copy_scaled_image(self, source, image):
+        divisor = gcd(self.scale_units, 12)
+        numerator, denominator = self.scale_units // divisor, 12 // divisor
+        if denominator == 1:
+            resized = source.zoom(numerator)
+        elif numerator == 1:
+            resized = source.subsample(denominator)
+        else:
+            # Preserve nearest-neighbor sampling without enlarging both axes at
+            # once. A fractional fullscreen scale can have a large numerator.
+            horizontal = source.zoom(numerator, 1).subsample(denominator, 1)
+            resized = horizontal.zoom(1, numerator).subsample(1, denominator)
+        image.tk.call(image, "copy", resized, "-from", 0, 0, image.width(), image.height(),
+                      "-compositingrule", "set")
 
     def delete(self, *items):
         result = super().delete(*items)
@@ -127,6 +140,10 @@ class ScaledCanvas(tk.Canvas):
     def create_line(self, *coords, **kwargs):
         return super().create_line(*(self._value(v) for v in coords),
                                    **self._scale_options(kwargs))
+
+    def create_polygon(self, *coords, **kwargs):
+        return super().create_polygon(*(self._value(v) for v in coords),
+                                      **self._scale_options(kwargs))
 
     def create_text(self, x, y, **kwargs):
         return super().create_text(self._value(x), self._value(y),

@@ -1,0 +1,70 @@
+{
+  "unbound_quick_cut": {
+    "unattuned": {
+      "json": "approved_attacks/unbound_quick_cut/unattuned/effect.json",
+      "frames_dir": "approved_attacks/unbound_quick_cut/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "approved_attacks/unbound_quick_cut/first_stone/effect.json",
+      "frames_dir": "approved_attacks/unbound_quick_cut/first_stone/frames"
+    }
+  },
+  "unbound_first_aid": {
+    "untinted": {
+      "json": "approved_attacks/unbound_first_aid/untinted/effect.json",
+      "frames_dir": "approved_attacks/unbound_first_aid/untinted/frames"
+    }
+  },
+  "unbound_spark": {
+    "untinted": {
+      "json": "approved_attacks/unbound_spark/untinted/effect.json",
+      "frames_dir": "approved_attacks/unbound_spark/untinted/frames"
+    }
+  },
+  "unbound_quarry_echo": {
+    "untinted": {
+      "json": "approved_attacks/unbound_quarry_echo/untinted/effect.json",
+      "frames_dir": "approved_attacks/unbound_quarry_echo/untinted/frames"
+    }
+  },
+  "thrown_blade": {
+    "unattuned": {
+      "json": "approved_attacks/thrown_blade/unattuned/effect.json",
+      "frames_dir": "approved_attacks/thrown_blade/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "approved_attacks/thrown_blade/first_stone/effect.json",
+      "frames_dir": "approved_attacks/thrown_blade/first_stone/frames"
+    }
+  },
+  "blunt_impact": {
+    "unattuned": {
+      "json": "approved_attacks/blunt_impact/unattuned/effect.json",
+      "frames_dir": "approved_attacks/blunt_impact/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "approved_attacks/blunt_impact/first_stone/effect.json",
+      "frames_dir": "approved_attacks/blunt_impact/first_stone/frames"
+    }
+  },
+  "wand_bolt": {
+    "unattuned": {
+      "json": "approved_attacks/wand_bolt/unattuned/effect.json",
+      "frames_dir": "approved_attacks/wand_bolt/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "approved_attacks/wand_bolt/first_stone/effect.json",
+      "frames_dir": "approved_attacks/wand_bolt/first_stone/frames"
+    }
+  },
+  "focus_pulse": {
+    "unattuned": {
+      "json": "approved_attacks/focus_pulse/unattuned/effect.json",
+      "frames_dir": "approved_attacks/focus_pulse/unattuned/frames"
+    },
+    "first_stone": {
+      "json": "approved_attacks/focus_pulse/first_stone/effect.json",
+      "frames_dir": "approved_attacks/focus_pulse/first_stone/frames"
+    }
+  }
+}

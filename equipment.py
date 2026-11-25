@@ -31,6 +31,7 @@ STAT_LABELS = (
     ("agility", "Agility"), ("luck", "Luck"), ("evasion", "Evasion"),
     ("accuracy", "Accuracy"),
 )
+WEAPON_CRIT_BONUS = 3
 
 
 @dataclass(frozen=True)
@@ -59,9 +60,11 @@ class Equipment:
     rung: int = 0
     hook: str = ""
     element: str = ""
+    status_immunities: tuple[str, ...] = ()
     # Parsed placeholder. Each tuple is (kind, label, amount, qualifier).
     hook_parts: tuple = ()
     lineup_id: str = ""
+    crit_bonus: int = 0
 
     def __post_init__(self):
         if self.slot not in SLOTS:
@@ -77,11 +80,30 @@ CATALOG = {
     item.id: item for item in (
         Equipment("leather_vest", "Leather Vest", "armor", {"defense": 1}, "A simple, flexible vest."),
         Equipment("quarry_coat", "Quarry Coat", "armor", {"defense": 2, "agility": -1}, "Sturdy protection for the caves."),
-        Equipment("training_sword", "Training Sword", "weapon", {"strength": 1}, "A reliable starter blade.", basic_attack_fx="sword_strike"),
-        Equipment("miner_blade", "Miner's Blade", "weapon", {"strength": 2, "agility": -1}, "A heavier blade with a strong edge.", basic_attack_fx="sword_strike"),
+        Equipment("training_sword", "Training Sword", "weapon", {"strength": 1}, "A reliable starter blade.",
+                  basic_attack_fx="sword_strike", weapon_type="sword"),
+        Equipment("miner_blade", "Miner's Blade", "weapon", {"strength": 2, "agility": -1}, "A heavier blade with a strong edge.",
+                  basic_attack_fx="sword_strike", weapon_type="sword"),
         Equipment("wood_shield", "Wooden Shield", "shield", {"defense": 1}, "A light wooden shield."),
         Equipment("lucky_charm", "Lucky Charm", "accessory", {"luck": 1}, "A small trinket for good fortune."),
         Equipment("quartz_pendant", "Quartz Pendant", "accessory", {"magic_defense": 1, "max_mp": 2}, "A stone that steadies magic."),
+        Equipment("field_guard", "Field Guard", "shield", {"defense": 2}, "A light guard bound with spider silk."),
+        Equipment("quarry_mantle", "Quarry Mantle", "armor", {"defense": 3, "max_hp": 8}, "Tough cloth lined with brood silk."),
+        Equipment("silkweave_coat", "Silkweave Coat", "armor", {"defense": 2, "magic_defense": 1},
+                  "Webbing slides off the treated silk. Immune to Webbed.",
+                  icon="armor/linen_vest.png", status_immunities=("webbed",)),
+        Equipment("broodguard_seal", "Broodguard Seal", "accessory", {"defense": 2, "max_hp": 10},
+                  "A dark brood crest. Immune to Webbed and Poison.",
+                  icon="goods/onyx.png", status_immunities=("webbed", "poison")),
+        Equipment("embersteel_blade", "Embersteel Blade", "weapon", {"strength": 2},
+                  "Its flame edge deals bonus damage to spiders.",
+                  icon="weapons/sunsteel_blade.png", basic_attack_fx="sword_strike", element="fire", weapon_type="sword"),
+        Equipment("pickpocket_dirk", "Pickpocket Dirk", "weapon", {"strength": 3, "agility": 1},
+                  "Improves Steal odds to 80 / 30 / 6 percent.", jobs=("Sollers",), basic_attack_fx="sword_strike",
+                  weapon_type="dagger"),
+        Equipment("shalehorn_crook", "Shalehorn Crook", "weapon", {"strength": 3, "magic": 3, "max_mp": 3},
+                  "A Saint's weapon carved from Shalehorn's fallen horn.", jobs=("Saint",), basic_attack_fx="blunt_impact",
+                  weapon_type="staff"),
     )
 }
 STARTING_GEAR = {
@@ -121,6 +143,12 @@ def stat_bonus(member, stat, equipment=None):
 def stat_value(member, stat, default=0, equipment=None):
     value = member.get(stat, default) + stat_bonus(member, stat, equipment)
     return max(1 if stat in ("max_hp", "strength") else 0, value)
+
+
+def equipment_crit_bonus(member):
+    return sum(item.crit_bonus + (WEAPON_CRIT_BONUS if item.slot == "weapon" else 0)
+               for item_id in member.get("equipment", {}).values()
+               if (item := item_for(item_id)) is not None)
 
 
 def preview_value(member, slot, item_id, stat):
@@ -258,6 +286,20 @@ def _pack_description(row):
     return notes[:96] if notes else row["name"]
 
 
+def _basic_attack_effect(row):
+    existing = row.get("basic_attack_fx")
+    if existing:
+        return existing
+    kind = row["weapon_type"]
+    if kind == "thrown knife":
+        return "thrown_blade"
+    if kind in ("focus", "focus (off-hand)", "scepter") or row["id"] == "scrying_orb_staff":
+        return "focus_pulse"
+    if kind in ("wand", "rod") or (kind == "staff" and "Seer" in row["classes"]):
+        return "wand_bolt"
+    return "blunt_impact"
+
+
 def _load_pack_equipment():
     """Add starter-pack weapons beside the existing rows. Never replaces them."""
     path = Path(__file__).resolve().parent / "data" / "weapons_manifest.json"
@@ -282,7 +324,8 @@ def _load_pack_equipment():
             pen=int(stats.get("PEN") or 0),
             tier=int(row.get("suggested_tier") or 0),
             magic_bonus=int(row.get("suggested_magic_bonus") or 0),
-            basic_attack_fx=row.get("basic_attack_fx") or "",
+            basic_attack_fx=_basic_attack_effect(row),
+            weapon_type=row["weapon_type"],
             suggested_price=int(row.get("suggested_price_gold") or 0),
         )
         CATALOG[item.id] = item

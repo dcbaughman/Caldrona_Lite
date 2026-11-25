@@ -6,7 +6,7 @@ from pathlib import Path
 
 from astral_scene import AstralScene
 from battle import BattleModel, ENEMIES
-from classes import bind_job, current_job
+from classes import BLUE_STONE, NOKTAKORO, RIQIZAURKEIS, SENBRANKA, STONE_PATHS, bind_job, current_job
 from classes import DESCRIPTIONS
 from display_settings import ScaledCanvas
 from game_menu import GameMenu
@@ -30,11 +30,11 @@ class SyncMenuTests(unittest.TestCase):
         self.assertEqual(self.scene.phase, "reveal")
         self.scene.update(3)
         self.assertEqual(self.scene.phase, "choose")
-        self.scene.selection = 3
+        self.scene.selection = len(self.scene.paths)
         self.assertEqual(self.scene.confirm(), "close")
         self.assertTrue(all("job" not in p for p in self.party))
 
-        self.scene.start(self.party, 4, reveal=False)
+        self.scene.start(self.party, 4, reveal=False, stone=NOKTAKORO)
         self.scene.selection = 1
         self.scene.confirm()
         self.assertEqual(self.scene.phase, "confirm")
@@ -48,11 +48,28 @@ class SyncMenuTests(unittest.TestCase):
         self.scene.confirm()
         self.assertEqual(self.party[0]["job"], "Sollers")
         self.scene.navigate("right", 6)
+        self.assertEqual(self.scene.member_index, 0)
+        self.scene.click(620, 78)
+        self.assertEqual(self.scene.member_index, 0)
+        self.scene.change_member(1)
         self.scene.confirm()
+        self.scene.change_member(-1)
+        self.assertEqual(self.scene.member_index, 1)
         self.scene.navigate("left", 7)
         self.scene.confirm()
-        self.assertEqual(self.party[1]["job"], "Saint")
+        self.assertEqual(self.party[1]["job"], RIQIZAURKEIS)
         self.assertFalse(bind_job(self.party[1], "Seer"))
+
+    def test_each_stone_offers_only_its_classes(self):
+        self.assertEqual(STONE_PATHS[BLUE_STONE], ("Seer", "Tidecaller"))
+        self.assertEqual(STONE_PATHS[NOKTAKORO], ("Weaver", "Sollers", RIQIZAURKEIS))
+        self.assertEqual(STONE_PATHS[SENBRANKA], ("Saint",))
+        self.assertFalse(bind_job(self.party[0], "Saint", BLUE_STONE))
+        self.scene.start(self.party, 0, reveal=False, stone=SENBRANKA)
+        self.scene.confirm()
+        self.scene.navigate("left", 1)
+        self.scene.confirm()
+        self.assertEqual((current_job(self.party[0]), self.party[0]["attuned_stone"]), ("Saint", SENBRANKA))
 
     def test_existing_menu_routes_unlocked_sync_to_shared_scene(self):
         menu = GameMenu(self.canvas, self.font, lambda: None)
@@ -105,11 +122,15 @@ class SyncMenuTests(unittest.TestCase):
 
     def test_only_selected_constellation_appears_and_text_fits(self):
         self.scene.start(self.party, 0, reveal=False)
-        images = [i for i in self.canvas.find_withtag(self.scene.TAG)
-                  if self.canvas.type(i) == "image"]
-        self.assertEqual(len(images), 14)  # Nine sky tiles, stone, silhouette, three emblems.
-        self.assertIn(str(self.scene.silhouettes["Seer"]),
-                      [self.canvas.itemcget(i, "image") for i in images])
+        permanent_count = len(self.scene.sky_tiles) + 1 + len(self.scene.paths)
+        for job in ("Seer", "Tidecaller"):
+            self.scene.selection = self.scene.paths.index(job)
+            self.scene.draw()
+            images = [self.canvas.itemcget(i, "image") for i in self.canvas.find_withtag(self.scene.TAG)
+                      if self.canvas.type(i) == "image"]
+            self.assertEqual(len(images), permanent_count + 1)
+            self.assertIn(str(self.scene.silhouettes[job]), images)
+            self.assertIn(str(self.scene.icons[job]), images)
         for item in self.canvas.find_withtag(self.scene.TAG):
             if self.canvas.type(item) != "text":
                 continue
@@ -118,11 +139,11 @@ class SyncMenuTests(unittest.TestCase):
             self.assertTrue(20 <= x1 < x2 <= 940 and 15 <= y1 < y2 <= 525, text)
             if text in DESCRIPTIONS.values():
                 self.assertLess(y2 - y1, 50, text)
-        self.scene.selection = 3
+        self.scene.selection = len(self.scene.paths)
         self.scene.draw()
         images = [i for i in self.canvas.find_withtag(self.scene.TAG)
                   if self.canvas.type(i) == "image"]
-        self.assertEqual(len(images), 13)  # No class silhouette for leaving unattuned.
+        self.assertEqual(len(images), permanent_count)
 
     def test_stars_twinkle_without_rebuilding_the_screen(self):
         self.scene.start(self.party, 0, reveal=False)
@@ -141,3 +162,29 @@ class SyncMenuTests(unittest.TestCase):
         for stone in self.scene.stones:
             self.assertTrue(stone.transparency_get(0, 0))
             self.assertTrue(stone.transparency_get(stone.width()-1, stone.height()-1))
+
+    def test_noktakoro_constellations_share_the_blue_preview_and_row_slots(self):
+        scene, canvas = self.scene, self.canvas
+        scene.start(self.party, 0, reveal=False, stone=BLUE_STONE)
+        images = {canvas.itemcget(item, "image"): item for item in canvas.find_withtag(scene.TAG)
+                  if canvas.type(item) == "image"}
+        blue_position = canvas.coords(images[str(scene.silhouettes["Seer"])])
+        scene.start(self.party, 0, reveal=False, stone=NOKTAKORO)
+        self.assertGreater(canvas.bbox(scene.stone_item)[1], 109)
+        for job in ("Weaver", RIQIZAURKEIS):
+            scene.selection = scene.paths.index(job)
+            scene.draw()
+            images = {canvas.itemcget(item, "image"): item for item in canvas.find_withtag(scene.TAG)
+                      if canvas.type(item) == "image"}
+            item = images[str(scene.silhouettes[job])]
+            self.assertEqual(canvas.coords(item), blue_position)
+            self.assertLessEqual(canvas.bbox(item)[3], 237)
+            self.assertIn(str(scene.icons[job]), images)
+
+    def test_both_stones_have_an_opaque_black_pixel_outline(self):
+        outline = (8, 7, 11)
+        self.assertTrue(all(stone.get(32, 58) == outline for stone in self.scene.stones))
+        black = self.scene.noktakoro_art
+        self.assertTrue(black.transparency_get(0, 0))
+        self.assertTrue(any(not black.transparency_get(x, y) and black.get(x, y) == outline
+                            for x in range(black.width()) for y in range(black.height())))
