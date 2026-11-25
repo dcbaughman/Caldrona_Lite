@@ -157,7 +157,7 @@ LESSONS = {
     )),
     "Weaver": _lessons("weaver", (
         ("silkbolt", "Silkbolt", "Arcane", 1, 1, 2, "arcane", 4),
-        ("black_thread", "Black Thread", "Arcane", 8, 3, 4, "link", 50, "", "Magic"),
+        ("black_thread", "Black Thread", "Arcane", 8, 3, 4, "link", 40, "", "Magic"),
         ("read_the_strand", "Read the Strand", "Support", 7, 3, 1, "kit", 20, "", "Abilities"),
         ("onyx_lash", "Onyx Lash", "Arcane", 9, 4, 3, "kit", 4, "", "Magic"),
         ("weft_snare", "Weft Snare", "Arcane", 11, 4, 4, "kit", 70, "", "Magic"),
@@ -166,7 +166,7 @@ LESSONS = {
         ("closing_verse", "Closing Verse", "Arcane", 17, 6, 8, "kit", 4, "", "Magic"),
     )),
     RIQIZAURKEIS: _lessons("reliquary", (
-        ("retribution", "Retribution", "Arcane", 10, 4, 10, "reliquary", 50, "", "Magic"),
+        ("retribution", "Retribution", "Arcane", 10, 4, 6, "reliquary", 50, "", "Magic"),
         ("mourners_veil", "Mourner's Veil", "Support", 7, 3, 2, "ward", 30, "", "Magic"),
         ("lid_shut", "Lid Shut", "Support", 8, 3, 0, "kit", 60, "", "Abilities"),
         ("hollow_tithe", "Hollow Tithe", "Arcane", 11, 4, 3, "kit", 4, "", "Magic"),
@@ -241,9 +241,11 @@ KIT_TEXT = {
     "weaver_hush": "80% Silence; certain on a linked foe.",
     "weaver_tether_pact": "Link both allies 3 turns: share 30% of damage.",
     "weaver_closing_verse": "Detonate the thread: 2.0x magic to linked foes.",
-    "sollers_knife_flick": "Strength + 2 thrown hit. Next turn comes sooner.",
+    "sollers_knife_flick": "0.8x attack thrown hit. Next turn comes sooner.",
     "sollers_pilfer": "Roll the steal slots; may pocket 5 gold.",
-    "sollers_backstab": "Strength + 11. Crits on a delayed or marked foe.",
+    "sollers_backstab": "1.6x attack. Crits on a delayed or marked foe.",
+    "sollers_venom_edge": "1.5x attack. 85% chance to Poison until cured.",
+    "saint_smite": "1.3x attack with the weapon's element.",
     "sollers_smokescreen": "Drop out of enemy targeting until next turn.",
     "sollers_sleight_of_hand": "Foe's next attack hits another foe. +5 gold.",
     "reliquary_mourners_veil": "One ally takes 30% less damage to next turn.",
@@ -258,6 +260,11 @@ KIT_TEXT = {
 }
 
 # Old learned ids that map to a kit move when a save is loaded.
+# "N x attack" moves (movesets.md): N times a normal Attack on Caleb's combat_math curve
+# (power 0), so they keep their ratio to Attack at every level. Without this their flat
+# power was worth 2.6x at level 1 and about 1.05x by level 30.
+ATTACK_MULTIPLIERS = {"sollers_knife_flick": .8, "sollers_backstab": 1.6,
+                      "sollers_venom_edge": 1.5, "saint_smite": 1.3}
 KIT_MIGRATION = {"seer_glimpse": "seer_foretell", "seer_premonition": "seer_forewarn"}
 # Pure renames: same move, new id. Saves are rewritten on load (see rename_researched).
 RENAMED_LESSONS = {"reliquary_return_the_wound": "reliquary_retribution"}

@@ -116,7 +116,7 @@ class KitTests(unittest.TestCase):
                     party = [hero(job), member("Temur", TEMUR)]
                     model = model_for(party)
                     if lesson.id == "weaver_closing_verse":
-                        model.black_thread = (0, 1, 50)
+                        model.black_thread = (0, 1, 40)
                     target = (0, 1) if lesson.target == "two enemies" else 0
                     self.assertTrue(model.command("Ability", ability_id=lesson.id, target=target), model.message)
                     model.reply()
@@ -228,9 +228,9 @@ class RetributionTests(unittest.TestCase):
         self.assertTrue(model.command("Ability", ability_id="reliquary_retribution"))
         return caster, model
 
-    def test_costs_ten_mp_releases_after_three_phases_with_remainder_to_highest_hp(self):
+    def test_costs_six_mp_releases_after_three_phases_with_remainder_to_highest_hp(self):
         caster, model = self._open()
-        self.assertEqual(caster["mp"], 90)
+        self.assertEqual(caster["mp"], 94)  # Caleb: 6 MP
         model.health = [400, 390, 400]
         model._take_party_damage(0, 20)  # stores 10 -> 10 x (1 + 0/100)
         for _ in range(3):
@@ -283,6 +283,13 @@ class RetributionTests(unittest.TestCase):
                          "Retribution")
 
 
+class CalebNumbersTests(unittest.TestCase):
+    def test_retribution_costs_his_six_mp_and_black_thread_echoes_forty_percent(self):
+        retribution = next(x for x in kit_for(RIQIZAURKEIS) if x.id == "reliquary_retribution")
+        thread = next(x for x in kit_for("Weaver") if x.id == "weaver_black_thread")
+        self.assertEqual((retribution.mp, thread.power, thread.mp), (6, 40, 4))
+
+
 class StatusCureTests(unittest.TestCase):
     def test_cure_lists_match_the_doc_and_skip_missing_statuses(self):
         self.assertEqual(set(curable(RINSE_CURES)), {"poison", "slow", "webbed", "bogged", "sinking", "frozen"})
@@ -327,6 +334,58 @@ class StatusCureTests(unittest.TestCase):
         caster, ally, model = self._afflicted("Saint")
         self.assertTrue(model.command("Ability", ability_id="saint_mend", target=1))
         self.assertFalse(model.statuses.has(("party", 1), "poison"))
+
+
+class ScalingTests(unittest.TestCase):
+    """Moves keep their movesets.md ratio to a normal Attack on Caleb's combat_math curve."""
+
+    def _hit(self, job, move, level):
+        from unittest.mock import Mock
+        person = hero(job, level=level, strength=7 + level, hp=999, max_hp=999)
+        person["researched"] = [move]
+        rng = Mock()
+        rng.randint.return_value = 256
+        crit = Mock()
+        crit.randint.return_value = 99  # never a crit
+        foe = replace(ENEMIES[0], hp=5000)
+        attack = BattleModel(foe, party=[person], rng=rng, crit_rng=crit)
+        attack.command("Attack")
+        model = BattleModel(foe, party=[person], rng=rng, crit_rng=crit, status_rng=Sure())
+        self.assertTrue(model.command("Ability", ability_id=move), model.message)
+        return attack.damage, model.damage
+
+    def test_attack_multiplier_moves_hold_their_ratio_at_every_level(self):
+        from research import ATTACK_MULTIPLIERS
+        moves = {"sollers_knife_flick": "Sollers", "sollers_backstab": "Sollers",
+                 "sollers_venom_edge": "Sollers", "saint_smite": "Saint"}
+        self.assertEqual(set(moves), set(ATTACK_MULTIPLIERS))
+        for move, job in moves.items():
+            for level in (1, 10, 20, 30):
+                with self.subTest(move=move, level=level):
+                    attack, hit = self._hit(job, move, level)
+                    self.assertLessEqual(abs(hit - ATTACK_MULTIPLIERS[move] * attack), 1 + attack * .05)
+
+    def test_critical_is_one_and_a_half_times_everywhere(self):
+        from combat_math import CRIT_MULTIPLIER, critical_damage
+        import kit_effects
+        self.assertEqual((CRIT_MULTIPLIER, kit_effects.CRIT), (1.5, 1.5))
+        self.assertEqual([critical_damage(n) for n in (1, 2, 10, 11)], [2, 3, 15, 17])
+
+    def test_backstab_on_a_marked_foe_crits_once(self):
+        from unittest.mock import Mock
+        person = hero("Sollers", level=20, strength=27, hp=999, max_hp=999)
+        person["researched"] = ["sollers_backstab"]
+        rng = Mock()
+        rng.randint.return_value = 256
+        crit = Mock()
+        crit.randint.return_value = 0  # every roll would crit
+        foe = replace(ENEMIES[0], hp=5000, luck=0)
+        plain = BattleModel(foe, party=[person], rng=rng, crit_rng=crit, status_rng=Sure())
+        plain.command("Ability", ability_id="sollers_backstab")
+        marked = BattleModel(foe, party=[person], rng=rng, crit_rng=crit, status_rng=Sure())
+        marked.marks[0] = 0
+        marked.command("Ability", ability_id="sollers_backstab")
+        self.assertEqual(marked.damage, plain.damage)  # both crit exactly once
 
 
 class NewStatusTests(unittest.TestCase):

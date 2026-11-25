@@ -11,5 +11,13 @@ def physical_damage(strength, armor, variance, power=0):
     return max(1, (base * mitigation * variance + divisor // 2) // divisor)
 
 
+# A critical hit deals 1.5x damage, rounded up. Every crit path uses critical_damage().
+CRIT_MULTIPLIER = 1.5
+
+
+def critical_damage(damage):
+    return -(-damage * 3 // 2)
+
+
 def critical_chance(attacker_luck, target_luck, equipment_bonus=0):
     return max(0, min(100, attacker_luck - target_luck + equipment_bonus))

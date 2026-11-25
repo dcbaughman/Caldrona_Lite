@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 from battle import (BattleModel, EncounterMeter, ENEMIES, MAX_HP, SAFE_STEPS,
                     DEN_MOTHER, SHALEHORN, cave_encounter)
-from combat_math import critical_chance, physical_damage
+from combat_math import critical_chance, critical_damage, physical_damage
 from stats import RETRI, member
 
 
@@ -21,7 +21,7 @@ class BattleTests(unittest.TestCase):
         self.assertEqual(critical_chance(8, 6, 3), 5)
         self.assertEqual(critical_chance(110, 6, 3), 100)
 
-    def test_critical_doubles_a_weapon_hit_before_the_flat_mark_bonus(self):
+    def test_critical_is_one_and_a_half_times_a_weapon_hit_before_the_flat_mark_bonus(self):
         foe = replace(ENEMIES[0], hp=200)
         damage_rng = Mock()
         damage_rng.randint.return_value = 256
@@ -41,13 +41,13 @@ class BattleTests(unittest.TestCase):
                 self.assertEqual(bool(model.critical_hits), charm)
                 self.assertEqual("Critical hit!" in model.message, charm)
                 hits.append(model.damage)
-            self.assertEqual(hits[1], (hits[0] - 5) * 2 + 5)
+            self.assertEqual(hits[1], critical_damage(hits[0] - 5) + 5)
 
     def test_luck_reduces_enemy_crit_rate_and_guard_still_mitigates_damage(self):
         foe = replace(ENEMIES[0], luck=12, attack=(20, 20))
         crit_rng = Mock()
         crit_rng.randint.return_value = 3
-        for charm, expected in ((False, 16), (True, 8)):
+        for charm, expected in ((False, 12), (True, 8)):
             actor = member("Retri", RETRI)
             if charm:
                 actor["equipment"] = {"accessory": "lucky_charm"}

@@ -4,12 +4,12 @@ Source: movesets.md (Caldrona Lite, 2026-11-24). BattleModel mixes this in so th
 original combat code stays where it was; battle.py only calls the hooks below.
 Numbers are the doc's suggestions. "Nx magic" is N x (Magic x 2 + 4) and
 "Nx attack" is N x Caleb's combat_math.physical_damage (the same curve as Attack),
-so they sit on the same scale as the existing lessons. Crits are x2, like Attack. Buffs here are not ailments: cures never remove them.
+so they sit on the same scale as the existing lessons. Crits are 1.5x, like Attack. Buffs here are not ailments: cures never remove them.
 """
 import math
 
 from classes import RIQIZAURKEIS, current_job
-from combat_math import physical_damage
+from combat_math import CRIT_MULTIPLIER, physical_damage
 from crescendo import add_progress
 from equipment import stat_value
 from stats import RETRI
@@ -23,7 +23,7 @@ FAST_ACTIONS = {"sollers_knife_flick": 2, "ensifer_sheath_step": 1, "pruinor_hol
                 "tidecaller_swell": 2, "reliquary_lid_shut": 2}
 BOSSES = ("Den Mother", "Shalehorn")
 STUCK = ("slow", "bogged", "sinking")
-CRIT = 2  # matches battle._roll_critical (Caleb's x2 crits)
+CRIT = CRIT_MULTIPLIER  # same 1.5x as battle._roll_critical (combat_math.critical_damage)
 
 
 class KitMixin:

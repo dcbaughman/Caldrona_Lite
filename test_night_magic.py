@@ -20,7 +20,7 @@ class NightMagicTests(unittest.TestCase):
         ally.update(hp=1000, max_hp=1000)
         model = BattleModel([replace(foe, hp=400) for foe in ENEMIES], party=[caster, ally])
         self.assertTrue(model.command("Ability", ability_id="reliquary_retribution"))
-        self.assertEqual(caster["mp"], 20 - 10)  # movesets.md: Retribution costs 10 MP
+        self.assertEqual(caster["mp"], 20 - 6)  # Caleb: Retribution stays at his 6 MP
         model.pending_reply = False
         self.assertFalse(model.command("Ability", ability_id="reliquary_retribution"))
         model.begin_ctb()
@@ -72,7 +72,7 @@ class NightMagicTests(unittest.TestCase):
         model.pending_reply = False
         before = model.health[:]
         self.assertTrue(model.command("Ability", ability_id="weaver_silkbolt"))
-        self.assertEqual(model.health, [before[0] - 10, before[1] - 5, before[2]])  # 50% echo
+        self.assertEqual(model.health, [before[0] - 10, before[1] - 4, before[2]])  # Caleb: 40% echo
         self.assertIsNone(model.black_thread)
 
     def test_senbranka_can_be_used_at_its_overworld_tile(self):
@@ -115,6 +115,6 @@ class NightMagicTests(unittest.TestCase):
         scene.confirm(0)
         self.assertEqual((scene.link_first, scene.model.target), (0, 1))
         scene.confirm(0)
-        self.assertEqual(scene.model.black_thread, (0, 1, 50))  # movesets.md: 50% echo
+        self.assertEqual(scene.model.black_thread, (0, 1, 40))  # Caleb: 40% echo
         scene._draw_ailments(0)
         self.assertTrue(scene.canvas.find_withtag("night_magic"))

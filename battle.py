@@ -10,7 +10,7 @@ import tkinter as tk
 from stats import RETRI, RETRI_HP_PER_LEVEL, grow
 from classes import OUTFIT_JOBS, current_job
 from equipment import equipment_crit_bonus, item_for, stat_bonus, stat_value, worn_id
-from combat_math import critical_chance, physical_damage
+from combat_math import critical_chance, critical_damage, physical_damage
 from consumables import RARE_SUPPLIES, SUPPLIES, apply_supply, item_gain_text
 from shalehorn_fx import ShalehornEffects
 from frozen_fx import FrozenOverlay
@@ -21,7 +21,7 @@ from statuses import StatusBook, AILMENTS, PLAYER_AILMENTS
 from enemy_skills import EnemySkill, SKILLS
 from brood_fx import BROOD_DURATION, BroodSilk, brood_shade
 from enemy_motion import BROOD_SHADE_STEPS, enemy_pose_frame, idle_offset, load_brood_shades, load_enemy_frames
-from research import LESSONS
+from research import ATTACK_MULTIPLIERS, LESSONS
 from abilities import RESEARCH_FX, frame_index, learned_abilities, lesson_variant, strike_variant
 from arrow_fx import FLIGHT_MS, TAG as BOW_SHOT_TAG, draw_shot
 from loot import PROFILES, loot_name, roll_kill, roll_steal
@@ -383,7 +383,7 @@ class BattleModel(KitMixin):
         chance = critical_chance(self._luck(attacker), self._luck(defender), bonus)
         if chance and self.crit_rng.randint(0, 99) < chance:
             self.critical_hits.add(defender)
-            return damage * 2
+            return critical_damage(damage)
         return damage
 
     def escape_chance(self):
@@ -475,7 +475,7 @@ class BattleModel(KitMixin):
         if physical and damage > 0:self.statuses.remove(("enemy",self.target),"frozen")
         if element == "fire":
             damage = math.ceil(damage * self.enemy.fire_damage_percent / 100)
-        if can_crit:
+        if can_crit and ("enemy", self.target) not in self.critical_hits:  # no double crit (Backstab)
             damage = self._roll_critical(damage, ("party", self.actor), ("enemy", self.target))
         self.damage = damage + (self.marks.pop(self.target, 0) if include_mark else 0)
         self.enemy_hp = max(0, self.enemy_hp - self.damage)
@@ -837,7 +837,11 @@ class BattleModel(KitMixin):
                 self.message=f"{ability.name} misses in the darkness."
                 return True
             element = self._weapon_element(member)
-            self._hit_target(self._player_physical_damage(power), physical=True, element=element, can_crit=True)
+            if ability.id in ATTACK_MULTIPLIERS:
+                hit = max(1, math.ceil(ATTACK_MULTIPLIERS[ability.id] * self._player_physical_damage(0)))
+            else:
+                hit = self._player_physical_damage(power)
+            self._hit_target(hit, physical=True, element=element, can_crit=True)
             self.message = f"{ability.name} hits for {self.damage}!"
             self._show_fire_affinity(element)
         elif effect == "arcane":

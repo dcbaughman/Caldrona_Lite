@@ -962,5 +962,6 @@ class GameMenu:
             draw_item_slot(c, 348, y, image, tag)
             c.create_text(384, y, text=ability.name, anchor="w",
                           fill="#ffffff", font=self.font(18), tags=tag)
-        c.create_text(320, 380, text=rows[0].description, anchor="w", width=400,
+        # Same width as the hint line below it; centred on y=366 so even two lines stay clear of it.
+        c.create_text(320, 366, text=rows[0].description, anchor="w", width=570,
                       fill="#c5d8e4", font=self.font(16), tags=tag)
