@@ -38,12 +38,19 @@ class CaveProgressionTests(unittest.TestCase):
   while self.a.dialogue.active:
    self.a._activate()
 
- def _start_opening(self):
+ def test_new_game_starts_on_the_opening_trail(self):
   a = self.a
   a._play_sfx = Mock()
   a._draw_menu()
   a.selection = 0
   a._activate()
+  self.assertEqual(a.screen, "opening_trail")
+
+ def _start_opening(self):
+  # New Game now begins on the opening trail; this drives the cave intro it used to open on.
+  a = self.a
+  a._play_sfx = Mock()
+  a._start_cavern(opening=True)
   self.assertEqual((a.x / 16, a.y / 16), (8.5, 4.5))
   self.assertTrue(a.dialogue.active)
   self.assertEqual(a.canvas.itemcget(a.temur_item, "state"), "hidden")

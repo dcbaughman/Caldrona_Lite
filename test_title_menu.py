@@ -83,8 +83,9 @@ class TitleMenuTests(unittest.TestCase):
 
         event = type("E", (), {"x": 480, "y": game._menu_row_y(0)})()
         app._click(event)
-        self.assertEqual(app.screen, "game")
-        self.assertEqual(app.root.title(), "Caldrona Lite · Cavern")
+        # A new journey opens on the mountain trail before the cavern.
+        self.assertEqual(app.screen, "opening_trail")
+        self.assertEqual(app.root.title(), "Caldrona Lite · Mountain Trail")
 
     def test_title_fades_out_before_the_cavern_theme_fades_in(self):
         app = self.app

@@ -111,9 +111,13 @@ class CTBIntegrationTests(unittest.TestCase):
 
     def test_minimal_location_is_only_one_text_item(self):
         a=self.case.app;c=a.canvas
+        # The HUD is the location label plus an objective line that stays blank
+        # unless Retri is searching for Temur.
         items=c.find_withtag('hud')
-        self.assertEqual(len(items),1);self.assertEqual(c.type(items[0]),'text')
-        self.assertEqual(c.itemcget(items[0],'text'),'Sunrest Excavation')
+        self.assertEqual(set(items),{a.location_label,a.cave_objective})
+        self.assertTrue(all(c.type(item)=='text' for item in items))
+        self.assertEqual(c.itemcget(a.location_label,'text'),'Sunrest Excavation')
+        self.assertEqual(c.itemcget(a.cave_objective,'text'),'')
         a.in_chamber=True;a._update_world()
         self.assertEqual(c.itemcget(a.location_label,'text'),'Astral Hollow')
 
