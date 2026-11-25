@@ -289,6 +289,19 @@ class CalebNumbersTests(unittest.TestCase):
         thread = next(x for x in kit_for("Weaver") if x.id == "weaver_black_thread")
         self.assertEqual((retribution.mp, thread.power, thread.mp), (6, 40, 4))
 
+    def test_status_descriptions_match_current_behavior(self):
+        text = {lesson.id: lesson.description for job in KITS for lesson in kit_for(job)}
+        self.assertEqual(text["sollers_knife_flick"], "0.8x attack thrown hit. Next turn comes sooner.")
+        self.assertEqual(text["sollers_backstab"], "1.6x attack. A 1.5x crit on a delayed or marked foe.")
+        self.assertEqual(text["sollers_venom_edge"], "1.5x attack. 85% chance to Poison until cured.")
+        self.assertEqual(text["saint_smite"], "1.3x attack with the weapon's element.")
+        self.assertIn("40%", text["weaver_black_thread"])
+        self.assertIn("Lost if you fall first", text["reliquary_retribution"])
+        self.assertIn("skips the cooldown", text["reliquary_twin_reliquary"])
+        self.assertNotIn("+19 power", text["sollers_venom_edge"])
+        self.assertNotIn("+11", text["sollers_backstab"])
+        self.assertLessEqual(max(len(text[i]) for i in text), 90)
+
 
 class StatusCureTests(unittest.TestCase):
     def test_cure_lists_match_the_doc_and_skip_missing_statuses(self):

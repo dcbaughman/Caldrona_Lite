@@ -69,7 +69,7 @@ class Lesson:
             "mark": f"Add {self.power} damage to the next hit against this enemy.",
             "steal": "Roll all three of this enemy's steal slots.",
             "link": f"Link two foes. The next spell on either echoes {self.power}% of its damage to the other.",
-            "reliquary": "Store half the party's incoming damage for three enemy phases. Release it as magic damage.",
+            "reliquary": "Store half the party's harm for 3 phases, then release it. Lost if you fall first.",
         }[self.effect]
         if self.id in PLAYER_AILMENTS:
             status, chance = PLAYER_AILMENTS[self.id]
@@ -243,18 +243,20 @@ KIT_TEXT = {
     "weaver_closing_verse": "Detonate the thread: 2.0x magic to linked foes.",
     "sollers_knife_flick": "0.8x attack thrown hit. Next turn comes sooner.",
     "sollers_pilfer": "Roll the steal slots; may pocket 5 gold.",
-    "sollers_backstab": "1.6x attack. Crits on a delayed or marked foe.",
+    "sollers_backstab": "1.6x attack. A 1.5x crit on a delayed or marked foe.",
     "sollers_venom_edge": "1.5x attack. 85% chance to Poison until cured.",
     "saint_smite": "1.3x attack with the weapon's element.",
+    "saint_vigil_strike": "A weapon hit (power 4).",
+    "weaver_black_thread": "Link two foes for 3 turns. The next spell on one echoes 40% to the other.",
     "sollers_smokescreen": "Drop out of enemy targeting until next turn.",
     "sollers_sleight_of_hand": "Foe's next attack hits another foe. +5 gold.",
     "reliquary_mourners_veil": "One ally takes 30% less damage to next turn.",
     "reliquary_lid_shut": "Guard 60%; 25% of damage taken becomes MP.",
-    "reliquary_retribution": "Store half the party's harm 3 phases, release it.",
+    "reliquary_retribution": "Store half the party's harm for 3 phases, then release it. Lost if you fall first.",
     "reliquary_hollow_tithe": "1.0x magic damage; heal half of it.",
     "reliquary_grave_weight": "One foe deals 25% less damage for 3 turns.",
     "reliquary_ashen_hush": "All foes deal 20% less damage for 2 turns.",
-    "reliquary_twin_reliquary": "Once a battle: next reliquary stores 75%.",
+    "reliquary_twin_reliquary": "Once a battle: next Retribution stores 75% and skips the cooldown.",
     "saint_purify": "Party: cure Silence, Darkness and Frozen.",
     "saint_benediction": "Heal party 14 + Magic, regen 4 for 3 turns.",
 }

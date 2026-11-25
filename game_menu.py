@@ -82,6 +82,7 @@ class GameMenu:
         self.equip_index = 0
         self.equip_focus = "category"
         self.status_tab = "stats"
+        self.ability_index = 0
         self.feedback = ""
         self.glint = SlotGlint(canvas)
         self._icons = {}
@@ -154,6 +155,7 @@ class GameMenu:
         self.equip_index = 0
         self.equip_focus = "category"
         self.status_tab = "stats"
+        self.ability_index = 0
         self.feedback = ""
         self.detail = self.selection
         if self.detail == CRESCENDO_PAGE:
@@ -286,12 +288,17 @@ class GameMenu:
                 self.sync_index = (self.sync_index + step) % len(JOBS)
                 self.feedback = ""
             elif self._roster_page():
-                if self.detail == 0 and not self.item_targeting:
+                if self.detail == 3 and self.status_tab == "abilities":
+                    rows = self._status_ability_rows(self.roster()[self.member_index])
+                    if rows:
+                        self.ability_index = (self.ability_index + step) % len(rows)
+                elif self.detail == 0 and not self.item_targeting:
                     items = list(self.inventory())
                     if items:
                         self.item_index = (self.item_index + step) % len(items)
                 else:
                     self.member_index = (self.member_index + step) % len(self.roster())
+                    self.ability_index = 0
                 self.feedback = ""
                 if self._sync_page():
                     current = self._current_job(self.roster()[self.member_index])
@@ -341,8 +348,18 @@ class GameMenu:
                     self.draw()
             return None
         if self.active and self.detail == 3:
+            if self.status_tab == "abilities" and self.roster():
+                rows = self._status_ability_rows(self.roster()[self.member_index])
+                start = self._ability_list_start(len(rows))
+                row = round((y - 186) / 46)
+                index = start + row
+                if 0 <= row < 4 and 315 <= x <= 900 and 0 <= index < len(rows) and abs(y - (186 + row * 46)) <= 22:
+                    self.ability_index = index
+                    self.draw()
+                return None
             if 315 <= x <= 900 and 130 <= y <= 170:
                 self.member_index = (self.member_index + 1) % len(self.roster())
+                self.ability_index = 0
                 self.draw()
             return None
         if self.active and self._roster_page():
@@ -414,6 +431,8 @@ class GameMenu:
             return
         if self.detail == 3:
             self.status_tab = "abilities" if step > 0 else "stats"
+            if step > 0:
+                self.ability_index = 0
             self.feedback = ""
             self.draw()
             return
@@ -848,7 +867,7 @@ class GameMenu:
         elif self.status_tab == "abilities":
             self.glint.stop()
             self._draw_status_abilities(member)
-            hint = "L1 STATS · R1 ABILITIES · UP/DOWN member"
+            hint = "L1 STATS · R1 ABILITIES · UP/DOWN ability"
         else:
             self.glint.stop()
             level, xp, needed = self.progress()
@@ -943,6 +962,16 @@ class GameMenu:
         self._icons[key] = image
         return image
 
+
+    def _status_ability_rows(self, member):
+        known = {ability.id for ability in learned_abilities(member)}
+        return [lesson for lesson in lessons_for(member) if lesson.id in known]
+
+    def _ability_list_start(self, count, visible=4):
+        if count <= visible:
+            return 0
+        return max(0, min(self.ability_index - visible + 1, count - visible))
+
     def _draw_status_abilities(self, member):
         c, tag = self.canvas, self.TAG
         job = self._current_job(member) or "Unbound"
@@ -951,17 +980,21 @@ class GameMenu:
         c.create_text(780, 96, text="ABILITIES", anchor="w", fill="#ffe37e", font=self.font(16), tags=tag)
         c.create_text(320, 140, text=f"{member['name']}   {job}   STONE {stone}", anchor="w",
                       fill="#ffffff", font=self.font(18), tags=tag)
-        known = {ability.id for ability in learned_abilities(member)}
-        rows = [lesson for lesson in lessons_for(member) if lesson.id in known]
+        rows = self._status_ability_rows(member)
         if not rows:
             c.create_text(320, 190, text="Open Tome to research abilities.", anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
             return
-        for index, ability in enumerate(rows[:4]):
-            y = 186 + index * 46
+        self.ability_index = min(self.ability_index, len(rows) - 1)
+        start = self._ability_list_start(len(rows))
+        for row, ability in enumerate(rows[start:start + 4]):
+            y = 186 + row * 46
+            selected = start + row == self.ability_index
+            if selected:
+                c.create_rectangle(313, y - 16, 906, y + 20, fill="#3d428b", outline="#7883bf", tags=tag)
             image = self._ability_photo(ability, member)
             draw_item_slot(c, 348, y, image, tag)
             c.create_text(384, y, text=ability.name, anchor="w",
-                          fill="#ffffff", font=self.font(18), tags=tag)
+                          fill="#ffe37e" if selected else "#ffffff", font=self.font(18), tags=tag)
         # Same width as the hint line below it; centred on y=366 so even two lines stay clear of it.
-        c.create_text(320, 366, text=rows[0].description, anchor="w", width=570,
+        c.create_text(320, 366, text=rows[self.ability_index].description, anchor="w", width=570,
                       fill="#c5d8e4", font=self.font(16), tags=tag)
