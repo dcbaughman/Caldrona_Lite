@@ -51,5 +51,5 @@ Built-in ImageGen used Theo’s current portrait and the four directional overwo
 `prepare_larvel_twins.py` builds three files from Larvel's original art, which it leaves untouched (`assets/portraits/larvel.png`, `assets/larvel-overworld.png`):
 
 - `assets/portraits/larvel-v2.png`: the game's Larvel portrait. Same image with the sharp lower corner of the nose tip rounded off by a small bevel.
-- `assets/portraits/rando.png`: Larvel's twin. Larvel v2 with a bushy mustache in Larvel's own hair ramp, parted at the centre with drooping ends, then flipped so he faces the other way.
+- `assets/portraits/rando.png`: Larvel's twin. Larvel v2 with his tousled hair swapped for a bard's bowl cut (smooth dome, centre part from crown to hairline, fringe combed away from the part, side panel curled under past the ear) and a bushy mustache, both in Larvel's own hair ramp, then flipped so he faces the other way.
 - `assets/rando-overworld.png`: Larvel's walk sheet with the pale chin pixels on the front and side views turned into a two-pixel mustache. The lantern glow is left alone.

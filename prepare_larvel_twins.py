@@ -6,11 +6,13 @@ Sources stay untouched:
 
 Outputs:
     assets/portraits/larvel-v2.png   same portrait, nose tip softened by a two-pixel bevel
-    assets/portraits/rando.png       Larvel v2 with a hair-matched mustache, facing the other way
+    assets/portraits/rando.png       Larvel v2 with a bard's bowl cut and a hair-matched mustache,
+                                     facing the other way
     assets/rando-overworld.png       Larvel's walk sheet with a two-pixel mustache on face views
 
 Run from the project root:  python prepare_larvel_twins.py
 """
+import math
 from pathlib import Path
 
 import pygame
@@ -72,6 +74,109 @@ def add_mustache(image):
         image.set_at(point, HAIR_GLINT)
 
 
+# Rando's bard bowl cut, in the same facing-left coordinates.
+# The centre part runs from the crown down to the hairline, and the fringe sweeps away from it on both sides.
+PART_TOP, PART_BOT = (60, 4), (52, 29)
+PART_SKIN, PART_SKIN_SHADOW = (196, 128, 78), (150, 92, 58)
+RIM_LIGHT = (240, 170, 92)
+# Face and neck pixels the clean-up of Larvel's loose strands must leave alone.
+FACE_KEEP = ((39, 30), (38, 46), (40, 52), (36, 58), (38, 64), (42, 68), (43, 78), (92, 78), (92, 30))
+
+
+def _part_x(y):
+    t = (y - PART_TOP[1]) / (PART_BOT[1] - PART_TOP[1])
+    return PART_TOP[0] + (PART_BOT[0] - PART_TOP[0]) * t
+
+
+def _fringe(x):
+    """Lowest hair row in column x."""
+    if x < 37:
+        return 45                             # far temple lock
+    if x <= 43:
+        return 44
+    if x <= 52:
+        return 30 + (52 - x) * 14 / 9         # curtain sweeping from the part to the far temple
+    if x <= 79:
+        return 30 + (x - 52) * 0.22           # near fringe, just above the brow
+    return 65                                 # side panel hangs past the ear
+
+
+def _in_bowl(x, y):
+    # Feathered tips: every few columns a lock ends a pixel short.
+    if y > _fringe(x) - (x % 4 == 1) - (x % 7 == 3):
+        return False
+    if y < 38:
+        return ((x - 66) / 36) ** 2 + ((y - 37) / 34) ** 2 <= 1
+    if x <= 43:
+        return 32 <= x and (y < 42 or x >= 33 + (y - 42))
+    if x >= 79:
+        return x <= 102 - max(0, y - 53) * 1.3  # rounded back corner
+    return False
+
+
+def _in_polygon(x, y, poly):
+    inside, j = False, len(poly) - 1
+    for i, (xi, yi) in enumerate(poly):
+        xj, yj = poly[j]
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def bowl_cut(image):
+    """Replace Larvel's tousled hair with a bard's bowl cut parted in the middle."""
+    width = image.get_width()
+    hair = {(x, y) for y in range(72) for x in range(width) if _in_bowl(x, y)}
+    # Clear the old strands outside the new shape, reusing the backdrop texture from the left columns.
+    for y in range(74):
+        for x in range(width):
+            if (x, y) not in hair and not _in_polygon(x, y, FACE_KEEP):
+                image.set_at((x, y), image.get_at((x % 8, y)))
+    ramp = (HAIR_DARK, HAIR_SHADOW, HAIR_MID, HAIR_LIGHT, HAIR_GLINT)
+    for x, y in sorted(hair):
+        part = _part_x(y) if y <= PART_BOT[1] else None
+        if part is not None and abs(x - part) < .6:
+            image.set_at((x, y), PART_SKIN_SHADOW if y < 8 else PART_SKIN)
+            continue
+        if any((x + dx, y + dy) not in hair for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+            image.set_at((x, y), OUTLINE)
+            continue
+        # Strands fall away from the part, combed outward on each side.
+        side = -1 if x < (part if part is not None else 52) else 1
+        angle = math.atan2(y - PART_TOP[1] + 6, (x - PART_TOP[0]) * side)
+        strand = int(angle * 22 + (0 if side < 0 else 3)) % 4
+        # Key light from the upper left: a sheen band around the dome, darker at the fringe and back.
+        r = math.hypot((x - 66) / 36, (y - 37) / 34)
+        shade = 2
+        if x > 90 or y > _fringe(x) - 3:
+            shade = 1
+        if y > _fringe(x) - 1.5 or (x > 79 and y > 60):
+            shade = 0
+        if .62 < r < .80 and x < 80 and y < 24:
+            shade = 3
+        if x >= 79 and y > 30:  # side panel: straight locks falling to a curled-under end
+            shade = (1, 2, 1, 2, 3, 2)[x % 6] if x < 96 else (0, 1, 1)[x % 3]
+            if y > 60:
+                shade = max(0, shade - 1)
+        if part is not None and abs(x - part) < 1.6:
+            shade = min(shade, 1)  # shadow lining the part
+        if strand == 0:
+            shade = max(0, shade - 1)
+        if strand == 2 and shade >= 2:
+            shade += 1
+        image.set_at((x, y), ramp[min(shade, 4)])
+    # Warm rim light down the far edge, matching the light on his profile.
+    for x, y in sorted(hair):
+        if (x - 1, y) not in hair and (x + 1, y) in hair and 6 < y and x < 46:
+            image.set_at((x + 1, y), RIM_LIGHT)
+    # Curled-under ends: a light row just above the dark bottom edge of the side panel.
+    for x in range(80, 101):
+        rows = [y for y in range(40, 72) if (x, y) in hair]
+        if rows:
+            image.set_at((x, max(rows) - 2), HAIR_LIGHT)
+
+
 def mustache_sprite(sheet):
     """Turn the lowest row of pale chin pixels into a mustache on each face view.
 
@@ -98,6 +203,7 @@ def main():
     pygame.image.save(larvel, str(PORTRAITS / "larvel-v2.png"))
 
     rando = larvel.copy()
+    bowl_cut(rando)
     add_mustache(rando)
     pygame.image.save(pygame.transform.flip(rando, True, False), str(PORTRAITS / "rando.png"))
 
