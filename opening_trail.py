@@ -7,6 +7,7 @@ from consumables import item_gain_text
 from dialogue import DialogueLine
 from grassland import ENTRANCE, ROAD, GrasslandInstance
 from party_walk import DIRECTIONS, facing
+from trail_lantern import frame_paths, load_manifest, timeline_for
 
 
 class OpeningTrail:
@@ -15,6 +16,8 @@ class OpeningTrail:
     TEMUR = (32, 6)
     TILE = 48
     STEP = .14
+    LAMP_ZOOM = 2         # 16x16 lantern art shown at 32px, nearest-neighbor
+    LAMP_FOOT = 21        # canvas pixels below the lamp point where the old post ended
 
     def __init__(self, app, assets, music, rumble):
         self.app, self.assets, self.music, self.rumble = app, assets, music, rumble
@@ -58,6 +61,13 @@ class OpeningTrail:
                                       cave_x+11,cave_y-16,cave_x+19,cave_y-7,cave_x+21,cave_y+22,
                                       fill="#141321", outline="#524755", width=2)
 
+        self.load_lanterns(assets / "trail-lanterns")
+        self.lamp_glow = {}
+        for point in self.LAMPS:
+            x, y = self.point(point)
+            z = self.LAMP_ZOOM
+            self.lamp_glow[point] = c.create_image(x-16*z, y+self.LAMP_FOOT-16*z-8*z, anchor="nw", state="hidden")
+
         self.hero_frames = app._load_player()
         self.temur_frames = app._load_player("Temur")
         self.branto_frames = app._load_player("Branto")
@@ -65,16 +75,10 @@ class OpeningTrail:
         self.branto_item = c.create_image(*self.point(self.BRANTO), image=self.branto_frames["right"][1])
         self.temur_item = c.create_image(*self.point(self.temur), image=self.temur_frames["down"][1])
         self.hero_item = c.create_image(*self.point(self.position), image=self.hero_frames["left"][1])
-        self.flames = {}
+        self.lamp_item, self.lamp_shown, self.lamp_lit_at = {}, {}, {}
         for point in self.LAMPS:
             x, y = self.point(point)
-            c.create_rectangle(x-3,y-4,x+3,y+20,fill="#493229", outline="#251e23")
-            c.create_rectangle(x-8,y-13,x+8,y+2,fill="#4b4249",outline="#251d25",width=2)
-            c.create_line(x-9,y-14,x+9,y-14,fill="#7d6460",width=3)
-            halo = c.create_oval(x-21,y-23,x+21,y+12,fill="#ff9b46",outline="",stipple="gray25",state="hidden")
-            flame = c.create_polygon(x-4,y-3,x-4,y-8,x-1,y-12,x+3,y-8,x+4,y-3,
-                                     fill="#ffe499",outline="#a7522d",state="hidden")
-            self.flames[point] = (halo, flame)
+            self.lamp_item[point] = c.create_image(x, y+self.LAMP_FOOT, anchor="s", image=self.lamp_unlit)
         c.create_rectangle(14,12,405,48,fill="#201a25",outline="#78624b")
         self.objective = c.create_text(25,30,anchor="w",text="Light the trail lamps  0/2",
                                        fill="#f3d994",font=app._font(18,True))
@@ -86,6 +90,33 @@ class OpeningTrail:
             DialogueLine("Branto", "Light the cave lamp last. Once it's dark, that's how she finds the trail home."),
             DialogueLine("Retri", "I'll see to it. You get some rest."),
         ])
+
+    def load_lanterns(self, folder):
+        """Load Decorum's lantern frames; the zoom is nearest-neighbor so pixels stay crisp."""
+        manifest = load_manifest(folder)
+        unlit, light_sprites, light_glows, loop_sprites, loop_glows = frame_paths(manifest)
+        load = lambda path: tk.PhotoImage(master=self.canvas, file=str(folder / path)).zoom(self.LAMP_ZOOM)
+        self.lamp_unlit = load(unlit)
+        self.lamp_frames = {
+            "light": [(load(s), load(g)) for s, g in zip(light_sprites, light_glows)],
+            "lit": [(load(s), load(g)) for s, g in zip(loop_sprites, loop_glows)]}
+        self.lamp_timelines = [timeline_for(manifest, i) for i in range(len(self.LAMPS))]
+
+    def animate_lamps(self, now):
+        """Show each lamp's current frame; only touches the canvas when the frame changes."""
+        c = self.canvas
+        for index, point in enumerate(self.LAMPS):
+            lit_at = self.lamp_lit_at.get(point)
+            key = ("unlit", 0) if lit_at is None else \
+                self.lamp_timelines[index].frame((now-lit_at)*1000)
+            if self.lamp_shown.get(point) == key:
+                continue
+            self.lamp_shown[point] = key
+            if key[0] == "unlit":
+                continue
+            sprite, glow = self.lamp_frames[key[0]][key[1]]
+            c.itemconfigure(self.lamp_item[point], image=sprite)
+            c.itemconfigure(self.lamp_glow[point], image=glow, state="normal")
 
     def point(self, position):
         x, y = position
@@ -114,8 +145,8 @@ class OpeningTrail:
         if target == self.LAMPS[-1] and (self.LAMPS[0] not in self.lit or self.temur is not None):
             return
         self.lit.add(target)
-        for item in self.flames[target]:
-            self.canvas.itemconfigure(item,state="normal")
+        self.lamp_lit_at[target] = now
+        self.animate_lamps(now)
         self.canvas.itemconfigure(self.objective,text=f"Light the trail lamps  {len(self.lit)}/2")
         self.app._play_sfx(self.assets / "audio" / "trail-lamp.wav", volume=.42)
         if target == self.LAMPS[-1]:
@@ -124,6 +155,7 @@ class OpeningTrail:
             self.music_gain = self.app._music_gain
 
     def update(self, direction, now):
+        self.animate_lamps(now)
         if direction != "down":
             self.turnback_held = False
         if self.app.dialogue.active:

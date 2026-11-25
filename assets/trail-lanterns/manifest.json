@@ -1,0 +1,118 @@
+{
+  "title": "Caldrona Lite trail lanterns v2 \u2014 Blacksteel Cage",
+  "date": "2026-11-25",
+  "draft": true,
+  "game": "Caldrona_Lite (github.com/dcbaughman/Caldrona_Lite)",
+  "picked": "B Blacksteel Cage (widened 10px square cage, 16x16, anchor s)",
+  "sprite_size": [
+    16,
+    16
+  ],
+  "glow_size": [
+    32,
+    32
+  ],
+  "glow_offset": [
+    -8,
+    -8
+  ],
+  "glow_center_in_sprite": [
+    7.5,
+    7.0
+  ],
+  "anchor": "s",
+  "silhouette": "lit, unlit, loop and transition frames share identical opaque pixels; metal colors are frozen",
+  "loop": {
+    "frames": 6,
+    "ids": [
+      "lit_00",
+      "lit_01",
+      "lit_02",
+      "lit_03",
+      "lit_04",
+      "lit_05"
+    ],
+    "labels": [
+      "rest",
+      "left",
+      "peak",
+      "right",
+      "dip",
+      "ember"
+    ],
+    "durations_ms": [
+      110,
+      100,
+      90,
+      110,
+      120,
+      130
+    ],
+    "period_ms": 660,
+    "average_fps": 9.09,
+    "notes": "Slightly irregular holds so the flame does not feel like a metronome. Lower in-scene lamp is phase-offset by 3 frames."
+  },
+  "lighting_transition": {
+    "frames": 4,
+    "ids": [
+      "light_00",
+      "light_01",
+      "light_02",
+      "light_03"
+    ],
+    "labels": [
+      "spark",
+      "catch",
+      "rise",
+      "set"
+    ],
+    "durations_ms": [
+      90,
+      90,
+      100,
+      110
+    ],
+    "notes": "One-shot, played from unlit into lit_00. Not part of the idle loop."
+  },
+  "files": {
+    "unlit": "frames/unlit.png",
+    "loop_sprites": [
+      "frames/lit_00.png",
+      "frames/lit_01.png",
+      "frames/lit_02.png",
+      "frames/lit_03.png",
+      "frames/lit_04.png",
+      "frames/lit_05.png"
+    ],
+    "loop_glows": [
+      "frames/lit_00_glow.png",
+      "frames/lit_01_glow.png",
+      "frames/lit_02_glow.png",
+      "frames/lit_03_glow.png",
+      "frames/lit_04_glow.png",
+      "frames/lit_05_glow.png"
+    ],
+    "transition_sprites": [
+      "frames/light_00.png",
+      "frames/light_01.png",
+      "frames/light_02.png",
+      "frames/light_03.png"
+    ],
+    "lit_strip": "sheets/lit_strip.png",
+    "glow_strip": "sheets/glow_strip.png",
+    "lit_glow_strip": "sheets/lit_glow_strip.png",
+    "frames_sheet": "_lanterns_v2_frames_4x.png",
+    "loop_gif_4x": "_lantern_v2_loop_4x.gif",
+    "loop_gif_4x_dark": "_lantern_v2_loop_4x_dark.gif",
+    "lighting_gif_4x": "_lantern_v2_lighting_4x.gif",
+    "in_scene_gif": "_lanterns_v2_in_scene.gif",
+    "in_scene_mp4": "_lanterns_v2_in_scene.mp4"
+  },
+  "sha256": {
+    "unlit": "1882585851d7cba4ceb3f83a1c0e49dcec21fbad3262a1aaf407fe637837aa72",
+    "review": "ac0698bfa364a77f8e8b16fcf84e85081c2fddfd32ff82d0fb15b130a051a800",
+    "loop_gif": "21e7a6df8da5844f588aa17d1388c045f0331fedce4b8e85fe490c4fda4502c0",
+    "in_scene_gif": "6968ffa32583698c448087cbd70fb0b1dd3d02a027db83c89c3a7708ccddba83"
+  },
+  "integration": "Later, only with Caleb's OK: replace the code-drawn box with frames/unlit.png and the lit_00..lit_05 sprites; composite the matching _glow overlays under the sprite at offset (-8, -8). Advance the loop with the duration list. Play light_00..light_03 once when the player lights a lamp, then enter the loop. The quest map and placeholder drawing code were not in the pushed clones \u2014 likely local/unpushed work."
+}
