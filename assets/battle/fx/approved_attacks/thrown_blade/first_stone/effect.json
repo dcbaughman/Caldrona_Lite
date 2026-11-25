@@ -1,0 +1,20 @@
+{
+  "frames": 5,
+  "ms_per_frame": [
+    50,
+    48,
+    48,
+    75,
+    100
+  ],
+  "total_ms": 321,
+  "frame_w": 64,
+  "frame_h": 64,
+  "target_center": [
+    32,
+    32
+  ],
+  "scale_in_battle": 2,
+  "travel_ms": 146,
+  "contact_ms": 146
+}

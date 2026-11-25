@@ -10,23 +10,29 @@ from battle import BattleModel, ENEMIES, SHALEHORN, ShalehornBattle
 from display_settings import DisplayConfig, ScaledCanvas
 from equipment import (CATALOG, Equipment, available_count, equip, owned_items,
                        preview_value, stat_value, worn_id)
-from game_menu import GameMenu
+from game_menu import (EQUIP_ITEM_STEP, EQUIP_ITEM_TOP, EQUIP_MEMBER_X, EQUIP_ROWS,
+                       EQUIP_SCROLL_X, EQUIP_SLOT_STEP, EQUIP_SLOT_TOP, GameMenu)
 from stats import RETRI, TEMUR, grow, member
 
 
 class ControllerShoulderTests(unittest.TestCase):
-    def test_sdl_and_directinput_shoulder_mappings(self):
+    def test_sdl_and_directinput_shoulder_and_outfit_mappings(self):
         pygame = SimpleNamespace(CONTROLLER_BUTTON_A=0, CONTROLLER_BUTTON_B=1,
+                                 CONTROLLER_BUTTON_Y=3,
                                  CONTROLLER_BUTTON_START=6,
                                  CONTROLLER_BUTTON_LEFTSHOULDER=9,
                                  CONTROLLER_BUTTON_RIGHTSHOULDER=10)
         pad = SimpleNamespace(attached=lambda: True, get_button=lambda button: button in {9, 10})
         dummy = SimpleNamespace(pad=pad, joystick=None, pygame=pygame)
         self.assertEqual(game.CaldronaLite._controller_buttons(dummy), {"member_previous", "member_next"})
+        pad.get_button = lambda button: button == 3
+        self.assertEqual(game.CaldronaLite._controller_buttons(dummy), {"outfit"})
         dummy.pad = None
         dummy.joystick = SimpleNamespace(get_init=lambda: True, get_numbuttons=lambda: 6,
                                          get_button=lambda button: button in {4, 5})
         self.assertEqual(game.CaldronaLite._controller_buttons(dummy), {"member_previous", "member_next"})
+        dummy.joystick.get_button = lambda button: button == 3
+        self.assertEqual(game.CaldronaLite._controller_buttons(dummy), {"outfit"})
         dummy.joystick = SimpleNamespace(get_init=lambda: True, get_numbuttons=lambda: 4,
                                          get_button=lambda button: False)
         self.assertEqual(game.CaldronaLite._controller_buttons(dummy), set())
@@ -135,12 +141,16 @@ class EquipmentMenuTests(unittest.TestCase):
     def test_choose_compare_equip_switch_and_remove(self):
         menu = self.menu
         self.assertEqual((menu.detail, menu.equip_focus), (2, "category"))
+        self.assertIn("EQUIPPED", self.labels())
+        self.assertTrue(any(self.app.canvas.itemcget(item, "image") == str(self.app.canvas._image(self.app.battle.hero))
+                            for item in self.app.canvas.find_withtag(menu.TAG) if self.app.canvas.type(item) == "image"))
         for name in ("ARMOR", "WEAPON", "SHIELD", "ACCESSORY"):
             self.assertTrue(any(name in label for label in self.labels()))
         menu.navigate("down", 1)
         self.assertEqual(menu.equip_slot, 1)
         menu.activate()
         self.assertEqual(menu.equip_focus, "items")
+        self.assertIn("STAT PREVIEW", self.labels())
         self.assertTrue(any("8 > 10" in label for label in self.labels()))
         menu.activate()
         self.assertEqual(worn_id(self.app.party[0], "weapon"), "miner_blade")
@@ -167,13 +177,15 @@ class EquipmentMenuTests(unittest.TestCase):
     def test_shoulders_switch_one_member_per_press_only_in_equipment(self):
         app, menu = self.app, self.menu
         pygame = SimpleNamespace(CONTROLLER_BUTTON_A=0, CONTROLLER_BUTTON_B=1,
+                                 CONTROLLER_BUTTON_Y=3,
                                  CONTROLLER_BUTTON_START=6,
                                  CONTROLLER_BUTTON_LEFTSHOULDER=9,
                                  CONTROLLER_BUTTON_RIGHTSHOULDER=10)
         pressed = set()
         pad = SimpleNamespace(attached=lambda: True, get_button=lambda button: button in pressed)
         self.assertTrue(any("L1/R1: CHANGE MEMBER" in label for label in self.labels()))
-        self.assertTrue(any("L1" in label and "RETRI" in label and "R1" in label for label in self.labels()))
+        for label in ("‹ L1", "RETRI", "R1 ›"):
+            self.assertIn(label, self.labels())
 
         def tick(*buttons):
             pressed.clear()
@@ -191,7 +203,7 @@ class EquipmentMenuTests(unittest.TestCase):
             self.assertEqual(menu.member_index, 1)
             menu.navigate("right", 2.1)
             self.assertEqual(menu.member_index, 1)
-            menu._equip_click(390, 55)  # Mouse header arrows are not member controls.
+            menu._equip_click(480, 55)  # The member name itself is not a button.
             self.assertEqual(menu.member_index, 1)
             tick()    # Release re-arms the shoulder button.
             tick(10)
@@ -216,15 +228,15 @@ class EquipmentMenuTests(unittest.TestCase):
                  for i in range(15)}
         with patch.dict(CATALOG, items):
             self.app.gear_inventory.update({item_id: 1 for item_id in items})
-            self.menu.click(70, 169+65)  # Weapon category.
+            self.menu.click(70, EQUIP_SLOT_TOP + EQUIP_SLOT_STEP)
             self.assertEqual((self.menu.equip_slot, self.menu.equip_focus), (1, "items"))
-            self.menu.click(300, 370)  # Visible down arrow pages the item list.
+            self.menu.click(EQUIP_SCROLL_X, EQUIP_ITEM_TOP + (EQUIP_ROWS - 1) * EQUIP_ITEM_STEP)
             self.assertGreater(self.menu._equip_scroll(self.menu._equip_entries()), 0)
             for i in range(8):
                 self.menu.navigate("down", i + 1)
             self.assertGreater(self.menu._equip_scroll(self.menu._equip_entries()), 0)
             self.assertTrue(any("..." in label for label in self.labels()))
-            self.assertIn("^", self.labels())
+            self.assertIn("▲", self.labels())
             self.app.root.update_idletasks()
             for item in self.app.canvas.find_withtag(self.menu.TAG):
                 if self.app.canvas.type(item) == "text":
@@ -236,18 +248,18 @@ class EquipmentMenuTests(unittest.TestCase):
 
     def test_mouse_equips_switches_member_and_removes(self):
         menu = self.menu
-        menu.click(70, 169)  # Open Armor; the first item is selected.
-        menu.click(350, 202)  # Confirm Leather Vest.
+        menu.click(70, EQUIP_SLOT_TOP)
+        menu.click(550, EQUIP_ITEM_TOP + EQUIP_ITEM_STEP)
         self.assertEqual(worn_id(self.app.party[0], "armor"), "leather_vest")
         self.assertIn("0/1", self.labels())
-        menu.click(600, 58)  # Switch to Temur.
+        menu.click(EQUIP_MEMBER_X[1], 57)
         self.assertEqual(menu.member_index, 1)
-        menu.click(350, 202)
+        menu.click(550, EQUIP_ITEM_TOP + EQUIP_ITEM_STEP)
         self.assertIsNone(worn_id(self.app.party[1], "armor"))
         self.assertIn("other members", menu.feedback)
-        menu.click(400, 58)  # Switch back to Retri.
-        menu.click(350, 167)  # Select Remove.
-        menu.click(350, 167)  # Confirm Remove.
+        menu.click(EQUIP_MEMBER_X[0], 57)
+        menu.click(550, EQUIP_ITEM_TOP)
+        menu.click(550, EQUIP_ITEM_TOP)
         self.assertIsNone(worn_id(self.app.party[0], "armor"))
         self.assertIn("1/1", self.labels())
 
@@ -287,11 +299,11 @@ class EquipmentMenuTests(unittest.TestCase):
                 menu.activate()
                 description = next(i for i in canvas.find_withtag(menu.TAG)
                                    if canvas.type(i) == "text" and canvas.coords(i) ==
-                                   [canvas._value(298), canvas._value(388)])
+                                   [canvas._value(513), canvas._value(297)])
                 x1, y1, x2, y2 = canvas.bbox(description)
-                self.assertGreaterEqual(x1, canvas._value(285))
-                self.assertLessEqual(x2, canvas._value(644))
-                self.assertLessEqual(y2, canvas._value(444))
+                self.assertGreaterEqual(x1, canvas._value(508))
+                self.assertLessEqual(x2, canvas._value(914))
+                self.assertLessEqual(y2, canvas._value(329))
                 hint = next(i for i in canvas.find_withtag(menu.TAG)
                             if canvas.type(i) == "text" and "L1/R1" in canvas.itemcget(i, "text"))
                 hx1, hy1, hx2, hy2 = canvas.bbox(hint)
@@ -299,8 +311,7 @@ class EquipmentMenuTests(unittest.TestCase):
                 self.assertLessEqual(hx2, canvas._value(922))
                 self.assertLessEqual(hy2, canvas._value(528))
                 header = next(i for i in canvas.find_withtag(menu.TAG)
-                              if canvas.type(i) == "text" and "L1" in canvas.itemcget(i, "text")
-                              and "RETRI" in canvas.itemcget(i, "text"))
+                              if canvas.type(i) == "text" and "RETRI" == canvas.itemcget(i, "text"))
                 x1, y1, x2, y2 = canvas.bbox(header)
                 self.assertGreaterEqual(x1, canvas._value(160))
                 self.assertLessEqual(x2, canvas._value(810))

@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 import Caldrona_Lite as game
 from battle import BattleModel, BattleScene, ENEMIES, MAX_HP
+from classes import OUTFIT_JOBS
 from display_settings import DisplayConfig, ScaledCanvas
 
 
@@ -15,15 +16,39 @@ def no_controller(app):
 
 
 class BattleIntegrationTests(unittest.TestCase):
+    def test_critical_hit_marker_appears_at_contact(self):
+        from dataclasses import replace
+        from stats import RETRI, member
+
+        app = self.app
+        actor = member("Retri", RETRI)
+        actor.update(agility=40, luck=100)
+        scene = app.battle
+        scene.start(BattleModel(replace(ENEMIES[0], hp=100), party=[actor], rng=random.Random(1)), 0)
+        scene.confirm(0)
+        scene.confirm(0)
+        impact = scene.attack_contact_ms / 1000
+        scene.update(impact - .02)
+        self.assertFalse(app.canvas.find_withtag("critical_hit"))
+        scene.update(impact + .02)
+        labels = app.canvas.find_withtag("critical_hit")
+        self.assertEqual([app.canvas.itemcget(item, "text") for item in labels], ["CRIT!"])
+
     def test_battle_sprites_follow_each_members_class(self):
         from stats import RETRI, TEMUR, member
         scene = self.app.battle
         retri, temur = member("Retri", RETRI), member("Temur", TEMUR)
-        for job in ("Sollers", "Saint", "Seer"):
+        for job in OUTFIT_JOBS:
             retri["job"] = temur["job"] = job
             scene.start(BattleModel(ENEMIES[0], party=[retri, temur]), 0)
             self.assertIs(scene.party_sprites[0], scene.class_sprites[("Retri", job)])
             self.assertIs(scene.party_sprites[1], scene.class_sprites[("Temur", job)])
+            for character in (retri, temur):
+                self.assertIsNot(scene.player_art.frame(character, "sword"),
+                                 scene.player_art.frame({**character, "job": None}, "sword"))
+                outfit = self.app._field_costume(character)
+                original = self.app.world_frames[character["name"]]
+                self.assertNotEqual(outfit["down"][1].data(), original["down"][1].data())
             for sprite, reference in zip(scene.party_sprites, (scene.hero, scene.temur)):
                 self.assertEqual((sprite.width(), sprite.height()), (scene.hero.width(), scene.hero.height()))
                 def visible_rows(image):
@@ -50,8 +75,9 @@ class BattleIntegrationTests(unittest.TestCase):
         scene, canvas = self.app.battle, self.app.canvas
         for name, base in (("Retri", RETRI), ("Temur", TEMUR)):
             original = pygame.image.load(str(game.ASSETS / "battle" / f"{name.lower()}-guard.png"))
-            for job in (None, "Sollers", "Saint", "Seer"):
+            for job in (None, *OUTFIT_JOBS):
                 character = member(name, base)
+                character["agility"] = 8  # Exercise guard art on an eligible opening turn.
                 if job is not None:
                     character["job"] = job
                 model = BattleModel(ENEMIES[0], party=[character])
@@ -75,8 +101,8 @@ class BattleIntegrationTests(unittest.TestCase):
                 scene.close()
         self.app._draw_menu()
         self.app._open_sprite_lab()
-        self.assertEqual(len(self.app.lab_sprites), 24)
-        for i in range(24):
+        self.assertEqual(len(self.app.lab_sprites), 2 * (3 + 3 * len(OUTFIT_JOBS)))
+        for i in range(len(self.app.lab_sprites)):
             self.app.lab_index = i
             self.app._draw_sprite_lab()
             self.assertTrue(any(canvas.type(item) == "image" for item in canvas.find_all()))
@@ -100,6 +126,202 @@ class BattleIntegrationTests(unittest.TestCase):
         app._key_up(SimpleNamespace(keysym="c"))
         app._key_down(SimpleNamespace(keysym="c"))
         self.assertFalse(app.lab_compare)
+
+    def test_test_mode_cycles_tabs_and_compares_the_same_animation_frame(self):
+        from types import SimpleNamespace
+        a = self.app
+        a._draw_menu()
+        a._key_down(SimpleNamespace(keysym="t"))
+        a.lab_index = 3
+        with patch.object(a, "_controller_buttons", return_value={"member_next"}):
+            self.tick()
+        self.assertEqual(a.lab_tab, 1)
+        lab = a.animation_lab
+        self.assertEqual(lab.move, "burrow")
+        lab.step(12)
+        frame = lab.rendered
+        a._key_down(SimpleNamespace(keysym="c"))
+        self.assertTrue(lab.original)
+        self.assertTrue(lab.paused)
+        self.assertEqual(lab.rendered, frame)
+        self.assertEqual(a.canvas.itemcget(lab.field, "state"), "hidden")
+        with patch.object(a, "_controller_buttons", return_value={"member_previous"}):
+            self.tick()
+        self.assertEqual((a.lab_tab, a.lab_index), (0, 3))
+        a._key_down(SimpleNamespace(keysym="e"))
+        a._key_down(SimpleNamespace(keysym="right"))
+        self.assertEqual(lab.move, "tremor")
+        a._key_down(SimpleNamespace(keysym="escape"))
+        self.assertEqual(a.screen, "menu")
+
+    def test_player_moves_lab_scrubs_both_fighters_and_switches_outfits(self):
+        from math import ceil
+        from types import SimpleNamespace
+        from player_motion import MOTIONS
+        app = self.app
+        app._draw_menu()
+        app._key_down(SimpleNamespace(keysym="t"))
+        app._key_down(SimpleNamespace(keysym="q"))
+        app._change_lab_tab(-1)
+        lab = app.player_move_lab
+        self.assertIs(app._active_animation_lab(), lab)
+        first = [app.canvas.itemcget(item, "image") for _, item in lab.actors]
+        lab.step(4)
+        self.assertNotEqual([app.canvas.itemcget(item, "image") for _, item in lab.actors], first)
+        with patch.object(app, "_controller_buttons", return_value={"outfit"}):
+            self.tick()
+        self.assertEqual(lab.job, "Seer")
+        for outfit in range(len(lab.OUTFITS)):
+            lab.outfit = outfit
+            for index in range(len(lab.MOVES)):
+                lab.index = index
+                app._draw_player_move_lab()
+                lab.step(lab.last_frame)
+                self.assertTrue(all(app.canvas.itemcget(item, "image") for _, item in lab.actors))
+        lab.index = lab.MOVES.index("bow")
+        app._draw_player_move_lab()
+        bow = MOTIONS["bow"]
+        lab.step(ceil(lab.FPS * (bow.windup_ms + bow.travel_ms) / 1000))
+        arrow_items = app.canvas.find_withtag("bow_arrow_tip")
+        self.assertEqual(len(arrow_items), 2)
+        tips = [app.canvas.coords(item)[:2] for item in arrow_items]
+        self.assertEqual(tips, [[app.canvas._value(x), app.canvas._value(y)]
+                                for x, y in lab.BOW_TARGETS])
+        lab.step(-lab.rendered)
+        self.assertFalse(app.canvas.find_withtag("bow_arrow"))
+
+    def test_enemy_moves_lab_replays_every_enemy_and_uses_the_battle_outlines(self):
+        from dataclasses import replace
+        from types import SimpleNamespace
+        from battle import EMBERWRAITH, ENEMY_ROSTER, GRASSLAND_ENEMIES, SILK_SARCOPHAGUS
+        from enemy_motion import load_enemy_sprite
+        app, c = self.app, self.app.canvas
+        app._draw_menu()
+        app._key_down(SimpleNamespace(keysym="t"))
+        app._key_down(SimpleNamespace(keysym="q"))
+        lab = app.enemy_move_lab
+        self.assertIs(app._active_animation_lab(), lab)
+        self.assertEqual(set(lab.MOVES), set(ENEMY_ROSTER))
+        for index, foe in enumerate(lab.MOVES):
+            with self.subTest(foe=foe.name):
+                lab.index = index
+                app._draw_enemy_move_lab()
+                first = c.coords(lab.sprite_item)
+                lab.step(7)
+                self.assertNotEqual(c.coords(lab.sprite_item), first)
+                self.assertTrue(lab.paused)
+                app._activate()
+                self.assertEqual(c.coords(lab.sprite_item), first)
+
+        for foe in (EMBERWRAITH, SILK_SARCOPHAGUS, *GRASSLAND_ENEMIES):
+            base = load_enemy_sprite(c, game.ASSETS / "battle", replace(foe, sprite_scale=(1, 1)))
+            original = tk.PhotoImage(master=c, file=str(game.ASSETS / "battle" / foe.sprite))
+            outlines = [(x, y) for y in range(base.height()) for x in range(base.width())
+                        if original.transparency_get(x, y) and not base.transparency_get(x, y)]
+            self.assertGreater(len(outlines), 25)
+            self.assertTrue(all(base.get(x, y) == (8, 7, 11) for x, y in outlines))
+
+    def test_flying_enemies_cycle_wing_poses_in_combat_and_the_lab(self):
+        from battle import GRASSLAND_ENEMIES
+
+        app, c = self.app, self.app.canvas
+        for foe in (ENEMIES[1], GRASSLAND_ENEMIES[0]):
+            with self.subTest(foe=foe.name):
+                scene = app.battle
+                scene.start(BattleModel(foe), 0, outdoors=foe in GRASSLAND_ENEMIES)
+                sprite = scene.enemy_items[0]
+                resting = c.itemcget(sprite, "image")
+                scene.update(.14)
+                self.assertNotEqual(c.itemcget(sprite, "image"), resting)
+                self.assertIs(scene.enemy_image(0), scene.enemy_frames[foe.sprite][1 if foe == ENEMIES[1] else 2])
+                scene.close()
+
+                app._open_sprite_lab()
+                app._change_lab_tab(-1)
+                lab = app.enemy_move_lab
+                lab.index = lab.MOVES.index(foe)
+                app._draw_enemy_move_lab()
+                resting = c.itemcget(lab.sprite_item, "image")
+                lab.step(4)
+                self.assertNotEqual(c.itemcget(lab.sprite_item, "image"), resting)
+
+    def test_ground_enemies_articulate_idle_and_lunge_poses_in_combat_and_the_lab(self):
+        from battle import GRASSLAND_ENEMIES
+        from enemy_motion import MOTIONS as ENEMY_MOTIONS
+
+        app, c = self.app, self.app.canvas
+        for foe in (ENEMIES[0], ENEMIES[2], *GRASSLAND_ENEMIES[1:]):
+            with self.subTest(foe=foe.name):
+                scene = app.battle
+                model = BattleModel(foe)
+                scene.start(model, 0, outdoors=foe in GRASSLAND_ENEMIES)
+                frames = scene.enemy_frames[foe.sprite]
+                self.assertEqual(len(frames), 4)
+                scene.update(.14)
+                self.assertIs(scene.enemy_image(0), frames[1])
+                self.assertEqual(c.itemcget(scene.enemy_items[0], "image"), str(c._image(frames[1])))
+
+                model.ctb.current = ("enemy", 0)
+                scene._begin_ctb_actor(1.0)
+                scene.update(1 + 2.3 / ENEMY_MOTIONS[foe.sprite].ticks_per_second)
+                self.assertIs(scene.enemy_image(0), frames[2])
+                scene.close()
+
+                app._open_sprite_lab()
+                app._change_lab_tab(-1)
+                lab = app.enemy_move_lab
+                lab.index = lab.MOVES.index(foe)
+                app._draw_enemy_move_lab()
+                resting = c.itemcget(lab.sprite_item, "image")
+                lab.step(4)
+                self.assertNotEqual(c.itemcget(lab.sprite_item, "image"), resting)
+
+    def test_tremor_preview_moves_sampled_floor_pixels_and_settles(self):
+        a = self.app
+        a._open_sprite_lab()
+        a._change_lab_tab(1)
+        floor = a.animation_lab.preview.floor
+        warped = floor.ripple(.70)
+        horizon = 112 * floor.stride
+        self.assertEqual(warped[:horizon], floor.pixels[:horizon])
+        self.assertNotEqual(warped[horizon:], floor.pixels[horizon:])
+        self.assertEqual(floor.ripple(1), floor.pixels)
+
+    def test_headbutt_preview_moves_the_head_without_moving_the_body(self):
+        a = self.app
+        a._open_sprite_lab()
+        a._change_lab_tab(1)
+        lab = a.animation_lab
+        lab.index = lab.MOVES.index("headbutt")
+        a._draw_animation_lab()
+        item = lab.scene.enemy_items[0]
+        body_position = a.canvas.coords(item)
+        lab.step(9)
+        self.assertEqual(a.canvas.coords(item), body_position)
+        self.assertNotEqual(a.canvas.itemcget(item, "image"), str(a.canvas._image(lab.preview.boss)))
+        self.assertFalse(a.canvas.find_withtag("shalehorn_tusk_energy"))
+        attack = lab.live.attack
+        for angle in (-12, 16):
+            with self.subTest(angle=angle):
+                frame = attack.image(lab.preview.boss, angle)
+                opaque = {(x, y) for y in range(0, frame.height(), 2) for x in range(0, frame.width(), 2)
+                          if not frame.transparency_get(x, y)}
+                total = len(opaque)
+                components = []
+                while opaque:
+                    pending = [opaque.pop()]
+                    size = 0
+                    while pending:
+                        x, y = pending.pop()
+                        size += 1
+                        for dx in (-2, 0, 2):
+                            for dy in (-2, 0, 2):
+                                point = (x + dx, y + dy)
+                                if point in opaque:
+                                    opaque.remove(point)
+                                    pending.append(point)
+                    components.append(size)
+                self.assertGreater(max(components) / total, .98)
 
     def test_temur_uses_matching_sprite_scale_and_portraits(self):
         a = self.app
@@ -129,10 +351,8 @@ class BattleIntegrationTests(unittest.TestCase):
         self.assertTrue(a._interact_temur())
         while a.dialogue.active:
             a._activate()
-        self.assertEqual(a.screen, "cave_shake")
-        a.shake_started = time.monotonic() - 2
-        self.tick()
-        self.assertEqual(a.temur_story, "joining")
+        self.assertEqual(a.screen, "temur_choice")
+        a._activate()  # Travel with Temur.
         while a.dialogue.active:
             a._activate()
         self.assertEqual([p["name"] for p in a.party], ["Retri", "Temur"])
@@ -172,6 +392,7 @@ class BattleIntegrationTests(unittest.TestCase):
         scene, canvas = self.app.battle, self.app.canvas
         retri, temur = member("Retri", RETRI), member("Temur", TEMUR)
         retri["job"], temur["job"] = "Seer", "Saint"
+        temur["agility"] = retri["agility"]
         model = BattleModel(ENEMIES[0], party=[retri, temur])
         scene.start(model, 0)
         scene.selection = 1
@@ -182,7 +403,9 @@ class BattleIntegrationTests(unittest.TestCase):
         scene.confirm(0.8)
         self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.class_poses[("Temur", "Saint", "guard")])))
         scene.update(1.5)
-        self.assertFalse(model.guarded)
+        self.assertEqual(model.guarded, {0, 1})  # Both guard until their next CTB turn.
+        model.guarded.clear()
+        scene._sync_party_sprites()
         for i in range(2):
             self.assertEqual(canvas.itemcget(scene.party_items[i], "image"), str(canvas._image(scene.party_sprites[i])))
         model.guarded.add(1)
@@ -198,7 +421,7 @@ class BattleIntegrationTests(unittest.TestCase):
         a._activate()
         self.assertEqual((a.screen, a.astral_scene.phase), ("astral", "reveal"))
         a._activate()
-        a.astral_scene.selection = 3
+        a.astral_scene.selection = len(a.astral_scene.paths)
         a._activate()
         self.assertEqual(a.screen, "game")
         self.assertNotIn("job", a.party[0])
@@ -211,14 +434,57 @@ class BattleIntegrationTests(unittest.TestCase):
         self.assertEqual((a.screen, a.astral_scene.phase), ("astral", "choose"))
         self.assertNotIn("job", a.party[0])
 
-    def test_walking_into_stone_after_boss_opens_reveal(self):
+    def test_blue_stone_requires_a_confirm_press_after_the_boss(self):
+        from types import SimpleNamespace
+
         a = self.app
         a.boss_cleared = True
         a.in_chamber = True
         a.x, a.y = 70.5 * game.TILE, 15.5 * game.TILE
         a.keys = {"up"}
+        position = (a.x, a.y)
         self.tick()
+        self.assertEqual((a.x, a.y), position)
+        self.assertEqual(a.screen, "game")
+        self.assertFalse(a.astral_sync)
+        self.assertIn("ENTER / CROSS", a.canvas.itemcget(a.interaction_hint, "text"))
+        enter = SimpleNamespace(keysym="Return")
+        a._key_down(enter)
+        a._key_down(enter)
         self.assertEqual((a.screen, a.astral_scene.phase), ("astral", "reveal"))
+
+    def test_quarry_door_requires_confirm_but_open_passage_uses_movement(self):
+        a = self.app
+        a.boss_cleared = a.grass_intro_seen = True
+        ox, oy = a.outer_door
+        a.x, a.y = (ox + .5) * game.TILE, (oy + 1.5) * game.TILE
+        a.keys = {"up"}
+        self.tick()
+        self.assertFalse(a.in_chamber)
+        a._activate()
+        self.assertTrue(a.in_chamber)
+        a.x, a.y = 70.5 * game.TILE, 9.5 * game.TILE
+        a.next_step_at = 0
+        self.tick()
+        self.assertTrue(a.outdoors)
+
+    def test_shalehorn_uses_four_tiles_and_shakes_at_first_engagement(self):
+        a = self.app
+        ox, oy = a.outer_door
+        a.x, a.y, a.direction = (ox + .5) * game.TILE, (oy + 1.5) * game.TILE, "up"
+        a._activate()
+        self.assertTrue(a.dialogue.active and a.boss_intro)
+        self.assertEqual(len(a.shalehorn_footprint), 4)
+        self.assertEqual(a.shalehorn_world_image.width(), 2 * game.TILE * game.SCALE)
+        self.assertEqual(a.canvas.itemcget(a.shalehorn_world_item, "state"), "normal")
+        self.assertTrue(all(not a._can_walk_world(*((coord + .5) * game.TILE for coord in tile))
+                            for tile in a.shalehorn_footprint))
+        self.assertNotEqual(a.shalehorn_shake, (0, 0))
+        position, shaken_camera = (a.x, a.y), a.world_camera
+        a._update_shalehorn_shake(a.shalehorn_shake_started + 1)
+        self.assertEqual(a.shalehorn_shake, (0, 0))
+        self.assertNotEqual(a.world_camera, shaken_camera)
+        self.assertEqual((a.x, a.y), position)
 
     def test_game_over_choices(self):
         a = self.app
@@ -265,6 +531,50 @@ class BattleIntegrationTests(unittest.TestCase):
         self.tick()
         self.assertEqual((a.x, a.y), (11 * 16 + 8, 5 * 16 + 8))
 
+    def test_overworld_party_follows_corners_and_saves_its_leader(self):
+        from party_walk import facing
+        from save_game import capture
+        from stats import TEMUR, member
+        app = self.app
+        app.temur_story = "joined"
+        app._recruit(member("Temur", TEMUR))
+        app._update_world()
+        start = app.x, app.y
+        app.encounters.steps_left = 100
+        follower, _, origin = app.field_followers["temur"]
+        with patch.object(app.mine_story, "maybe_warn", return_value=False):
+            for direction, expected in (("right", (*start, facing(origin, start, origin[2]))),
+                                         ("up", (start[0]+game.TILE, start[1], "right"))):
+                app.keys = {direction}
+                app.next_step_at = 0
+                self.tick()
+                self.assertEqual(app.field_followers["temur"][2], expected)
+        self.assertEqual(app.canvas.itemcget(follower, "state"), "normal")
+
+        menu = app.game_menu
+        menu.open()
+        menu.selection = 4
+        menu.activate()
+        menu.navigate("down", 1)
+        menu.navigate("right", 1.1)
+        menu.close()
+        self.assertEqual(app._field_party()[0]["name"], "Temur")
+        self.assertIn("retri", app.field_followers)
+        self.assertEqual([person["name"] for person in app.party], ["Retri", "Temur"])
+        state = capture(app)
+        app._load_journey(state)
+        self.assertEqual(app._field_party()[0]["name"], "Temur")
+        self.assertIn("retri", app.field_followers)
+        app.grass_intro_seen = True
+        app._change_area(True)
+        self.assertEqual(app._field_party()[0]["name"], "Temur")
+        x, y, _ = app.field_followers["retri"][2]
+        self.assertTrue(app.cave.walkable(x, y))
+        self.assertEqual(abs(app.x-x) + abs(app.y-y), game.TILE)
+        state.pop("field_leader")
+        app._load_journey(state)
+        self.assertEqual(app._field_party()[0]["name"], "Retri")
+
     def test_cave_solid_rock_fills_void_without_becoming_walkable(self):
         a = self.app
         self.assertNotIn((0, 0), a.cave.floor)
@@ -280,6 +590,8 @@ class BattleIntegrationTests(unittest.TestCase):
         a._begin_battle(time.monotonic())
         a._update_battle_transition(time.monotonic() + 1)
         m = a.battle.model
+        m.loot_rng = Mock()
+        m.loot_rng.random.return_value = 0.99
         for i in range(1, len(m.health)):
             m.health[i] = 0
         m.enemy_hp = 1
@@ -311,15 +623,21 @@ class BattleIntegrationTests(unittest.TestCase):
         self.assertEqual(canvas.coords(scene.party_items[0]), [canvas._value(x), canvas._value(y+8)])
         self.assertEqual(canvas.itemcget(scene.party_items[1], "image"),
                          str(canvas._image(scene.class_sprites[("Temur", "Saint")])))
-        # A later revival restores that member's actual class outfit.
+        # A low-HP revival kneels in the same class outfit, then healing stands it up.
         retri["hp"] = 10
         scene.update(0.1)
+        self.assertEqual(scene.party_pose[0], "critical")
+        self.assertEqual(canvas.itemcget(scene.party_items[0], "image"),
+                         str(canvas._image(scene.player_art.frame(retri, "critical"))))
+        retri["hp"] = 20
+        scene.update(0.2)
         self.assertEqual(canvas.itemcget(scene.party_items[0], "image"),
                          str(canvas._image(scene.class_sprites[("Retri", "Seer")])))
         self.assertEqual(canvas.coords(scene.party_items[0]), [canvas._value(x), canvas._value(y)])
         scene.close()
 
         retri["hp"], temur["hp"] = 60, 1
+        temur["agility"] = retri["agility"]
         rng = Mock()
         rng.randint.return_value = 9
         rng.randrange.return_value = 1
@@ -336,7 +654,7 @@ class BattleIntegrationTests(unittest.TestCase):
         self.assertEqual(scene.phase, "enemy_action")
         self.assertEqual(canvas.itemcget(scene.party_items[1], "image"), str(canvas._image(scene.class_poses[("Temur", "Saint", "fainted")])))
         self.assertEqual(canvas.itemcget(scene.party_items[0], "image"),
-                         str(canvas._image(scene.class_sprites[("Retri", "Seer")])))
+                         str(canvas._image(scene.class_poses[("Retri", "Seer", "guard")])))
         scene.update(2.4)
         self.assertEqual(scene.phase, "command")
         self.assertEqual(model.actor, 0)
@@ -462,6 +780,8 @@ class BattleIntegrationTests(unittest.TestCase):
         self.assertEqual(model.potions, 2)
         self.assertTrue(model.pending_reply)
         scene.update(5.7)
+        self.assertEqual(scene.phase, "enemy_action")  # Faster spider acts before Temur.
+        scene.update(6.4)
         self.assertEqual((scene.phase, model.actor), ("command", 1))
         self.assertFalse(model.pending_reply)
         scene.close()
@@ -524,7 +844,7 @@ class BattleIntegrationTests(unittest.TestCase):
             a.x, a.y = 168, 136
             a._begin_battle(time.monotonic())
             a._update_battle_transition(time.monotonic() + 1)
-            a._play_music.assert_called_with(game.BATTLE_MUSIC)
+            a._play_music.assert_called_with(game.BATTLE_MUSIC, restart=True)
             a.battle.model = BattleModel(ENEMIES[0], hp=20, potions=1)
             a._finish_battle(outcome)
             a._update_battle_transition(time.monotonic() + 1)
@@ -539,6 +859,38 @@ class BattleIntegrationTests(unittest.TestCase):
                 self.assertEqual((a.x, a.y), (168, 136))
                 self.assertEqual(a.hp, 28 if outcome == "victory" else 20)
         self.assertEqual(a.gold, 8)
+
+    def test_encounters_restart_battle_music_and_resume_the_looping_field_track(self):
+        from unittest.mock import call
+
+        a = self.app
+        a.pygame = Mock(error=RuntimeError)
+        music = a.pygame.mixer.music
+        music.get_busy.return_value = True
+        music.get_pos.side_effect = [7250, 6250, 1000]
+        a.pygame.mixer.Sound.return_value.get_length.return_value = 12.0
+        a._start_area_music()
+        for expected in (7.25, 1.5):
+            a._begin_battle(time.monotonic())
+            a._update_battle_transition(time.monotonic() + 1)
+            music.load.assert_called_with(str(game.BATTLE_MUSIC))
+            music.play.assert_called_with(-1)
+            a._finish_battle("fled")
+            a._update_battle_transition(time.monotonic() + 1)
+            music.load.assert_called_with(str(game.CAVERN_MUSIC))
+            music.play.assert_called_with(-1, start=expected)
+        a.pygame.mixer.Sound.assert_called_once_with(str(game.CAVERN_MUSIC))
+        self.assertEqual(music.play.call_args_list, [call(-1), call(-1), call(-1, start=7.25),
+                                                    call(-1), call(-1, start=1.5)])
+
+        a._begin_battle(time.monotonic())
+        a._update_battle_transition(time.monotonic() + 1)
+        a._finish_battle("fled")
+        with patch.object(a, "_area_music", return_value=game.DEN_MUSIC):
+            a._update_battle_transition(time.monotonic() + 1)
+        music.load.assert_called_with(str(game.DEN_MUSIC))
+        music.play.assert_called_with(-1)
+        self.assertIsNone(a._field_music_bookmark)
 
     def test_battle_layout_and_all_enemy_sprites_at_every_scale(self):
         for units in (8, 10, 12, 14, 16, 17, 20, 24, 32):

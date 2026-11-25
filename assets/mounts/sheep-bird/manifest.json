@@ -1,0 +1,72 @@
+{
+  "id": "sheep_bird_mount",
+  "display_name": "Sheep-Bird Mount",
+  "status": "asset_only",
+  "enabled": false,
+  "riding_implemented": false,
+  "frame_size": [
+    32,
+    32
+  ],
+  "foot_anchor": [
+    16,
+    30
+  ],
+  "sprite_sheet": "assets/mounts/sheep-bird/idle-sheet.png",
+  "idle_frame_durations_ms": [
+    650,
+    250,
+    150
+  ],
+  "directions": {
+    "down": {
+      "row": 0,
+      "idle_frames": [
+        "assets/mounts/sheep-bird/down/idle-0.png",
+        "assets/mounts/sheep-bird/down/idle-1.png",
+        "assets/mounts/sheep-bird/down/idle-2.png"
+      ],
+      "saddle_anchor": [
+        16,
+        16
+      ]
+    },
+    "left": {
+      "row": 1,
+      "idle_frames": [
+        "assets/mounts/sheep-bird/left/idle-0.png",
+        "assets/mounts/sheep-bird/left/idle-1.png",
+        "assets/mounts/sheep-bird/left/idle-2.png"
+      ],
+      "saddle_anchor": [
+        17,
+        16
+      ]
+    },
+    "right": {
+      "row": 2,
+      "idle_frames": [
+        "assets/mounts/sheep-bird/right/idle-0.png",
+        "assets/mounts/sheep-bird/right/idle-1.png",
+        "assets/mounts/sheep-bird/right/idle-2.png"
+      ],
+      "saddle_anchor": [
+        15,
+        16
+      ]
+    },
+    "up": {
+      "row": 3,
+      "idle_frames": [
+        "assets/mounts/sheep-bird/up/idle-0.png",
+        "assets/mounts/sheep-bird/up/idle-1.png",
+        "assets/mounts/sheep-bird/up/idle-2.png"
+      ],
+      "saddle_anchor": [
+        16,
+        16
+      ]
+    }
+  },
+  "integration_notes": "Saddle anchors are draft attachment points. Walking, running, rider overlays, collision, spawning, and mount controls are future work."
+}

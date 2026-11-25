@@ -1,10 +1,11 @@
 """Supply icons, his prices, and the framed item slots."""
 import tkinter as tk
+import time
 import unittest
 from unittest.mock import patch
 
 import Caldrona_Lite as game
-from consumables import SUPPLIES, apply_supply
+from consumables import RARE_SUPPLIES, SUPPLIES, apply_supply
 from display_settings import DisplayConfig
 from item_slots import BLACK, GOLD, GLINT_TAG, SLOT_TAG, SlotGlint, draw_item_slot
 from items import supply_icon
@@ -26,7 +27,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(SUPPLIES["Ether"][0], 18)
         self.assertEqual(SUPPLIES["Ember Feather"][0], 30)
         self.assertNotIn("Ember Talisman", SUPPLIES)
-        for name in SUPPLIES:
+        for name in (*SUPPLIES, *RARE_SUPPLIES):
             path = supply_icon(name)
             self.assertIsNotNone(path, name)
             self.assertEqual(_png_size(path), (32, 32), name)
@@ -108,15 +109,19 @@ class SlotFrameTests(unittest.TestCase):
             app = game.CaldronaLite()
         self.addCleanup(app._close)
         app.root.withdraw()
-        app._start_cavern()
-        app.dialogue.clear()
+        app._start_cavern()  # Quiet cavern fixture with the untouched starting pack.
         menu = app.game_menu
-        menu.open()
-        menu.activate()
+        app._back()
+        app._activate()
         wells = [item for item in app.canvas.find_withtag(SLOT_TAG)
                  if app.canvas.type(item) == "rectangle" and app.canvas.itemcget(item, "fill") == BLACK]
-        self.assertEqual(len(wells), 3)
-        self.assertEqual(len(menu._slot_boxes), 3)
+        self.assertEqual(len(wells), len(SUPPLIES)+len(RARE_SUPPLIES))
+        self.assertEqual(len(menu._slot_boxes), len(SUPPLIES)+len(RARE_SUPPLIES))
+        slots = app.canvas.find_withtag(SLOT_TAG)
+        self.assertEqual(sum(app.canvas.type(item) == "image" for item in slots), len(SUPPLIES)+len(RARE_SUPPLIES))
+        labels = [app.canvas.itemcget(item, "text") for item in app.canvas.find_withtag(menu.TAG)
+                  if app.canvas.type(item) == "text"]
+        self.assertTrue(any("Ember Talisman  x0" in label for label in labels))
         selected = menu.glint.after_id
         self.assertTrue(_after_alive(app.canvas, selected))
         menu.navigate("down", 1)
@@ -138,6 +143,16 @@ class SlotFrameTests(unittest.TestCase):
         self.assertFalse(_after_alive(app.canvas, hover_id))
         self.assertEqual(app.canvas.find_withtag(GLINT_TAG), ())
         self.assertFalse(menu.active)
+        app._begin_battle(time.monotonic())
+        app._update_battle_transition(time.monotonic() + 1)
+        app.battle.navigate("down", 0)
+        app._activate()  # Items in the first battle.
+        slots = app.canvas.find_withtag(SLOT_TAG)
+        self.assertEqual(sum(app.canvas.type(item) == "image" for item in slots), 4)
+        app.battle.selection = app.battle.model.item_names().index("Ember Talisman")
+        app._activate()
+        self.assertEqual(app.battle.phase, "command")
+        self.assertIn("No Ember Talisman", app.battle.model.message)
 
 if __name__ == "__main__":
     unittest.main()

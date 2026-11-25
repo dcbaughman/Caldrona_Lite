@@ -6,19 +6,39 @@ from pathlib import Path
 from typing import Callable
 
 
-from abilities import class_abilities, learned_abilities, variant_for
-from classes import JOBS, EMBLEMS, DESCRIPTIONS, current_job
+from abilities import learned_abilities, lesson_variant
+from classes import BLUE_PATHS as JOBS, EMBLEMS, DESCRIPTIONS, STONE_NAMES, current_job
+from crescendo import MAX_CHARGE, charge, choices_for, equipped_crescendo, is_unlocked, unlock_text
 from equipment import (SLOTS, SLOT_LABELS, STAT_LABELS, available_count, can_wear,
                        equip, item_for, owned_items, preview_value, stat_value, worn_id)
 from item_slots import SlotGlint, draw_item_slot
 from items import gear_icon, supply_icon
+from research import lessons_for
+
+ITEM_ROW_TOP = 150
+ITEM_ROW_HEIGHT = 42
+VISIBLE_ITEM_ROWS = 6
+EQUIP_SLOT_TOP = 158
+EQUIP_SLOT_STEP = 48
+EQUIP_SLOT_X = (44, 351)
+EQUIP_ITEM_TOP = 153
+EQUIP_ITEM_STEP = 24
+EQUIP_ITEM_X = (510, 886)
+EQUIP_ROWS = 6
+EQUIP_SCROLL_X = 905
+EQUIP_MEMBER_X = (358, 602)
+MENU_ROW_TOP = 82
+MENU_ROW_STEP = 34
+CRESCENDO_PAGE = 9
+CRESCENDO_ROW_TOP = 174
+CRESCENDO_ROW_STEP = 55
 
 
 class GameMenu:
     TAG = "game_menu"
     OPTIONS = (
         ("Items", "Your pack is empty for now."),
-        ("Abilities", "Discover the stone to awaken Astral Sync."),
+        ("Tome", "Read analects and spend RP to research abilities."),
         ("Equip", "Manage weapons, armor, shields and accessories."),
         ("Status", "Retri is a skirter exploring Sunrest's cavern."),
         ("Formation", "Retri is the only party member right now."),
@@ -26,6 +46,7 @@ class GameMenu:
         ("Save", "Saving will be added in a later pass."),
         ("Load", "No saved cavern journey exists yet."),
         ("Sync", "Discover the stone to awaken Astral Sync."),
+        ("Crescendo", "Choose a finishing move for each party member."),
         ("Title Screen", "Leave the cavern and return to the title screen."),
     )
 
@@ -40,10 +61,15 @@ class GameMenu:
         self.portrait = portrait
         self.party_names = lambda: ["Retri"]
         self.party_portrait = lambda name: self.portrait() if name == "Retri" else None
+        self.party_sprite = lambda name, job: None
         self.roster = lambda: []
+        self.field_leader = lambda: None
+        self.set_field_leader = lambda name: None
+        self.formation_changed = lambda: None
         self.sync_unlocked = lambda: False
         self.member_index = 0
         self.sync_index = 0
+        self.crescendo_index = 0
         self.sync_icons = {}
         self.inventory = lambda: {}
         self.use_item = lambda name, member: "Item unavailable."
@@ -56,6 +82,7 @@ class GameMenu:
         self.equip_index = 0
         self.equip_focus = "category"
         self.status_tab = "stats"
+        self.ability_index = 0
         self.feedback = ""
         self.glint = SlotGlint(canvas)
         self._icons = {}
@@ -104,7 +131,9 @@ class GameMenu:
     def activate(self) -> str | None:
         if not self.active:
             return None
-        if self.detail is None and self.selection in (1, 8) and self.sync_unlocked():
+        if self.detail is None and self.selection == 1:
+            return "tome"
+        if self.detail is None and self.selection == 8 and self.sync_unlocked():
             return "sync"
         if self.detail == 2:
             self._equip_activate()
@@ -126,8 +155,11 @@ class GameMenu:
         self.equip_index = 0
         self.equip_focus = "category"
         self.status_tab = "stats"
+        self.ability_index = 0
         self.feedback = ""
         self.detail = self.selection
+        if self.detail == CRESCENDO_PAGE:
+            self._change_crescendo_member(0)
         if self._sync_page() and self.roster():
             current = self._current_job(self.roster()[self.member_index])
             self.sync_index = JOBS.index(current) if current in JOBS else 0
@@ -135,23 +167,45 @@ class GameMenu:
         return None
 
     def _roster_page(self):
-        return self.detail in (0, 3, 4) or self._sync_page()
+        return self.detail in (0, 3, 4, CRESCENDO_PAGE) or self._sync_page()
+
+    def _change_crescendo_member(self, step):
+        roster = self.roster()
+        if roster:
+            self.member_index = (self.member_index + step) % len(roster)
+            member = roster[self.member_index]
+            move = equipped_crescendo(member)
+            self.crescendo_index = choices_for(member).index(move) if move else 0
+        self.feedback = ""
 
     def _sync_page(self):
-        return self.detail == 8 or (self.detail == 1 and self.sync_unlocked())
+        return self.detail == 8
 
     def _current_job(self, member):
         return current_job(member)
 
     def _sync_icon(self, job):
         if job not in self.sync_icons:
-            path = Path(__file__).resolve().parent / "assets" / "sync" / EMBLEMS[job]
+            path = Path(__file__).resolve().parent / "assets" / "sync" / EMBLEMS.get(job, EMBLEMS["Seer"])
             self.sync_icons[job] = tk.PhotoImage(master=self.canvas, file=str(path)).zoom(2)
         return self.sync_icons[job]
 
     def _choose_member(self):
         members = self.roster()
+        if not members:
+            return
         member = members[self.member_index]
+        if self.detail == CRESCENDO_PAGE:
+            choices = choices_for(member)
+            if not choices:
+                return
+            move = choices[self.crescendo_index]
+            if not is_unlocked(member, move):
+                self.feedback = f"Locked: {unlock_text(member, move)}."
+                return
+            member["crescendo_choice"] = move.id
+            self.feedback = f"{move.name} equipped."
+            return
         if self.detail == 0:
             items = list(self.inventory())
             if not items:
@@ -175,12 +229,26 @@ class GameMenu:
         if member in active:
             if not any(p is not member and p["hp"] > 0 for p in active):
                 self.feedback = "Keep one standing fighter active."
-            else:
-                member["active"] = False
+                return
+            member["active"] = False
         elif len(active) >= 3:
             self.feedback = "Move a fighter to reserve first."
+            return
         else:
             member["active"] = True
+        self.formation_changed()
+
+    def _choose_field_leader(self):
+        roster = self.roster()
+        if not roster:
+            return
+        member = roster[self.member_index]
+        if member.get("active", True) and member["hp"] > 0:
+            self.set_field_leader(member["name"])
+            self.feedback = f"{member['name']} now leads in the field."
+        else:
+            self.feedback = "Choose a standing, active party member to lead."
+        self.draw()
 
     def navigate(self, direction: str | None, now: float) -> None:
         if self.active and self.detail == 2:
@@ -189,9 +257,14 @@ class GameMenu:
         if self.active and self.detail == 3 and direction in ("left", "right"):
             self.change_equipment_member(-1 if direction == "left" else 1)
             return
+        if self.active and self.detail == 4 and direction == "right":
+            if self.held_direction != direction:
+                self.held_direction = direction
+                self._choose_field_leader()
+            return
         if not self.active or (self.detail is not None and not self._roster_page()):
             return
-        directions = ("up", "down", "left", "right") if self._sync_page() else ("up", "down")
+        directions = ("up", "down", "left", "right") if self._sync_page() or self.detail == CRESCENDO_PAGE else ("up", "down")
         if direction not in directions:
             self.held_direction = None
             self.repeating = False
@@ -202,16 +275,30 @@ class GameMenu:
             self.repeating = False
         if now >= self.repeat_at:
             step = -1 if direction in ("up", "left") else 1
-            if self._sync_page() and direction in ("left", "right"):
+            if self.detail == CRESCENDO_PAGE:
+                if direction in ("left", "right"):
+                    self._change_crescendo_member(step)
+                elif self.roster():
+                    member = self.roster()[self.member_index]
+                    choices = choices_for(member)
+                    if choices:
+                        self.crescendo_index = (self.crescendo_index + step) % len(choices)
+                    self.feedback = ""
+            elif self._sync_page() and direction in ("left", "right"):
                 self.sync_index = (self.sync_index + step) % len(JOBS)
                 self.feedback = ""
             elif self._roster_page():
-                if self.detail == 0 and not self.item_targeting:
+                if self.detail == 3 and self.status_tab == "abilities":
+                    rows = self._status_ability_rows(self.roster()[self.member_index])
+                    if rows:
+                        self.ability_index = (self.ability_index + step) % len(rows)
+                elif self.detail == 0 and not self.item_targeting:
                     items = list(self.inventory())
                     if items:
                         self.item_index = (self.item_index + step) % len(items)
                 else:
                     self.member_index = (self.member_index + step) % len(self.roster())
+                    self.ability_index = 0
                 self.feedback = ""
                 if self._sync_page():
                     current = self._current_job(self.roster()[self.member_index])
@@ -226,8 +313,19 @@ class GameMenu:
         if self.active and self.detail == 2:
             self._equip_click(x, y)
             return None
+        if self.active and self.detail == CRESCENDO_PAGE:
+            if 109 <= y <= 149 and (315 <= x <= 352 or 869 <= x <= 905):
+                self._change_crescendo_member(-1 if x <= 352 else 1)
+                self.draw()
+            elif self.roster() and 315 <= x <= 905:
+                row = round((y - CRESCENDO_ROW_TOP) / CRESCENDO_ROW_STEP)
+                if 0 <= row < 4 and abs(y - CRESCENDO_ROW_TOP - row * CRESCENDO_ROW_STEP) <= 22:
+                    self.crescendo_index = row
+                    self._choose_member()
+                    self.draw()
+            return None
         if self.active and self._sync_page():
-            for index, (cx, cy) in enumerate(((610, 170), (752, 302), (468, 302))):
+            for index, (cx, cy) in enumerate(((610, 170), (752, 302))):
                 if abs(x-cx) <= 42 and abs(y-cy) <= 42:
                     self.sync_index = index
                     self._choose_member()
@@ -236,8 +334,9 @@ class GameMenu:
             return None
         if self.active and self.detail == 0:
             if not self.item_targeting and 315 <= x <= 590:
-                index = (y-131)//38
-                if 0 <= index < len(self.inventory()):
+                row = (y - (ITEM_ROW_TOP - ITEM_ROW_HEIGHT//2)) // ITEM_ROW_HEIGHT
+                index = self._item_list_start() + row
+                if 0 <= row < VISIBLE_ITEM_ROWS and index < len(self.inventory()):
                     self.item_index = index
                     self._choose_member()
                     self.draw()
@@ -249,8 +348,18 @@ class GameMenu:
                     self.draw()
             return None
         if self.active and self.detail == 3:
+            if self.status_tab == "abilities" and self.roster():
+                rows = self._status_ability_rows(self.roster()[self.member_index])
+                start = self._ability_list_start(len(rows))
+                row = round((y - 186) / 46)
+                index = start + row
+                if 0 <= row < 4 and 315 <= x <= 900 and 0 <= index < len(rows) and abs(y - (186 + row * 46)) <= 22:
+                    self.ability_index = index
+                    self.draw()
+                return None
             if 315 <= x <= 900 and 130 <= y <= 170:
                 self.member_index = (self.member_index + 1) % len(self.roster())
+                self.ability_index = 0
                 self.draw()
             return None
         if self.active and self._roster_page():
@@ -258,8 +367,11 @@ class GameMenu:
             row = (y-146)//48
             if 315 <= x <= 900 and 0 <= row < 4 and start+row < len(self.roster()):
                 self.member_index = start+row
-                self._choose_member()
-                self.draw()
+                if self.detail == 4 and x >= 745:
+                    self._choose_field_leader()
+                else:
+                    self._choose_member()
+                    self.draw()
             return None
         if not self.active:
             return None
@@ -267,8 +379,8 @@ class GameMenu:
             self.back()
             return None
         if 42 <= x <= 274:
-            index = round((y - 82) / 36)
-            if 0 <= index < len(self.OPTIONS) and abs(y - (82 + index * 36)) <= 17:
+            index = round((y - MENU_ROW_TOP) / MENU_ROW_STEP)
+            if 0 <= index < len(self.OPTIONS) and abs(y - (MENU_ROW_TOP + index * MENU_ROW_STEP)) <= 16:
                 self.selection = index
                 return self.activate()
         return None
@@ -289,7 +401,7 @@ class GameMenu:
         return [None] + [item.id for item in owned_items(self.gear_inventory(), slot)]
 
     def _equip_scroll(self, entries):
-        return max(0, min(self.equip_index - 5, len(entries) - 6))
+        return max(0, min(self.equip_index - EQUIP_ROWS + 1, len(entries) - EQUIP_ROWS))
 
     def _equip_select_current(self):
         member = self._equip_member()
@@ -314,12 +426,18 @@ class GameMenu:
             self.gear_changed(member)
 
     def change_equipment_member(self, step):
-        """L1/R1: switch the Equip member, or the Status STATS/ABILITIES tab."""
+        """L1/R1 switches members or the current Status tab."""
         if not self.active or step not in (-1, 1):
             return
         if self.detail == 3:
             self.status_tab = "abilities" if step > 0 else "stats"
+            if step > 0:
+                self.ability_index = 0
             self.feedback = ""
+            self.draw()
+            return
+        if self.detail == CRESCENDO_PAGE:
+            self._change_crescendo_member(step)
             self.draw()
             return
         if self.detail != 2:
@@ -373,16 +491,14 @@ class GameMenu:
         self.repeating = True
 
     def _equip_click(self, x, y):
-        # Header band switches members. The drawn < > at y=55 do not.
-        if 56 <= y <= 78:
-            if 540 <= x <= 780:
-                self.change_equipment_member(1)
-                return
-            if 400 <= x <= 500:
-                self.change_equipment_member(-1)
-                return
+        if 42 <= y <= 73:
+            for step, center in zip((-1, 1), EQUIP_MEMBER_X):
+                if abs(x - center) <= 32:
+                    self.change_equipment_member(step)
+                    return
         for index in range(len(SLOTS)):
-            if 38 <= x <= 264 and abs(y - (169 + index*65)) <= 28:
+            center = EQUIP_SLOT_TOP + index * EQUIP_SLOT_STEP
+            if EQUIP_SLOT_X[0] <= x <= EQUIP_SLOT_X[1] and abs(y - center) <= 21:
                 self.equip_slot = index
                 self.equip_focus = "category"
                 self._equip_activate()
@@ -390,20 +506,21 @@ class GameMenu:
                 return
         entries = self._equip_entries()
         start = self._equip_scroll(entries)
-        if 288 <= x <= 338 and 130 <= y <= 152 and start:
-            self.equip_focus = "items"
-            self.equip_index = start - 1
-            self.feedback = ""
-            self.draw()
-            return
-        if 288 <= x <= 338 and 356 <= y <= 382 and start + 6 < len(entries):
-            self.equip_focus = "items"
-            self.equip_index = min(len(entries)-1, start + 6)
-            self.feedback = ""
-            self.draw()
-            return
-        row = round((y - 167) / 35)
-        if 288 <= x <= 651 and 0 <= row < 6 and abs(y - (167 + row*35)) <= 16 and start + row < len(entries):
+        if abs(x - EQUIP_SCROLL_X) <= 14:
+            scroll_row = None
+            if abs(y - EQUIP_ITEM_TOP) <= 11 and start > 0:
+                scroll_row = start - 1
+            elif abs(y - (EQUIP_ITEM_TOP + (EQUIP_ROWS - 1) * EQUIP_ITEM_STEP)) <= 11 and start + EQUIP_ROWS < len(entries):
+                scroll_row = start + EQUIP_ROWS
+            if scroll_row is not None:
+                self.equip_focus = "items"
+                self.equip_index = scroll_row
+                self.feedback = ""
+                self.draw()
+                return
+        row = round((y - EQUIP_ITEM_TOP) / EQUIP_ITEM_STEP)
+        if (EQUIP_ITEM_X[0] <= x <= EQUIP_ITEM_X[1] and 0 <= row < EQUIP_ROWS
+                and abs(y - (EQUIP_ITEM_TOP + row * EQUIP_ITEM_STEP)) <= 11 and start + row < len(entries)):
             index = start + row
             if self.equip_focus == "items" and self.equip_index == index:
                 self._equip_activate()
@@ -416,99 +533,121 @@ class GameMenu:
     def _draw_equipment(self):
         c, tag = self.canvas, self.TAG
         c.create_rectangle(0, 0, 960, 540, fill="#08090c", outline="", tags=tag)
-        self._frame(28, 24, 932, 94)
-        self._frame(28, 103, 264, 454)
-        self._frame(276, 103, 654, 454)
-        self._frame(666, 103, 932, 454)
-        self._frame(28, 470, 932, 528)
-        text = lambda x, y, value, size=20, color="#ffffff", **kw: c.create_text(
-            x, y, text=value, fill=color, font=self.font(size), tags=tag, **kw)
-        text(51, 58, "EQUIP", 29, "#ffe37e", anchor="w")
+        for panel in ((28, 24, 932, 88), (28, 100, 480, 340), (492, 100, 932, 340),
+                      (28, 351, 932, 463), (28, 474, 932, 527)):
+            self._frame(*panel)
+
+        def text(x, y, value, size=20, color="#f8f4e8", **kw):
+            return c.create_text(x, y, text=value, fill=color, font=self.font(size), tags=tag, **kw)
+
+        gold, blue, muted = "#ffe37e", "#8edce8", "#bdcce1"
+        text(50, 55, "EQUIP", 27, gold, anchor="w")
         member = self._equip_member()
         if member is None:
-            text(480, 275, "No party members available.", 24)
+            text(480, 240, "No party members available.", 24)
             return
-        text(508, 57, "L1  <  " + self._short(member["name"].upper(), 16) + "  >  R1", 23)
-        text(900, 58, "ACTIVE" if member.get("active", True) else "RESERVE", 18, "#80eaf5", anchor="e")
-        text(49, 124, "CATEGORY", 19, "#80eaf5", anchor="w")
+        job = self._current_job(member)
+        text(480, 55, member["name"].upper(), 26, gold)
+        text(907, 55, f"LV {member.get('level', 1)}  ·  {job or 'Unbound'}" +
+             ("  ·  Reserve" if not member.get("active", True) else ""), 18, muted, anchor="e")
+        if len(self.roster()) > 1:
+            for cx, label in zip(EQUIP_MEMBER_X, ("‹ L1", "R1 ›")):
+                c.create_rectangle(cx-32, 42, cx+32, 72, fill="#303762", outline="#7785ae", tags=tag)
+                text(cx, 57, label, 18)
+
+        text(50, 124, "EQUIPPED", 19, blue, anchor="w")
+        c.create_line(367, 149, 367, 320, fill="#585f94", tags=tag)
+        sprite = self.party_sprite(member["name"], job)
+        if sprite is not None:
+            c.create_image(416, 226, image=sprite, tags=tag)
         for index, slot in enumerate(SLOTS):
-            y = 169 + index*65
+            y = EQUIP_SLOT_TOP + index * EQUIP_SLOT_STEP
             chosen = index == self.equip_slot
-            text(48, y, ("> " if chosen else "   ") + SLOT_LABELS[slot].upper(), 19,
-                 "#ffe37e" if chosen else "#ffffff", anchor="w")
+            if chosen:
+                left, right = EQUIP_SLOT_X
+                c.create_rectangle(left, y-21, right, y+21, fill="#384480", outline="#727fb2", tags=tag)
+                c.create_rectangle(left, y-21, left+3, y+21, fill=gold, outline="", tags=tag)
             equipped = item_for(worn_id(member, slot))
-            text(72, y+23, self._short(equipped.name if equipped else "Empty", 16), 14,
-                 "#b9c9d6", anchor="w")
+            box = draw_item_slot(c, 70, y, self._gear_photo(equipped), tag)
+            if chosen:
+                self._slot_box = box
+            text(100, y-9, SLOT_LABELS[slot].upper(), 15, blue, anchor="w")
+            text(100, y+8, self._short(equipped.name, 24) if equipped else "Empty", 19,
+                 gold if chosen else muted if equipped is None else "#f8f4e8", anchor="w")
 
         slot = SLOTS[self.equip_slot]
+        current = worn_id(member, slot)
         entries = self._equip_entries()
-        self.equip_index = min(self.equip_index, len(entries)-1)
+        self.equip_index = min(self.equip_index, len(entries) - 1)
         start = self._equip_scroll(entries)
-        selected = entries[self.equip_index] if self.equip_focus == "items" else None
-        text(297, 124, SLOT_LABELS[slot].upper(), 19, "#80eaf5", anchor="w")
-        text(632, 124, "FREE/TOTAL", 15, "#80eaf5", anchor="e")
-        for row, item_id in enumerate(entries[start:start+6]):
-            y = 167 + row*35
-            active = self.equip_focus == "items" and start+row == self.equip_index
+        browsing = self.equip_focus == "items"
+        selected = entries[self.equip_index] if browsing else None
+        title = SLOT_LABELS[slot].upper() + "  /  INVENTORY"
+        text(512, 124, title, 18, blue, anchor="w")
+        text(886, 124, "FREE / OWNED", 15, blue, anchor="e")
+        owned, roster = self.gear_inventory(), self.roster()
+        for row, item_id in enumerate(entries[start:start+EQUIP_ROWS]):
+            y = EQUIP_ITEM_TOP + row * EQUIP_ITEM_STEP
+            active = browsing and start + row == self.equip_index
             item = item_for(item_id)
-            equipped_here = item is not None and worn_id(member, slot) == item.id
-            label = (self._short(item.name, 15) + " [E]" if equipped_here else
-                     self._short(item.name, 19)) if item else "Remove equipment"
-            text(298, y, ("> " if active else "   ") + label, 18,
-                 "#ffe37e" if active else "#ffffff", anchor="w")
-            if item:
-                total = self.gear_inventory().get(item.id, 0)
-                free = available_count(self.gear_inventory(), self.roster(), item.id)
-                value = f"{free}/{total}"
-                color = "#8693ae" if not free and not equipped_here else "#c9dcf1"
+            equipped_here = item_id is not None and item_id == current
+            label = "Remove equipment" if item is None else self._short(item.name, 24) + (" [E]" if equipped_here else "")
+            if active:
+                left, right = EQUIP_ITEM_X
+                c.create_rectangle(left, y-11, right, y+11, fill="#384480", outline="", tags=tag)
+                text(518, y, "▶", 14, gold, anchor="w")
+            text(541, y, label, 17, gold if active else "#f8f4e8", anchor="w")
+            if item is not None:
+                free = available_count(owned, roster, item_id)
+                value = f"{free}/{owned[item_id]}"
+                color = muted if free or equipped_here else "#94a1c0"
                 if not can_wear(member, item):
                     value, color = "CANNOT", "#e9a7a7"
-                text(632, y, value, 17, color, anchor="e")
+                text(874, y, value, 16, color, anchor="e")
         if start:
-            text(300, 146, "^", 14, "#80eaf5", anchor="w")
-        if start + 6 < len(entries):
-            text(300, 370, "v", 14, "#80eaf5", anchor="w")
+            text(EQUIP_SCROLL_X, EQUIP_ITEM_TOP, "▲", 16, blue)
+        if start + EQUIP_ROWS < len(entries):
+            text(EQUIP_SCROLL_X, EQUIP_ITEM_TOP + (EQUIP_ROWS - 1) * EQUIP_ITEM_STEP, "▼", 16, blue)
+        c.create_line(510, 290, 914, 290, fill="#585f94", tags=tag)
         item = item_for(selected)
-        if self.equip_focus != "items":
-            description = "Choose a category. Accessories include artifacts and trinkets." if slot == "accessory" else "Choose a category, then select equipment."
+        preview = browsing
+        if not browsing:
+            description = "Select a slot to browse its gear."
         elif item is None:
-            description = "Remove the item in this slot." if worn_id(member, slot) else "This slot is empty."
+            description = "Remove the item in this slot." if current else "This slot is empty."
         elif not can_wear(member, item):
-            description = member["name"] + " cannot equip " + item.name + "."
-        elif worn_id(member, slot) != item.id and not available_count(self.gear_inventory(), self.roster(), item.id):
+            description = f"{member['name']} cannot equip {item.name}."
+            preview = False
+        elif current != item.id and not available_count(owned, roster, item.id):
             description = "All copies are equipped by other party members."
-        elif worn_id(member, slot) == item.id:
-            description = item.name + " is equipped. " + item.description
+            preview = False
         else:
-            description = item.name + (": " + item.description if item.description else "")
-        description = self._short(description, 70)
-        description_item = text(298, 388, description, 16, "#b8dce6", anchor="nw", width=330)
-        # Tk wraps using the actual font and display scale. Shorten only when
-        # necessary so unusually long future item names stay inside the panel.
-        bottom = getattr(c, "_value", lambda value: value)(444)
+            description = item.description or item.name
+        if browsing and current is not None and selected == current:
+            description = "Equipped. " + description
+        description_item = text(513, 297, description, 16, muted, anchor="nw", width=396)
+        bottom = getattr(c, "_value", lambda value: value)(329)
+        # Fit long descriptions with the actual scaled font.
         while len(description) > 4 and c.bbox(description_item)[3] > bottom:
-            plain = description[:-3] if description.endswith("...") else description
+            plain = description.removesuffix("...")
             description = plain[:-4].rstrip() + "..."
             c.itemconfigure(description_item, text=description)
 
-        text(686, 124, "STATS", 19, "#80eaf5", anchor="w")
-        abbreviations = ("MAX HP", "MAX MP", "STR", "DEF", "MAG", "MAG DEF", "AGI", "LUCK", "EVA", "ACC")
-        for i, ((stat, _), label) in enumerate(zip(STAT_LABELS, abbreviations)):
-            y = 166 + i*24
+        text(50, 375, "STAT PREVIEW" if preview and selected != current else "STATS", 19, blue, anchor="w")
+        for index, (stat, label) in enumerate(STAT_LABELS):
+            x, y = 50 + (index % 5) * 174, 412 + (index // 5) * 27
             before = stat_value(member, stat)
-            after = preview_value(member, slot, selected, stat) if self.equip_focus == "items" else before
-            text(686, y, label, 15, "#d8ecf3", anchor="w")
-            if before == after:
-                text(910, y, str(before), 16, "#ffffff", anchor="e")
-            else:
-                text(910, y, f"{before} > {after}", 16, "#8fe8ae" if after > before else "#ffaaaa", anchor="e")
-        shown = item_for(selected) if self.equip_focus == "items" else item_for(worn_id(member, slot))
-        self._slot_box = draw_item_slot(c, 800, 428, self._gear_photo(shown), tag)
+            after = preview_value(member, slot, selected, stat) if preview else before
+            text(x, y, label.upper(), 16, muted, anchor="w")
+            value = str(before) if before == after else f"{before} > {after}"
+            color = "#8fe8ae" if after > before else "#ffaaaa" if after < before else "#f8f4e8"
+            text(x+151, y, value, 17, color, anchor="e")
         self.glint.play(self._slot_box)
-        text(50, 490, self._short(self.feedback, 72) if self.feedback else
-             ("Compare stats. [E] marks equipped gear." if self.equip_focus == "items" else "Choose a category to browse equipment."),
-             16, "#ffe37e" if self.feedback else "#ffffff", anchor="w")
-        text(50, 513, "UP/DOWN MOVE   L1/R1: CHANGE MEMBER   ENTER SELECT   ESC BACK", 14, "#a8dce7", anchor="w")
+        instruction = "Select an item to equip or remove." if browsing else "Select an equipment slot."
+        text(50, 491, self._short(self.feedback, 90) if self.feedback else instruction,
+             16, gold if self.feedback else "#f8f4e8", anchor="w")
+        text(50, 513, "UP/DOWN MOVE   L1/R1: CHANGE MEMBER   ENTER/CROSS SELECT   ESC/CIRCLE BACK",
+             14, blue, anchor="w")
 
     def _frame(self, x1: int, y1: int, x2: int, y2: int) -> None:
         c = self.canvas
@@ -540,7 +679,7 @@ class GameMenu:
         self._frame(28, 478, 932, 529)
 
         for index, (label, _) in enumerate(self.OPTIONS):
-            y = 82 + index * 36
+            y = MENU_ROW_TOP + index * MENU_ROW_STEP
             active = index == self.selection
             if active:
                 c.create_text(51, y, text="▶", anchor="w", fill="#f7f2dc",
@@ -591,6 +730,8 @@ class GameMenu:
                           fill="#80eaf5", font=self.font(27), tags=tag)
         elif self.detail in (0, 3):
             self._draw_items_or_status()
+        elif self.detail == CRESCENDO_PAGE:
+            self._draw_crescendo()
         elif self._sync_page():
             self._draw_sync()
         elif self._roster_page():
@@ -601,10 +742,18 @@ class GameMenu:
             start = max(0, self.member_index-3)
             for row, member in enumerate(members[start:start+4]):
                 selected = start+row == self.member_index
-                value = ("Active" if member.get("active", True) else "Reserve") if self.detail == 4 else member.get("job", "Unbound")
+                if self.detail == 4:
+                    leader = member["name"] == self.field_leader()
+                    value = "Leader" if leader else "Active" if member.get("active", True) else "Reserve"
+                    if not leader and member.get("active", True) and member["hp"] > 0:
+                        c.create_text(892, 170+48*row, text="SET LEADER", anchor="e",
+                                      fill="#9adbe8", font=self.font(17), tags=tag)
+                else:
+                    value = member.get("job", "Unbound")
                 c.create_text(320, 170+48*row, anchor="w", text=("▶  " if selected else "   ") + member["name"] + "    " + value,
                               fill="#ffe37e" if selected else "#ffffff", font=self.font(25), tags=tag)
-            help_text = "Confirm to change formation." if self.detail == 4 else "Confirm to change this member's path."
+            help_text = ("Right sets the field leader. Confirm toggles Active or Reserve."
+                         if self.detail == 4 else "Confirm to change this member's path.")
             c.create_text(315, 390, text=self.feedback or help_text, width=570, anchor="w", fill="#9adbe8", font=self.font(22), tags=tag)
         else:
             title, description = self.OPTIONS[self.detail]
@@ -623,6 +772,39 @@ class GameMenu:
                       text=controls,
                       anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
         c.tag_raise(tag)
+
+    def _draw_crescendo(self):
+        roster = self.roster()
+        if not roster:
+            return
+        member = roster[self.member_index]
+        equipped = equipped_crescendo(member)
+        c, tag = self.canvas, self.TAG
+
+        def text(x, y, value, color="#f4f5f3", size=20, **options):
+            c.create_text(x, y, text=value, fill=color, font=self.font(size), tags=tag, **options)
+
+        text(315, 91, "CRESCENDO", "#ffe37e", 28, anchor="w")
+        text(900, 91, f"{charge(member)} / {MAX_CHARGE}", "#ffe37e", anchor="e")
+        text(333, 130, "◀", "#9adbe8")
+        text(887, 130, "▶", "#9adbe8")
+        text(610, 130, f"{member['name']}  ·  {current_job(member) or 'Unbound'}")
+        for i, move in enumerate(choices_for(member)):
+            y = CRESCENDO_ROW_TOP + i * CRESCENDO_ROW_STEP
+            selected = self.crescendo_index == i
+            if selected:
+                c.create_rectangle(313, y-16, 906, y+31, fill="#3d428b", outline="#7883bf", tags=tag)
+            text(328, y, ("▶  " if selected else "    ") + move.name,
+                 "#ffe37e" if selected else "#f4f5f3", anchor="w")
+            text(349, y+19, move.description, "#c5d4ec", 16, anchor="w")
+            if move == equipped:
+                text(889, y, "EQUIPPED", "#80eaf5", 14, anchor="e")
+            elif not is_unlocked(member, move):
+                text(889, y, "LOCKED", "#9aa6bf", 14, anchor="e")
+        hint = "Full meter unlocks your move under Abilities in battle." if equipped else "Crescendos are awaiting design."
+        text(328, 406, self.feedback or hint,
+             "#ffe37e" if self.feedback else "#9adbe8", 18, anchor="w")
+        text(328, 430, "LEFT/RIGHT OR L1/R1 CHANGE MEMBER", "#c5d4ec", 15, anchor="w")
 
     def _draw_sync(self):
         c, tag = self.canvas, self.TAG
@@ -646,6 +828,9 @@ class GameMenu:
         c.create_text(610, 389, text=message, fill="#ffffff", font=self.font(21), tags=tag)
         c.create_text(610, 423, text="UP / DOWN MEMBER    LEFT / RIGHT CLASS    CONFIRM TO SYNC", fill="#9adbe8", font=self.font(16), tags=tag)
 
+    def _item_list_start(self):
+        return max(0, self.item_index - VISIBLE_ITEM_ROWS + 1)
+
     def _draw_items_or_status(self):
         c, tag = self.canvas, self.TAG
         members = self.roster()
@@ -656,16 +841,19 @@ class GameMenu:
             items = list(self.inventory().items())
             self._slot_boxes = []
             self._slot_box = None
-            for i, (name, count) in enumerate(items[:4]):
-                y = 150 + i * 38
+            first = self._item_list_start()
+            for row, (name, count) in enumerate(items[first:first+VISIBLE_ITEM_ROWS]):
+                i = first + row
+                y = ITEM_ROW_TOP + row * ITEM_ROW_HEIGHT
                 box = draw_item_slot(c, 348, y, self._supply_photo(name), tag)
                 self._slot_boxes.append((i, box))
                 if i == self.item_index:
                     self._slot_box = box
                 marker = "▶ " if i == self.item_index and not self.item_targeting else "   "
                 c.create_text(384, y, text=marker + f"{name}  x{count}", anchor="w", fill="#ffffff", font=self.font(23), tags=tag)
-            if self.hover_index is not None and self.hover_index < len(self._slot_boxes):
-                self.glint.play(self._slot_boxes[self.hover_index][1])
+            hovered = next((box for index, box in self._slot_boxes if index == self.hover_index), None)
+            if hovered is not None:
+                self.glint.play(hovered)
             elif self._slot_box is not None:
                 self.glint.play(self._slot_box)
             else:
@@ -679,7 +867,7 @@ class GameMenu:
         elif self.status_tab == "abilities":
             self.glint.stop()
             self._draw_status_abilities(member)
-            hint = "L1 STATS · R1 ABILITIES · UP/DOWN member"
+            hint = "L1 STATS · R1 ABILITIES · UP/DOWN ability"
         else:
             self.glint.stop()
             level, xp, needed = self.progress()
@@ -695,7 +883,8 @@ class GameMenu:
                       ("Evasion", stat_value(member, 'evasion')), ("Accuracy", stat_value(member, 'accuracy')))
             for i, (label, value) in enumerate(values):
                 c.create_text(320+(i%2)*285, 185+(i//2)*38, text=f"{label}  {value}", anchor="w", fill="#ffffff", font=self.font(19), tags=tag)
-            c.create_text(320, 380, text=f"SYNC  {job}", anchor="w", fill="#80eaf5", font=self.font(19), tags=tag)
+            ailments=", ".join(name.title() for name in member.get("ailments",{}))
+            c.create_text(320, 380, text=f"SYNC  {job}  |  {ailments or 'Healthy'}", anchor="w", fill="#80eaf5", font=self.font(16), tags=tag)
             c.create_text(700, 96, text="STATS", anchor="e", fill="#ffe37e", font=self.font(16), tags=tag)
             c.create_text(780, 96, text="ABILITIES", anchor="w", fill="#9adbe8", font=self.font(16), tags=tag)
             hint = "L1/R1 switch tab · UP/DOWN member · BACK return"
@@ -733,32 +922,79 @@ class GameMenu:
         return self._fit_photo(path) if path else None
 
     def _ability_photo(self, ability, member):
-        variant = variant_for(ability, member)
-        path = variant.frames[len(variant.frames) // 2]
-        return self._fit_photo(path)
+        variant = lesson_variant(ability, member)
+        if variant is None:
+            return None
+        return self._fx_icon(variant.frames)
+
+    def _fx_icon(self, frames, size=32):
+        """Build a slot icon from an FX strip: its fullest frame, cropped to the art.
+
+        FX frames are 128 px canvases with thin 1 px line art in the middle, so the
+        old middle-frame subsample left a speck. Falls back to that if pygame can't.
+        """
+        key = ("fx", tuple(map(str, frames)))
+        if key in self._icons:
+            return self._icons[key]
+        try:
+            import base64
+            import io
+            import pygame
+            surfaces = [pygame.image.load(str(path)) for path in frames]
+            frame = max(surfaces, key=lambda surface: pygame.mask.from_surface(surface).count())
+            box = frame.get_bounding_rect()
+            side = max(box.width, box.height) + 2
+            crop = pygame.Surface((side, side), pygame.SRCALPHA)
+            crop.blit(frame, ((side - box.width) // 2 - box.x, (side - box.height) // 2 - box.y))
+            if side > size:
+                icon = pygame.transform.smoothscale(crop, (size, size))
+                shrunk = icon.copy()
+                for _ in range(2):  # downscaling thins the line art; stack it back to full strength
+                    icon.blit(shrunk, (0, 0))
+            else:
+                factor = max(1, size // side)
+                icon = pygame.transform.scale(crop, (side * factor, side * factor))
+            data = io.BytesIO()
+            pygame.image.save(icon, data, "icon.png")
+            image = tk.PhotoImage(master=self.canvas, data=base64.b64encode(data.getvalue()).decode())
+        except Exception:
+            return self._fit_photo(frames[len(frames) // 2])
+        self._icons[key] = image
+        return image
+
+
+    def _status_ability_rows(self, member):
+        known = {ability.id for ability in learned_abilities(member)}
+        return [lesson for lesson in lessons_for(member) if lesson.id in known]
+
+    def _ability_list_start(self, count, visible=4):
+        if count <= visible:
+            return 0
+        return max(0, min(self.ability_index - visible + 1, count - visible))
 
     def _draw_status_abilities(self, member):
         c, tag = self.canvas, self.TAG
         job = self._current_job(member) or "Unbound"
-        stone = member.get("attuned_stone") or "unattuned"
+        stone = STONE_NAMES.get(member.get("attuned_stone"), "Unattuned")
         c.create_text(700, 96, text="STATS", anchor="e", fill="#9adbe8", font=self.font(16), tags=tag)
         c.create_text(780, 96, text="ABILITIES", anchor="w", fill="#ffe37e", font=self.font(16), tags=tag)
         c.create_text(320, 140, text=f"{member['name']}   {job}   STONE {stone}", anchor="w",
                       fill="#ffffff", font=self.font(18), tags=tag)
-        rows = [ability for ability in class_abilities(job) if ability.id != "strike"]
-        known = {ability.id for ability in learned_abilities(member)}
+        rows = self._status_ability_rows(member)
         if not rows:
-            c.create_text(320, 190, text="No class abilities yet.", anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
+            c.create_text(320, 190, text="Open Tome to research abilities.", anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
             return
-        for index, ability in enumerate(rows[:4]):
-            y = 186 + index * 46
+        self.ability_index = min(self.ability_index, len(rows) - 1)
+        start = self._ability_list_start(len(rows))
+        for row, ability in enumerate(rows[start:start + 4]):
+            y = 186 + row * 46
+            selected = start + row == self.ability_index
+            if selected:
+                c.create_rectangle(313, y - 16, 906, y + 20, fill="#3d428b", outline="#7883bf", tags=tag)
             image = self._ability_photo(ability, member)
-            box = draw_item_slot(c, 348, y, image, tag)
-            learned = ability.id in known
-            if not learned:
-                c.create_rectangle(*box, fill="#10162a", stipple="gray50", outline="", tags=tag)
-                c.create_text(620, y, text=f"LV {ability.learn_level}", anchor="e", fill="#e7c56a", font=self.font(14), tags=tag)
+            draw_item_slot(c, 348, y, image, tag)
             c.create_text(384, y, text=ability.name, anchor="w",
-                          fill="#ffffff" if learned else "#8ea0b8", font=self.font(18), tags=tag)
-        c.create_text(320, 380, text=rows[0].description, anchor="w", width=400,
+                          fill="#ffe37e" if selected else "#ffffff", font=self.font(18), tags=tag)
+        # Same width as the hint line below it; centred on y=366 so even two lines stay clear of it.
+        c.create_text(320, 366, text=rows[self.ability_index].description, anchor="w", width=570,
                       fill="#c5d8e4", font=self.font(16), tags=tag)

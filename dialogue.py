@@ -33,14 +33,17 @@ class DialogueBox:
         self.font = font
         self.lines: deque[DialogueLine] = deque()
         self.active = False
+        self._on_complete = None
+        self.on_speaker = None
         self.portraits: dict[tuple[Path, tuple[int, int, int, int] | None], tk.PhotoImage] = {}
         self.speaker_portraits: dict[str, tuple[Path, tuple[int, int, int, int] | None]] = {}
 
     def register_portrait(self, speaker: str, path: Path, region=None) -> None:
         self.speaker_portraits[speaker.casefold()] = (path, region)
 
-    def show(self, lines: list[DialogueLine]) -> None:
+    def show(self, lines: list[DialogueLine], on_complete=None) -> None:
         self.clear()
+        self._on_complete = on_complete
         for line in lines:
             if line.portrait is None and line.speaker.casefold() in self.speaker_portraits:
                 path, region = self.speaker_portraits[line.speaker.casefold()]
@@ -57,6 +60,7 @@ class DialogueBox:
 
     def clear(self) -> None:
         self.lines.clear()
+        self._on_complete = None
         self.active = False
         self.canvas.delete(self.TAG)
 
@@ -64,9 +68,13 @@ class DialogueBox:
         self.canvas.delete(self.TAG)
         if not self.lines:
             self.active = False
+            callback,self._on_complete=self._on_complete,None
+            if callback is not None:callback()
             return
         self.active = True
         line = self.lines.popleft()
+        if self.on_speaker is not None:
+            self.on_speaker(line.speaker)
         self._draw(line)
 
     def portrait(
@@ -108,6 +116,17 @@ class DialogueBox:
                            fill="#e7e6dc", outline="#f9f8ed", width=2, tags=tag)
         c.create_rectangle(x1 + 10, y1 + 10, x2 - 10, y2 - 10,
                            fill="#242181", outline="#242181", tags=tag)
+
+    def draw_choice(self, options, selected):
+        self.canvas.delete(self.TAG)
+        self._frame(288, 409, 672, 505)
+        for index, label in enumerate(options):
+            y = 432 + index * 42
+            cursor = "▶  " if index == selected else "    "
+            color = "#f7d58c" if index == selected else "#ffffff"
+            self.canvas.create_text(320, y, text=cursor + label, anchor="w",
+                                    fill=color, font=self.font(21), tags=self.TAG)
+        self.canvas.tag_raise(self.TAG)
 
     def _draw(self, line: DialogueLine) -> None:
         c = self.canvas

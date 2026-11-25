@@ -61,9 +61,12 @@ class ShalehornTests(unittest.TestCase):
         while a.dialogue.active:
             a._activate()
         a._update_battle_transition(time.monotonic()+1)
-        a._play_music.assert_called_with(game.ASSETS / "audio" / "first-boss.mp3")
+        a._play_music.assert_called_with(game.ASSETS / "audio" / "first-boss.mp3", restart=True)
         model = a.battle.model
         self.assertEqual([p["name"] for p in model.party], ["Temur", "Mira", "Orin"])
+        # Shalehorn can win the opening CTB turn. Resolve it before selecting Attack.
+        if a.battle.phase == "enemy_action":
+            a.battle.update(a.battle.phase_at + a.battle.shalehorn_fx.duration + .01)
         model.enemy_hp = 1
         a.battle.confirm(0)
         a.battle.confirm(0)
@@ -93,7 +96,7 @@ class ShalehornTests(unittest.TestCase):
         self.assertEqual(a.party[0]["job"], "Seer")
         a._back()
         menu.open()
-        menu.selection = 1
+        menu.selection = 8
         self.assertEqual(menu.activate(), "sync")
         menu.close()
         a.x, a.y, a.direction = 70.5*game.TILE, 20.5*game.TILE, "down"
