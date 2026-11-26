@@ -12,6 +12,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 from animation_lab import AnimationLab, CrescendoLab, EnemyMoveLab, PlayerMoveLab
+from side_drift import DRIFT_HALL, DRIFT_ROOM, SideDrift
 from cave_story import CaveStory, fresh_story, old_story, ENTRY, ENTRY_SHOULDERS, MINER, MINER_NAME
 from classes import BLUE_STONE, NOKTAKORO, OUTFIT_JOBS, RIQIZAURKEIS, SENBRANKA, current_job
 from den_art import black_stone, egg_sacs, white_stone
@@ -278,6 +279,9 @@ class CavernInstance:
         for start,end in (((10,12),(11,25)),((20,26),(33,26)),((34,22),(29,14)),((34,9),(45,11))):
             self._hall(start,end,3)
         self._hall((47, 28), (55, 28), 3)
+        # Larvel's side drift, off the shaft down to the lower workings.
+        self._hall(*DRIFT_HALL, 1)
+        self._room(*DRIFT_ROOM)
         self.floor.discard((56, 27))
         self.floor.difference_update(ENTRY_SHOULDERS)
         self.public_floor = self.floor.copy()
@@ -916,7 +920,7 @@ class CaldronaLite:
                     self._open_tome()
             elif not self.game_menu.active:
                 self.canvas.itemconfigure(self.interaction_hint, state="hidden")
-                if not (self.mine_story.interact() or self._interact_save_sphere() or self._interact_merren()
+                if not (self.mine_story.interact() or self.side_drift.interact() or self._interact_save_sphere() or self._interact_merren()
                         or self._interact_korward()
                         or self._interact_white_stone() or self._interact_quarry()
                         or self._interact_den() or self._interact_temur()):
@@ -1427,6 +1431,7 @@ class CaldronaLite:
             18, 18, anchor="nw", fill="#e1e2d6", font=self._font(16), tags=("hud",)
         )
         self.mine_story = CaveStory(self, ASSETS, SCALE)
+        self.side_drift = SideDrift(self, ASSETS, SCALE)
         # A visible speaker turns when its first dialogue page appears.
         self.dialogue_actors = {
             MINER_NAME.casefold(): (self.mine_story.items["miner"], MINER,
@@ -2296,6 +2301,7 @@ class CaldronaLite:
         self.cordon.render(camera)
         self._place_player(camera)
         self.mine_story.render()
+        self.side_drift.render(camera)
 
     def _position_overworld_boss(self, item, base, camera):
         x, y = base
@@ -2411,6 +2417,7 @@ class CaldronaLite:
         stationary_objects = (self.chest_tile, self.stone_tile, self.save_sphere_tile,
                               self.outer_door, self.inner_door, DEN_DOOR)
         return (tile not in stationary_objects and not self.mine_story.blocked(tile)
+                and not self.side_drift.blocked(tile)
                 and (self.temur_story != "waiting" or tile != self.temur_tile))
 
     def _update_interaction_hint(self):
@@ -2430,7 +2437,7 @@ class CaldronaLite:
                 label = "ATTUNE"
             elif tile == self.stone_tile and self.boss_cleared:
                 label = "ATTUNE"
-            elif self.mine_story.is_alcove(tile):
+            elif self.mine_story.is_alcove(tile) or self.side_drift.is_stairwell(tile):
                 label = "INSPECT"
             elif tile == DEN_DOOR or (not self._in_den() and tile in (self.outer_door, self.inner_door)):
                 label = "INSPECT"
