@@ -699,11 +699,185 @@ def refuge_miner(coat, hat, skin):
     return s
 
 
+# --- grey floor patches ---------------------------------------------------------------------------
+def grey_floor_sheet():
+    """The cavern floor's four tiles, greyed out, cut by each of the 15 corner masks.
+
+    Column = mask (bit 1 top-left, 2 top-right, 4 bottom-left, 8 bottom-right corner grey),
+    row = floor variant. Edges come from blending the corners with pixel noise, so patches
+    end raggedly instead of on tile lines; a half-alpha band softens the boundary."""
+    sheet = surface(16 * 16, 16 * 4)
+    floors = [pygame.image.load(str(ASSETS / "crystal_cavern" / f"floor_{i}.png")) for i in range(4)]
+    for row, tile in enumerate(floors):
+        grey = surface(16, 16)
+        for y in range(16):
+            for x in range(16):
+                r, g, b, _ = tile.get_at((x, y))
+                lum = (r * .3 + g * .59 + b * .11) * 1.12
+                grey.set_at((x, y), (min(255, round(lum * .98)), min(255, round(lum)), min(255, round(lum * 1.08))))
+        for mask in range(1, 16):
+            corners = [bool(mask & bit) for bit in (1, 2, 4, 8)]
+            for y in range(16):
+                for x in range(16):
+                    u, v = (x + .5) / 16, (y + .5) / 16
+                    w = (corners[0] * (1 - u) * (1 - v) + corners[1] * u * (1 - v)
+                         + corners[2] * (1 - u) * v + corners[3] * u * v)
+                    w += (noise(x, y, 41) - .5) * .32 + (noise(x // 3, y // 3, 42) - .5) * .3
+                    alpha = 255 if w > .58 or mask == 15 else 120 if w > .44 else 0
+                    if alpha:
+                        sheet.set_at((mask * 16 + x, row * 16 + y), (*grey.get_at((x, y))[:3], alpha))
+    return sheet
+
+
+# --- the rupture before the Ember Wyvern ------------------------------------------------------------
+FISSURE_RED = (214, 52, 36)
+# Thrown rock: the cave's purple, a step brighter so the facets read in flight.
+ROCK = ((34, 26, 54), (58, 46, 90), (84, 68, 124), (112, 94, 156), (146, 128, 190), (184, 170, 220))
+FISSURE_GLOW = (255, 74, 44)
+FISSURE_CORE = (255, 222, 176)
+FISSURE_DARK = (25, 17, 30)
+RUPTURE_FRAMES, RUPTURE_GROW = 14, 11
+
+
+def _fissure_paths(origin, size, rng):
+    """Jagged, branching cracks running out from the burrow, like the Selvar wall fracture."""
+    w, h = size
+    paths = []   # (pixels, start distance)
+
+    def walk(start, angle, length, dist0, depth):
+        x, y = start
+        pts = [(round(x), round(y))]
+        travelled = 0
+        while travelled < length:
+            step = rng.uniform(3, 6)
+            angle += rng.uniform(-.55, .55)
+            nx, ny = x + cos(angle) * step, y + sin(angle) * step * .62
+            if not (1 <= nx < w - 1 and 1 <= ny < h - 1):
+                break
+            pts.append((round(nx), round(ny)))
+            if depth < 2 and rng.random() < .16:
+                walk((nx, ny), angle + rng.choice((-1, 1)) * rng.uniform(.6, 1.1),
+                     length * rng.uniform(.25, .45), dist0 + travelled, depth + 1)
+            x, y, travelled = nx, ny, travelled + step
+        pixels = []
+        for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+            n = max(abs(bx - ax), abs(by - ay), 1)
+            pixels.extend((round(ax + (bx - ax) * i / n), round(ay + (by - ay) * i / n)) for i in range(n))
+        pixels = list(dict.fromkeys(pixels))
+        paths.append(([(p, dist0 + i) for i, p in enumerate(pixels)]))
+
+    for k in range(8):
+        angle = k / 8 * 2 * pi + rng.uniform(-.25, .25)
+        walk(origin, angle, rng.uniform(70, 150) * (1.0 if abs(cos(angle)) > .5 else .55), 0, 0)
+    return paths
+
+
+def rupture_fissures(size, origin):
+    """A strip of frames: red cracks race out from the burrow, chip the stone and stay lit."""
+    rng = random.Random(15)
+    paths = _fissure_paths(origin, size, rng)
+    longest = max(d for path in paths for _, d in path)
+    chips = {p: rng.random() for path in paths for p, _ in path}
+    w, h = size
+    atlas = surface(w * RUPTURE_FRAMES, h)
+    for frame in range(RUPTURE_FRAMES):
+        image = surface(w, h)
+        head = (longest + 12) * min(1, frame / (RUPTURE_GROW - 1))
+        pulse = .75 + .25 * sin(frame * 1.7) if frame >= RUPTURE_GROW else 1
+        glow, core = {}, {}
+        for path in paths:
+            for (x, y), d in path:
+                lag = head - d
+                if lag < 0:
+                    continue
+                hot = lag < 10
+                energy = (1 - lag / 10) if hot else .55 * pulse
+                for ox, oy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                    p = (x + ox, y + oy)
+                    alpha = round(70 + 110 * energy) if hot else round(48 * pulse)
+                    if 0 <= p[0] < w and 0 <= p[1] < h and alpha > glow.get(p, (0, 0))[1]:
+                        glow[p] = (FISSURE_GLOW, alpha)
+                if chips[(x, y)] > .72 and 0 <= y + 1 < h:
+                    glow[(x, y + 1)] = (FISSURE_DARK, 220)   # stone broken away below the crack
+                core[(x, y)] = FISSURE_CORE if lag < 3 else mix(FISSURE_RED, FISSURE_GLOW, energy)
+        for p, (color, alpha) in glow.items():
+            image.set_at(p, (*color, alpha))
+        for p, color in core.items():
+            image.set_at(p, (*color, 255))
+        atlas.blit(image, (frame * w, 0))
+    return atlas
+
+
+def rupture_vignette(levels=7):
+    """Red heat crowding in from the screen edges, one frame per intensity (160 x 90, zoom 6)."""
+    w, h = 160, 90
+    atlas = surface(w * levels, h)
+    for level in range(levels):
+        strength = (level + 1) / levels
+        for y in range(h):
+            for x in range(w):
+                r = hypot((x + .5 - w / 2) / (w / 2), (y + .5 - h / 2) / (h / 2))
+                edge = max(0, min(1, (r - (1.02 - .42 * strength)) / .5))
+                edge += (noise(x // 2, y // 2, 60 + level) - .5) * .12 * (edge > 0)
+                edge = max(0, min(1, edge))
+                if edge <= 0:
+                    continue
+                color = mix((120, 8, 22), (236, 44, 34), edge)
+                atlas.set_at((level * w + x, y), (*color, round(225 * edge * (.45 + .55 * strength))))
+    return atlas
+
+
+def rupture_rocks():
+    """Three purple rock chunks, each in four tumbling turns. Each turn is shaded on its own,
+    so the light stays top-left, the underside stays dark, and the fissure's red catches
+    the lower rim however the rock is spinning."""
+    rng = random.Random(9)
+    size = 10
+    atlas = surface(size * 12, size)
+    for shape in range(3):
+        cx, cy = 4.5, 4.6
+        corners = [(a, r) for a, r in sorted((rng.uniform(0, 2 * pi), rng.uniform(2.8, 4.2))
+                                             for _ in range(6 + shape))]
+        ridge = rng.uniform(-.6, .6)
+        for turn in range(4):
+            spin = turn * pi / 2 + shape * .3
+            rock = surface(size, size)
+            points = [(cx + cos(a + spin) * r, cy + sin(a + spin) * r * .9) for a, r in corners]
+            pygame.draw.polygon(rock, ROCK[3], points)
+            tilt = ridge * cos(spin) - .5 * sin(spin)   # the facet edge swings as it tumbles
+            for y in range(size):
+                for x in range(size):
+                    if not rock.get_at((x, y))[3]:
+                        continue
+                    facet = (x - cx) * .7 + (y - cy) * .7 + tilt * (x - cx)
+                    tone = 4.7 if facet < -1.6 else 3.6 if facet < .2 else 2.3 if facet < 1.8 else 1.2
+                    tone += (noise(x, y, 70 + shape) - .5) * .7
+                    rock.set_at((x, y), ramp_at(ROCK, tone))
+            for y in range(size):
+                for x in range(size):
+                    if rock.get_at((x, y))[3] and (y + 1 >= size or not rock.get_at((x, y + 1))[3]):
+                        rock.set_at((x, y), mix(rock.get_at((x, y))[:3], FISSURE_GLOW, .45))
+            soft_outline(rock)
+            atlas.blit(rock, ((shape * 4 + turn) * size, 0))
+    return atlas
+
+
+def rupture_art():
+    from lower_workings import RUPTURE_AREA, RUPTURE_ORIGIN
+    return {
+        "grey-floor": grey_floor_sheet(),
+        "rupture-fissures": rupture_fissures(RUPTURE_AREA[2:], RUPTURE_ORIGIN),
+        "rupture-vignette": rupture_vignette(),
+        "rupture-rocks": rupture_rocks(),
+    }
+
+
 def main():
     pygame.display.init()
     pygame.display.set_mode((1, 1), pygame.HIDDEN)
     OUT.mkdir(parents=True, exist_ok=True)
     pieces = {
+        **rupture_art(),
         "stair-up": stair_up(),
         "ledger-post": ledger_post(True),
         "ledger-post-bare": ledger_post(False),

@@ -17,7 +17,7 @@ from pathlib import Path
 
 from animation_lab import AnimationLab, CrescendoLab, EnemyMoveLab, PlayerMoveLab
 from side_drift import DRIFT_HALL, DRIFT_ROOM, SideDrift
-from lower_workings import LowerWorkings, WORKINGS_FLOOR, WORKINGS_HEIGHT
+from lower_workings import GREY_MASKS as WORKINGS_GREY, LowerWorkings, WORKINGS_FLOOR, WORKINGS_HEIGHT
 from cave_story import (CaveStory, fresh_story, old_story, load_world_strip,
                         ENTRY, ENTRY_SHOULDERS, MINER, MINER_NAME)
 from classes import BLUE_STONE, NOKTAKORO, OUTFIT_JOBS, RIQIZAURKEIS, SENBRANKA, current_job
@@ -69,6 +69,11 @@ GRASSLAND_MUSIC = ASSETS / "audio" / "grasslands-travel.mp3"
 GOLDENLANDS_MUSIC = ASSETS / "audio" / "goldenlands-theme.mp3"
 COLLAPSE_SOUND = ASSETS / "audio" / "entrance-collapse.mp3"
 BATTLE_MUSIC = ASSETS / "audio" / "cavern-battle.mp3"
+BOSS_MUSIC = ASSETS / "audio" / "first-boss.mp3"
+# Drop these songs into assets/audio to give the Lower Workings and the Ember Wyvern their own
+# music. Until they exist, the workings use the cavern theme and the Wyvern the first boss theme.
+WORKINGS_MUSIC = ASSETS / "audio" / "lower-workings.mp3"
+WYVERN_MUSIC = ASSETS / "audio" / "ember-wyvern-battle.mp3"
 VICTORY_MUSIC = ASSETS / "audio" / "caldrona-level-up.mp3"
 GAME_OVER_MUSIC = ASSETS / "audio" / "caldrona-game-over.mp3"
 # Title theme from the main game's assets/music/gold.wav, encoded at 128 kbps.
@@ -935,7 +940,7 @@ class CaldronaLite:
         if self.screen == "shop":
             self._buy_supply()
             return
-        if self.screen in ("faint", "cave_walk", "entrance_collapse", "seal_pulse"):
+        if self.screen in ("faint", "cave_walk", "entrance_collapse", "seal_pulse", "workings_rupture"):
             return
         if self.screen == "astral":
             self._finish_astral(self.astral_scene.confirm())
@@ -1082,7 +1087,8 @@ class CaldronaLite:
             self.held_direction = None
             self.next_step_at = time.monotonic() + STEP_INTERVAL
             return
-        if self.screen in ("faint", "game_over", "cave_walk", "entrance_collapse", "temur_choice", "seal_pulse"):
+        if self.screen in ("faint", "game_over", "cave_walk", "entrance_collapse", "temur_choice", "seal_pulse",
+                           "workings_rupture"):
             return
         if self.screen == "astral":
             self._finish_astral(self.astral_scene.back())
@@ -1144,7 +1150,11 @@ class CaldronaLite:
 
     def _area_music(self) -> Path:
         if not getattr(self, "outdoors", False):
-            return DEN_MUSIC if hasattr(self, "cave") and self._in_den() else CAVERN_MUSIC
+            if hasattr(self, "cave") and self._in_den():
+                return DEN_MUSIC
+            if hasattr(self, "lower_workings") and self.lower_workings.here() and WORKINGS_MUSIC.exists():
+                return WORKINGS_MUSIC
+            return CAVERN_MUSIC
         tile = (int(self.x // TILE), int(self.y // TILE))
         if tile == GATE or self.grassland_map.sheltered(tile):
             return GRASSLAND_MUSIC
@@ -2240,9 +2250,13 @@ class CaldronaLite:
             self.den_boss_pending = False
             self.battle.start(model, now, outdoors=self.outdoors, in_depths=in_depths)
             self.screen = "battle"
-            self._play_music(ASSETS / "audio" / "first-boss.mp3"
-                             if isinstance(model, (DenMotherBattle, ShalehornBattle, EmberWyvernBattle)) else BATTLE_MUSIC,
-                             restart=True)
+            if isinstance(model, EmberWyvernBattle) and WYVERN_MUSIC.exists():
+                music = WYVERN_MUSIC
+            elif isinstance(model, (DenMotherBattle, ShalehornBattle, EmberWyvernBattle)):
+                music = BOSS_MUSIC
+            else:
+                music = BATTLE_MUSIC
+            self._play_music(music, restart=True)
         else:
             self.battle.close()
             self.screen = "game"
@@ -2308,8 +2322,9 @@ class CaldronaLite:
         photo = tk.PhotoImage(master=self.root, width=CHUNK_SCREEN, height=CHUNK_SCREEN)
         gx, gy = key
         in_den = self._in_den()
+        in_workings = not self.outdoors and not in_den and self.lower_workings.here()
         floor = (self.cave.floor if self.outdoors else DEN_FLOOR if in_den
-                 else self.lower_workings.floor() if self.lower_workings.here() else self.cavern_map.public_floor)
+                 else self.lower_workings.floor() if in_workings else self.cavern_map.public_floor)
         for oy in range(CHUNK_TILES):
             for ox in range(CHUNK_TILES):
                 tx, ty = gx*CHUNK_TILES + ox, gy*CHUNK_TILES + oy
@@ -2327,6 +2342,9 @@ class CaldronaLite:
                     roll = variation % 100
                     index = 0 if roll < 70 else 2 if roll < 85 else 1 if roll < 97 else 3
                     photo.tk.call(photo, "copy", self.floor_tiles[index], "-to", *dest)
+                    if in_workings and (grey := WORKINGS_GREY.get((tx, ty))):
+                        photo.tk.call(photo, "copy", self.lower_workings.grey_tiles[index][grey], "-to", *dest,
+                                      "-compositingrule", "overlay")
                     if in_den:
                         for web in self.den_floor_webs.get((tx, ty), ()):
                             photo.tk.call(photo, "copy", web, "-to", *dest, "-compositingrule", "overlay")
@@ -2730,6 +2748,8 @@ class CaldronaLite:
             self.mine_story.update(now)
         elif self.screen == "seal_pulse":
             self.mine_story.update_seal_pulse(now)
+        elif self.screen == "workings_rupture":
+            self.lower_workings.update_rupture(now)
         elif self.screen == "temur_choice":
             self.mine_story.navigate_choice(direction)
         elif self.screen == "cordon_choice":

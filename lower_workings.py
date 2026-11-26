@@ -7,8 +7,10 @@ their backs hold the old ledger. Selvar rubbings teach Retri enough glyphs to re
 The workings sit in an unused band of the cavern map (rows 45-75), apart from every other floor,
 the same way the Depths do. Nothing here is visible or walkable unless Retri is standing in it.
 """
+import random
 import time
 import tkinter as tk
+from math import hypot
 
 from cave_story import ENTRY
 from dialogue import DialogueLine
@@ -84,6 +86,12 @@ CRACK = (15, 72)
 CRACK_TILES = frozenset((CRACK[0] + dx, CRACK[1] + dy) for dx in (0, 1) for dy in (0, 1))
 KNOCKER_TRIGGER_X = 12  # crossing this column in the Knocking Gallery wakes it
 KNOCKER_RETREAT = (8, 72)
+# The rupture scene: red cracks drawn over this world-pixel box (x, y, w, h) around the burrow.
+RUPTURE_AREA = (5 * TILE, 68 * TILE, 21 * TILE, 9 * TILE)
+RUPTURE_ORIGIN = ((CRACK[0] + 1) * TILE - RUPTURE_AREA[0], (CRACK[1] + 1) * TILE - RUPTURE_AREA[1])
+RUPTURE_SECONDS = 3.2
+RUPTURE_GROW_SECONDS = 1.5
+RUPTURE_BURST_AT = 1.05
 CACHE = (14, 67)
 CACHE_LOOT = (("Ether", 1), ("Remedy", 2))
 CINDER_COATS = 2
@@ -148,6 +156,66 @@ PIT_LANTERN = "pit_lantern"
 STAGES = ("unstarted", "started", "rescued", "complete")
 
 
+def _corner_noise(x, y):
+    n = (x * 374761393 + y * 668265263) & 0xFFFFFFFF
+    n = (n ^ (n >> 13)) * 1274126177 & 0xFFFFFFFF
+    return ((n ^ (n >> 16)) & 0xFFFF) / 0xFFFF - .5
+
+
+def _grey_layout():
+    """Greyed-out floor: a scorched heart around the burrow, trails that wander off down the
+    halls, and stray patches through the workings. Returns {tile: corner mask}."""
+    rng = random.Random(72)
+    seeds = []
+    hx, hy = CRACK[0] + 1, CRACK[1] + 1
+    for _ in range(10):
+        seeds.append((hx + rng.uniform(-6, 5), hy + rng.uniform(-2, 2.5), rng.uniform(1.1, 2.2)))
+    for target in ((6, 66), (30, 73), (11, 75)):
+        tile = (CRACK[0], CRACK[1] + 1)
+        for _ in range(60):
+            steps = [t for t in ((tile[0] + 1, tile[1]), (tile[0] - 1, tile[1]), (tile[0], tile[1] + 1),
+                                 (tile[0], tile[1] - 1)) if t in CLOSED_FLOOR]
+            weights = [1 + 3 * (abs(tile[0] - target[0]) + abs(tile[1] - target[1])
+                                > abs(t[0] - target[0]) + abs(t[1] - target[1])) for t in steps]
+            tile = rng.choices(steps, weights)[0]
+            seeds.append((tile[0] + .5, tile[1] + .5, rng.uniform(.8, 1.4)))
+            if tile == target:
+                break
+    for _, (left, top, right, bottom) in ROOMS[:7]:
+        for _ in range(rng.randint(1, 2)):
+            seeds.append((rng.uniform(left + 1, right - 1), rng.uniform(top + 1, bottom - 1), rng.uniform(.9, 1.7)))
+    xs = [x for x, _ in OPEN_FLOOR]
+    ys = [y for _, y in OPEN_FLOOR]
+    grey = set()
+    for y in range(min(ys), max(ys) + 2):
+        for x in range(min(xs), max(xs) + 2):
+            reach = min(hypot(x - sx, y - sy) / r for sx, sy, r in seeds)
+            if reach + _corner_noise(x, y) * .5 < 1:
+                grey.add((x, y))
+    masks = {}
+    for x, y in OPEN_FLOOR:
+        mask = sum(bit for bit, corner in ((1, (x, y)), (2, (x + 1, y)), (4, (x, y + 1)), (8, (x + 1, y + 1)))
+                   if corner in grey)
+        if mask:
+            masks[(x, y)] = mask
+    return masks
+
+
+GREY_MASKS = _grey_layout()
+
+
+def _crop(master, atlas, left, top, width=TILE, height=TILE):
+    frame = tk.PhotoImage(master=master, width=width, height=height)
+    frame.tk.call(frame, "copy", atlas, "-from", left, top, left + width, top + height)
+    return frame
+
+
+def _strip(master, path, width, scale):
+    atlas = tk.PhotoImage(master=master, file=str(path))
+    return tuple(_crop(master, atlas, left, 0, width, atlas.height()).zoom(scale)
+                 for left in range(0, atlas.width(), width))
+
+
 def fresh_workings():
     # The original boss-clear key stays valid in saves made before the Wyvern.
     return {"stage": "unstarted", "pages": [], "rubbings": [], "charcoal": False, "knocker": False,
@@ -191,6 +259,13 @@ class LowerWorkings:
         self.boss_pending = False
         self.rescue_scene = False
         self.knocker_noise = assets / "audio" / "shalehorn-scrape.wav"
+        self.rumble_noise = assets / "audio" / "selvar-rumble.wav"
+        self.art = art
+        sheet = tk.PhotoImage(master=app.root, file=str(art / "grey-floor.png"))
+        self.grey_tiles = tuple({mask: _crop(app.root, sheet, mask * TILE, row * TILE).zoom(scale)
+                                 for mask in range(1, 16)} for row in range(4))
+        self.rupture_frames = None
+        self.rupture = None
 
     # --- state -----------------------------------------------------------------
     @property
@@ -483,6 +558,7 @@ class LowerWorkings:
         a.encounters.reset()
         a.chunk_cache.clear()
         a._update_world(force=True)
+        a._start_area_music()
 
     # --- the Ember Wyvern ----------------------------------------------------------
     def on_step(self, tile, now):
@@ -499,8 +575,103 @@ class LowerWorkings:
         a.dialogue.show([
             DialogueLine("Retri", "Sa dorma. 'May it sleep.' The old binding says the mountain spirit put it down here.", thought=True),
             DialogueLine("", "The last Selvar stroke splits. The buried beast stirs, and orange light spills through the timbers."),
-        ], on_complete=lambda: a._begin_battle(time.monotonic()))
+        ], on_complete=self.begin_rupture)
         return True
+
+    # --- the rupture: red cracks, heat at the edges, rocks thrown up, then the battle ----
+    def _load_rupture_art(self):
+        if self.rupture_frames is None:
+            root, s = self.app.root, self.scale
+            self.rupture_frames = {
+                "fissures": _strip(root, self.art / "rupture-fissures.png", RUPTURE_AREA[2], s),
+                "vignette": _strip(root, self.art / "rupture-vignette.png", 160, 6),
+                "rocks": _strip(root, self.art / "rupture-rocks.png", 10, s),
+                "big_rocks": _strip(root, self.art / "rupture-rocks.png", 10, s * 2),
+            }
+        return self.rupture_frames
+
+    def begin_rupture(self):
+        a, c = self.app, self.app.canvas
+        art = self._load_rupture_art()
+        now = time.monotonic()
+        a.screen = "workings_rupture"
+        a.keys.clear()
+        a.held_direction = None
+        a.walk_frame = 1
+        rng = random.Random(int(now * 1000))
+        ox, oy = RUPTURE_AREA[0] + RUPTURE_ORIGIN[0], RUPTURE_AREA[1] + RUPTURE_ORIGIN[1]
+        rocks = []
+        for i in range(18):
+            big = i % 6 == 0
+            rocks.append({
+                "item": c.create_image(0, 0, image=art["big_rocks" if big else "rocks"][0], state="hidden",
+                                       tags=("workings_rupture",)),
+                "big": big, "shape": i % 3, "spin": rng.uniform(.05, .11),
+                "at": RUPTURE_BURST_AT + rng.uniform(0, .55),
+                "start": (ox + rng.uniform(-10, 10), oy + rng.uniform(-6, 4)),
+                "velocity": (rng.uniform(-150, 150), rng.uniform(-290, -170) * (1.25 if big else 1)),
+                "land": rng.uniform(-24, 40),
+            })
+        fissure = c.create_image(0, 0, image=art["fissures"][0], anchor="nw", tags=("workings_rupture",))
+        c.tag_lower(fissure, "player")
+        c.tag_raise(self.crack_item, fissure)
+        vignette = c.create_image(0, 0, image=art["vignette"][0], anchor="nw", state="hidden",
+                                  tags=("workings_rupture",))
+        for rock in rocks:
+            c.tag_raise(rock["item"])
+        c.tag_raise(vignette)
+        self.rupture = {"started": now, "fissure": fissure, "vignette": vignette, "rocks": rocks, "burst": False}
+        a.shalehorn_shake_started = now
+        a._play_sfx(self.rumble_noise, volume=.6)
+        self.update_rupture(now)
+
+    def update_rupture(self, now):
+        a, c, r = self.app, self.app.canvas, self.rupture
+        if r is None:
+            return
+        art = self.rupture_frames
+        elapsed = max(0, now - r["started"])
+        if elapsed >= RUPTURE_SECONDS:
+            c.delete("workings_rupture")
+            self.rupture = None
+            a.screen = "game"
+            a._begin_battle(now)
+            return
+        if elapsed >= RUPTURE_BURST_AT and not r["burst"]:
+            r["burst"] = True
+            a.shalehorn_shake_started = now
+            a._play_sfx(self.knocker_noise, volume=.75)
+        if a.shalehorn_shake_started is None or now - a.shalehorn_shake_started > .5:
+            a.shalehorn_shake_started = now   # keep the ground trembling the whole time
+        a._update_shalehorn_shake(now)
+        cx, cy = a.world_camera
+        s = self.scale
+        fissures = art["fissures"]
+        grow = len(fissures) - 3
+        frame = (min(grow, int(elapsed / RUPTURE_GROW_SECONDS * grow)) if elapsed < RUPTURE_GROW_SECONDS
+                 else grow + int(elapsed * 9) % 3)
+        c.itemconfigure(r["fissure"], image=fissures[frame])
+        c.coords(r["fissure"], (RUPTURE_AREA[0] - cx) * s, (RUPTURE_AREA[1] - cy) * s)
+        heat = min(1, elapsed / (RUPTURE_SECONDS - .4)) ** 1.5
+        level = min(len(art["vignette"]) - 1, int(heat * len(art["vignette"])))
+        c.itemconfigure(r["vignette"], image=art["vignette"][level], state="normal" if heat > .05 else "hidden")
+        for rock in r["rocks"]:
+            t = elapsed - rock["at"]
+            if t < 0:
+                c.itemconfigure(rock["item"], state="hidden")
+                continue
+            (x0, y0), (vx, vy) = rock["start"], rock["velocity"]
+            # Rise and fall until the rock comes down on the floor, then it lies there as rubble.
+            gravity, ground = 330, rock["land"]
+            landed = (-vy + (vy * vy + 4 * gravity * ground) ** .5) / (2 * gravity)
+            t = min(t, landed)
+            x, y = x0 + vx * t, y0 + vy * t + gravity * t * t
+            turn = int(t / rock["spin"]) % 4
+            images = art["big_rocks" if rock["big"] else "rocks"]
+            c.itemconfigure(rock["item"], image=images[rock["shape"] * 4 + turn], state="normal")
+            c.coords(rock["item"], (x - cx) * s, (y - cy) * s)
+            c.tag_raise(rock["item"])
+        c.tag_raise(r["vignette"])
 
     def boss_battle(self, battle_args):
         from battle import EmberWyvernBattle

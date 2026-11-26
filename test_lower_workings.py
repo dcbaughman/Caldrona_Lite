@@ -63,6 +63,22 @@ class WorkingsMapTests(unittest.TestCase):
             self.assertFalse(any(spot in tiles for tiles in side_rooms.values()), key)
         self.assertEqual(len(w.MAIN_RUBBINGS), 3)
 
+    def test_grey_floor_scars_the_gallery_wanders_the_halls_and_dots_the_workings(self):
+        rooms = dict(w.ROOM_TILES)
+        grey = set(w.GREY_MASKS)
+        self.assertTrue(grey <= w.OPEN_FLOOR)
+        self.assertTrue(all(1 <= mask <= 15 for mask in w.GREY_MASKS.values()))
+        gallery = rooms["Knocking Gallery"]
+        # The gallery is scarred, but not filled wall to wall like a recoloured room.
+        self.assertGreater(len(grey & gallery), len(gallery) // 3)
+        self.assertLess(len(grey & gallery), len(gallery))
+        # Partial masks give the patches ragged edges instead of tile-square ones.
+        self.assertTrue(any(mask != 15 for tile, mask in w.GREY_MASKS.items() if tile in gallery))
+        halls = w.OPEN_FLOOR - set().union(*rooms.values())
+        self.assertTrue(grey & halls)
+        self.assertGreaterEqual(sum(bool(grey & tiles) for name, tiles in rooms.items()
+                                    if name != "Knocking Gallery"), 4)
+
 
 class WorkingsPlayTests(unittest.TestCase):
     def setUp(self):
@@ -182,8 +198,16 @@ class WorkingsPlayTests(unittest.TestCase):
         self.assertTrue(self.lw.on_step((12, 72), 0))
         self.assertTrue(self.lw.boss_pending)
         self.finish_dialogue()
+        # The floor ruptures first: red cracks, heat at the edges, rocks flung up.
+        self.assertEqual(a.screen, "workings_rupture")
+        started = self.lw.rupture["started"]
+        self.lw.update_rupture(started + w.RUPTURE_BURST_AT + .3)
+        self.assertEqual(a.screen, "workings_rupture")
+        self.assertTrue(a.canvas.find_withtag("workings_rupture"))
+        self.lw.update_rupture(started + w.RUPTURE_SECONDS + .01)
+        self.assertFalse(a.canvas.find_withtag("workings_rupture"))
         self.assertEqual(a.screen, "battle_in")
-        a._update_battle_transition(time.monotonic() + 1)
+        a._update_battle_transition(started + w.RUPTURE_SECONDS + 1.5)
         model = a.battle.model
         self.assertIsInstance(model, EmberWyvernBattle)
         self.assertEqual(model.enemies, [EMBER_WYVERN])
@@ -195,6 +219,19 @@ class WorkingsPlayTests(unittest.TestCase):
         self.assertTrue(s["knocker"])
         self.assertFalse(self.lw.on_step((14, 72), 0))
         self.assertTrue(self.lw.blocked(w.CRACK))
+
+    def test_workings_and_wyvern_songs_play_once_they_are_added(self):
+        from unittest.mock import patch
+        from pathlib import Path
+        a = self.a
+        self.stand(w.ARRIVAL, "down")
+        with patch.object(Path, "exists", return_value=False):
+            self.assertEqual(a._area_music(), game.CAVERN_MUSIC)
+        with patch.object(Path, "exists", return_value=True):
+            self.assertEqual(a._area_music(), game.WORKINGS_MUSIC)
+        self.stand((18, 16), "right")
+        with patch.object(Path, "exists", return_value=True):
+            self.assertEqual(a._area_music(), game.CAVERN_MUSIC)
 
     def test_returning_the_crew_gives_the_pit_lantern_and_sends_them_home(self):
         a, s = self.a, self.lw.state
