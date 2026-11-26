@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from abilities import EXTRA_FX, attune, lesson_variant, strike_variant
 from battle import BattleModel, ENEMIES
-from classes import bind_job
+from classes import JOBS, bind_job
 from equipment import CATALOG, Equipment
 from player_motion import action_motion
 from research import initialize_research, lessons_for
@@ -22,7 +22,9 @@ class AttackFXTests(unittest.TestCase):
                 attune(actor)
                 gray = strike_variant(actor)
                 self.assertEqual(gray.key, "unattuned")
-                bind_job(actor, item.jobs[0] if item.jobs else "Saint")
+                # A lock to a job that is not playable yet (Warden) cannot be bound.
+                # Bind a real job instead; the strike art only reads the stone.
+                bind_job(actor, item.jobs[0] if item.jobs and item.jobs[0] in JOBS else "Saint")
                 blue = strike_variant(actor)
                 self.assertEqual(blue.key, "first_stone")
                 self.assertNotEqual(gray.frames, blue.frames)

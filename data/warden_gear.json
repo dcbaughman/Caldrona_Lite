@@ -1,0 +1,192 @@
+{
+  "package": "caldrona_lite_warden_gear_20261126",
+  "status": "Draft for Caleb. Warden is not a playable job yet: class lock only, nobody can equip these.",
+  "stat_note": "Stored suggestions on the signature-lineup scale. Weapons add no live stats; shields use real bonuses like Wooden Shield / Field Guard. Hooks are stored, not applied.",
+  "skipped_hooks_note": "Hooks needing new systems are not stored. Each is listed on its row as skipped_hook.",
+  "weapons": [
+    {
+      "id": "watchmans_bec_de_corbin",
+      "name": "Watchman's Bec de Corbin",
+      "type": "halberd",
+      "slot": "weapon",
+      "rung": 1,
+      "rung_label": "early find",
+      "hook": "+10% Armor Break",
+      "element": null,
+      "suggested_stats": {
+        "ATK": 6,
+        "SPD": -1,
+        "REACH": 2,
+        "PEN": 2
+      },
+      "bonuses": {},
+      "flavor": "A beaked hammer-pike for cracking plate on the night round.",
+      "class": "Warden",
+      "icon": "warden/watchmans_bec_de_corbin.png",
+      "dest_sha256": "93db7581c0aec90730c996206105d43234bfcebba880f5e72231929cf46de563"
+    },
+    {
+      "id": "wardens_pollaxe",
+      "name": "Warden's Pollaxe",
+      "type": "halberd",
+      "slot": "weapon",
+      "rung": 2,
+      "rung_label": "early-mid",
+      "hook": "",
+      "element": null,
+      "suggested_stats": {
+        "ATK": 7,
+        "SPD": -1,
+        "REACH": 2,
+        "PEN": 1
+      },
+      "bonuses": {},
+      "flavor": "Axe, hammer and spike on one haft. It holds a doorway.",
+      "class": "Warden",
+      "icon": "warden/wardens_pollaxe.png",
+      "dest_sha256": "65692330c4ea4ad05f62718a00749b05221087ca62cc4fb298ffd74b2ae463cc",
+      "skipped_hook": "Hold the Line: DEF +1 turn"
+    },
+    {
+      "id": "lantern_hook_bardiche",
+      "name": "Lantern-Hook Bardiche",
+      "type": "halberd",
+      "slot": "weapon",
+      "rung": 3,
+      "rung_label": "mid",
+      "hook": "",
+      "element": null,
+      "suggested_stats": {
+        "ATK": 8,
+        "SPD": -2,
+        "REACH": 2,
+        "PEN": 1
+      },
+      "bonuses": {},
+      "flavor": "A broad blade with a hook to carry the watch lamp.",
+      "class": "Warden",
+      "icon": "warden/lantern_hook_bardiche.png",
+      "dest_sha256": "e6ce62446a61ff4715767b54fab55c73e13437a4b3a2d49da0a042b617babbff",
+      "skipped_hook": "Night Watch: ACC vs hidden foes"
+    },
+    {
+      "id": "topazsteel_vigil_pollaxe",
+      "name": "Topazsteel Vigil Pollaxe",
+      "type": "halberd",
+      "slot": "weapon",
+      "rung": 4,
+      "rung_label": "late prize",
+      "hook": "+15% Vigil Strike",
+      "element": null,
+      "suggested_stats": {
+        "ATK": 10,
+        "SPD": -2,
+        "REACH": 2,
+        "PEN": 2
+      },
+      "bonuses": {},
+      "flavor": "Warden's signature. Topazsteel head, kept bright by long vigils.",
+      "class": "Warden",
+      "icon": "warden/topazsteel_vigil_pollaxe.png",
+      "dest_sha256": "4044d675d53511847099b7979c07f022855880fe3a07393e268d8b36147896f8"
+    },
+    {
+      "id": "nightwatch_heater_shield",
+      "name": "Night-Watch Heater Shield",
+      "type": "shield",
+      "slot": "shield",
+      "rung": 1,
+      "rung_label": "early find",
+      "hook": "+10% Guard",
+      "element": null,
+      "suggested_stats": {
+        "ATK": 0,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "bonuses": {
+        "defense": 2
+      },
+      "flavor": "Dark-lacquered heater shield of the night watch.",
+      "class": "Warden",
+      "icon": "warden/nightwatch_heater_shield.png",
+      "dest_sha256": "b42d7d07073bb7634e76bc96295e29909802bd7bc000c1f47419bbbc1db18c2b"
+    },
+    {
+      "id": "hooded_watch_lantern",
+      "name": "Hooded Watch Lantern",
+      "type": "lantern",
+      "slot": "shield",
+      "rung": 2,
+      "rung_label": "mid utility",
+      "hook": "",
+      "element": null,
+      "suggested_stats": {
+        "ATK": 0,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "bonuses": {
+        "defense": 1,
+        "accuracy": 2
+      },
+      "flavor": "A shuttered lantern carried in the off hand.",
+      "class": "Warden",
+      "icon": "warden/hooded_watch_lantern.png",
+      "dest_sha256": "35046405ec68cdc73b03c1c341bd57a6dedacbfb259c14ac8c0426185933f3ff",
+      "skipped_hook": "Reveal hidden foes"
+    },
+    {
+      "id": "wardens_alarum_horn",
+      "name": "Warden's Alarum Horn",
+      "type": "horn",
+      "slot": "shield",
+      "rung": 2,
+      "rung_label": "mid utility",
+      "hook": "",
+      "element": null,
+      "suggested_stats": {
+        "ATK": 0,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "bonuses": {
+        "defense": 1,
+        "max_hp": 4
+      },
+      "flavor": "A bronze-banded horn to sound the watch.",
+      "class": "Warden",
+      "icon": "warden/wardens_alarum_horn.png",
+      "dest_sha256": "43e699594622ad5331e54992c96af474be8ab823d54f70e85e5c833e0581b4b3",
+      "skipped_hook": "Rally Call: party DEF +1 turn"
+    },
+    {
+      "id": "vigil_pavise",
+      "name": "Vigil Pavise",
+      "type": "shield",
+      "slot": "shield",
+      "rung": 4,
+      "rung_label": "late prize",
+      "hook": "",
+      "element": null,
+      "suggested_stats": {
+        "ATK": 0,
+        "SPD": 0,
+        "REACH": 0,
+        "PEN": 0
+      },
+      "bonuses": {
+        "defense": 4,
+        "magic_defense": 1
+      },
+      "flavor": "Warden's signature. A tall pavise to stand behind.",
+      "class": "Warden",
+      "icon": "warden/vigil_pavise.png",
+      "dest_sha256": "e203c2fd4f3624969fc2222cbe351d601a014b66a80a2d29041dbf55cdbad25a",
+      "skipped_hook": "Vigil Cover: +1 ally"
+    }
+  ]
+}

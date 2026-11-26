@@ -439,5 +439,51 @@ def _load_signature_lineup():
         SIGNATURE[lineup_id] = item
 
 
+WARDEN_JOB = "Warden"
+# Warden gear by id, in file order. The Warden job is not in classes.JOBS yet, so
+# ``can_wear`` refuses every current class. Caleb adds the class later.
+WARDEN_GEAR: dict[str, Equipment] = {}
+
+
+def _load_warden_gear():
+    """Add the Warden polearms and off-hands from ``data/warden_gear.json``.
+
+    These rows are separate from SIGNATURE so the 36-piece lineup and
+    ``class_kit`` stay as they were. Weapons store suggested numbers only.
+    Shields carry real bonuses, like the Wooden Shield. Hooks are parsed and
+    stored; none are applied.
+    """
+    path = Path(__file__).resolve().parent / "data" / "warden_gear.json"
+    if not path.is_file():
+        return
+    for row in json.loads(path.read_text(encoding="utf-8"))["weapons"]:
+        if row["id"] in CATALOG:
+            raise RuntimeError(f"Warden id {row['id']} is already in the catalog")
+        stats = row["suggested_stats"]
+        item = Equipment(
+            row["id"], row["name"], row["slot"], dict(row.get("bonuses") or {}),
+            row.get("flavor") or row["name"],
+            jobs=(row["class"],),
+            icon=row["icon"],
+            atk=int(stats.get("ATK") or 0),
+            spd=int(stats.get("SPD") or 0),
+            reach=str(stats.get("REACH") if stats.get("REACH") is not None else ""),
+            pen=int(stats.get("PEN") or 0),
+            basic_attack_fx=(_basic_attack_effect({"weapon_type": row["type"], "id": row["id"],
+                                                   "classes": (row["class"],)})
+                             if row["slot"] == "weapon" else ""),
+            suggested_price=_signature_price(row, None),
+            weapon_type=row["type"],
+            rung=int(row["rung"]),
+            hook=row.get("hook") or "",
+            element=row.get("element") or "",
+            hook_parts=_parse_hook(row.get("hook") or ""),
+            lineup_id=row["id"],
+        )
+        CATALOG[item.id] = item
+        WARDEN_GEAR[item.id] = item
+
+
 _load_pack_equipment()
 _load_signature_lineup()
+_load_warden_gear()
