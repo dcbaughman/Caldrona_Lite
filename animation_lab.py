@@ -6,11 +6,12 @@ import tkinter as tk
 from types import SimpleNamespace
 
 from arrow_fx import TAG as BOW_SHOT_TAG, draw_shot
-from battle import (BattleModel, BattleScene, DEN_MOTHER, EMBERWRAITH, ENEMIES, ENEMY_ROSTER,
+from battle import (BattleModel, BattleScene, DEN_MOTHER, EMBER_WYVERN, EMBERWRAITH, ENEMIES, ENEMY_ROSTER,
                     SILK_SARCOPHAGUS, SPIDERLING, _center_y_on_ground)
 from brood_fx import BROOD_DURATION, BroodSilk, brood_shade
 from classes import OUTFIT_JOBS
 from crescendo import LOADOUTS, MAX_CHARGE, UNLOCKS
+from ember_wyvern_fx import PHASE_NAMES as WYVERN_PHASE_NAMES, TRANSITION_SECONDS, EmberWyvernArt
 from enemy_motion import (MOTIONS as ENEMY_MOTIONS, enemy_pose_frame, idle_duration, idle_offset,
                           load_brood_shades, load_enemy_frames)
 from quarry_floor import QuarryFloor
@@ -99,6 +100,9 @@ class EnemyMoveLab(FramePlayer):
     TAG = "enemy_move_lab"
     GROUND = 381
     BROOD_PREVIEW_AT = 1.2
+    WYVERN_RISE_AT = 1.55
+    WYVERN_HEAT_AT = 4.10
+    WYVERN_DURATION = 7.20
 
     def __init__(self, canvas, assets):
         self.canvas = canvas
@@ -107,6 +111,7 @@ class EnemyMoveLab(FramePlayer):
         self.images = {}
         self.brood_shades = None
         self.brood_silk = BroodSilk(canvas)
+        self.wyvern_art = None
 
     @property
     def foe(self):
@@ -116,6 +121,8 @@ class EnemyMoveLab(FramePlayer):
     def last_frame(self):
         if self.foe is DEN_MOTHER:
             return ceil((self.BROOD_PREVIEW_AT + BROOD_DURATION + .65) * self.FPS) - 1
+        if self.foe is EMBER_WYVERN:
+            return ceil(self.WYVERN_DURATION * self.FPS) - 1
         return ceil(idle_duration(self.foe) * self.FPS) - 1
 
     def mount(self, now, font, ink, muted):
@@ -124,14 +131,22 @@ class EnemyMoveLab(FramePlayer):
         self.brood_silk.clear()
         c.create_text(480, 114, text=foe.name.upper(), fill=ink, font=font(28, True), tags=self.TAG)
         c.create_rectangle(222, 148, 738, 406, fill="#202b3c", outline="#65748b", width=2, tags=self.TAG)
+        if foe is EMBER_WYVERN:
+            self.wyvern_floor = c.create_rectangle(223, self.GROUND, 737, 405, fill="#3c2529",
+                                                   outline="", state="hidden", tags=self.TAG)
         c.create_line(270, self.GROUND, 690, self.GROUND, fill="#526177", width=2, tags=self.TAG)
         if foe.sprite not in self.images:
-            frames = load_enemy_frames(c, self.assets, foe)
+            preview_foe = replace(foe, sprite_scale=(3, 2)) if foe is EMBER_WYVERN else foe
+            frames = load_enemy_frames(c, self.assets, preview_foe)
             sprite = frames[0]
             zoom = max(1, min(3, 190 // sprite.height(), 310 // sprite.width()))
             self.images[foe.sprite] = tuple(frame.zoom(zoom) for frame in frames) if zoom > 1 else frames, zoom
         self.frames, self.zoom = self.images[foe.sprite]
         sprite = self.frames[0]
+        if foe is EMBER_WYVERN:
+            if self.wyvern_art is None:
+                self.wyvern_art = EmberWyvernArt(c, self.assets, sprite, scale=(3, 2))
+            sprite = self.wyvern_art.pose(1)
         self.base_y = _center_y_on_ground(sprite, self.GROUND - foe.sprite_lift * self.zoom)
         self.sprite_item = c.create_image(480, self.base_y, image=sprite, tags=self.TAG)
         if foe is DEN_MOTHER:
@@ -141,8 +156,8 @@ class EnemyMoveLab(FramePlayer):
             self.broodlings = [(c.create_image(*point, image=self.spiderling, tags=self.TAG), self.spiderling, point)
                                for point in ((339, 350), (630, 350))]
         self.frame_item = c.create_text(480, 448, fill=muted, font=font(17), tags=self.TAG)
-        c.create_text(480, 425, text=f"{ENEMY_MOTIONS[foe.sprite].label}  ·  {self.index+1}/{len(self.MOVES)}",
-                      fill=ink, font=font(19), tags=self.TAG)
+        self.move_label = c.create_text(480, 425, text=f"{ENEMY_MOTIONS[foe.sprite].label}  ·  {self.index+1}/{len(self.MOVES)}",
+                                        fill=ink, font=font(19), tags=self.TAG)
         self._begin_playback(now)
 
     def _draw(self, frame):
@@ -150,6 +165,11 @@ class EnemyMoveLab(FramePlayer):
             return
         elapsed = frame / self.FPS
         dx, dy = idle_offset(self.foe, elapsed)
+        self.canvas.itemconfigure(self.frame_item, text=f"Frame {frame+1:02d} / {self.last_frame+1:02d}")
+        self.rendered = frame
+        if self.foe is EMBER_WYVERN:
+            self._draw_wyvern(elapsed, dx * self.zoom, dy * self.zoom)
+            return
         x, y = 480 + dx * self.zoom, self.base_y + dy * self.zoom
         self.canvas.coords(self.sprite_item, x, y)
         index = enemy_pose_frame(self.foe, elapsed)
@@ -162,8 +182,27 @@ class EnemyMoveLab(FramePlayer):
             mouth = (x + sprite.width() * .06, y + sprite.height() * .18)
             self.brood_silk.draw(age, self.sprite_item, mouth, self.broodlings)
         self.canvas.itemconfigure(self.sprite_item, image=sprite)
-        self.canvas.itemconfigure(self.frame_item, text=f"Frame {frame+1:02d} / {self.last_frame+1:02d}")
-        self.rendered = frame
+
+    def _draw_wyvern(self, elapsed, dx, dy):
+        if elapsed >= self.WYVERN_HEAT_AT:
+            stage, age = 3, elapsed - self.WYVERN_HEAT_AT
+        elif elapsed >= self.WYVERN_RISE_AT:
+            stage, age = 2, elapsed - self.WYVERN_RISE_AT
+        else:
+            stage, age = 1, 0
+        c = self.canvas
+        tag = self.TAG, "lab_wyvern_fx"
+        c.delete("lab_wyvern_fx")
+        c.itemconfigure(self.wyvern_floor, state="normal" if stage == 3 and age >= .36 else "hidden")
+        sprite = self.wyvern_art.pose(stage, age)
+        x = 480 + dx
+        c.itemconfigure(self.sprite_item, image=sprite)
+        c.coords(self.sprite_item, x, self.GROUND - sprite.height() // 2 + dy)
+        if stage == 1 or (stage == 2 and age < .24):
+            self.wyvern_art.rubble(480, self.GROUND, tag)
+        if stage > 1 and age < TRANSITION_SECONDS[stage]:
+            self.wyvern_art.transition_effect(stage, age, x, self.GROUND, tag)
+        c.itemconfigure(self.move_label, text=f"{WYVERN_PHASE_NAMES[stage-1]}  ·  {self.index+1}/{len(self.MOVES)}")
 
 
 class AnimationLab(FramePlayer):

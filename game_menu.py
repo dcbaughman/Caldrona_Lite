@@ -29,6 +29,8 @@ EQUIP_SCROLL_X = 905
 EQUIP_MEMBER_X = (358, 602)
 MENU_ROW_TOP = 82
 MENU_ROW_STEP = 34
+CONFIGURATION_PAGE = 5
+ENCOUNTER_ROW = (314, 148, 904, 202)
 CRESCENDO_PAGE = 9
 CRESCENDO_ROW_TOP = 174
 CRESCENDO_ROW_STEP = 55
@@ -42,7 +44,7 @@ class GameMenu:
         ("Equip", "Manage weapons, armor, shields and accessories."),
         ("Status", "Retri is a skirter exploring Sunrest's cavern."),
         ("Formation", "Retri is the only party member right now."),
-        ("Configuration", "Display settings can be changed at the title screen."),
+        ("Configuration", ""),
         ("Save", "Saving will be added in a later pass."),
         ("Load", "No saved cavern journey exists yet."),
         ("Sync", "Discover the stone to awaken Astral Sync."),
@@ -75,6 +77,8 @@ class GameMenu:
         self.use_item = lambda name, member: "Item unavailable."
         self.gear_inventory = lambda: {}
         self.gear_changed = lambda member: None
+        self.random_encounters_enabled = lambda: True
+        self.toggle_random_encounters = lambda: ""
         self.progress = lambda: (1, 0, 30)
         self.item_index = 0
         self.item_targeting = False
@@ -137,6 +141,10 @@ class GameMenu:
             return "sync"
         if self.detail == 2:
             self._equip_activate()
+            self.draw()
+            return None
+        if self.detail == CONFIGURATION_PAGE:
+            self.feedback = self.toggle_random_encounters()
             self.draw()
             return None
         if self._roster_page():
@@ -312,6 +320,11 @@ class GameMenu:
     def click(self, x: int, y: int) -> str | None:
         if self.active and self.detail == 2:
             self._equip_click(x, y)
+            return None
+        if self.active and self.detail == CONFIGURATION_PAGE:
+            left, top, right, bottom = ENCOUNTER_ROW
+            if left <= x <= right and top <= y <= bottom:
+                self.activate()
             return None
         if self.active and self.detail == CRESCENDO_PAGE:
             if 109 <= y <= 149 and (315 <= x <= 352 or 869 <= x <= 905):
@@ -730,6 +743,8 @@ class GameMenu:
                           fill="#80eaf5", font=self.font(27), tags=tag)
         elif self.detail in (0, 3):
             self._draw_items_or_status()
+        elif self.detail == CONFIGURATION_PAGE:
+            self._draw_configuration()
         elif self.detail == CRESCENDO_PAGE:
             self._draw_crescendo()
         elif self._sync_page():
@@ -767,11 +782,34 @@ class GameMenu:
             c.create_text(314, 395, text="PRESS BACK TO RETURN TO THE LIST",
                           anchor="w", fill="#9adbe8", font=self.font(23), tags=tag)
 
-        controls = "ARROWS/D-PAD MOVE   ENTER/CROSS OK   ESC/CIRCLE BACK"
+        controls = ("ENTER/CROSS TOGGLE   ESC/CIRCLE BACK" if self.detail == CONFIGURATION_PAGE else
+                    "ARROWS/D-PAD MOVE   ENTER/CROSS OK   ESC/CIRCLE BACK")
         c.create_text(52, 503,
                       text=controls,
                       anchor="w", fill="#ffffff", font=self.font(18), tags=tag)
         c.tag_raise(tag)
+
+    def _draw_configuration(self):
+        c, tag = self.canvas, self.TAG
+        c.create_text(314, 96, text="CONFIGURATION", anchor="w", fill="#ffe37e",
+                      font=self.font(36, True), tags=tag)
+        c.create_line(311, 129, 905, 129, fill="#a9c2d1", width=3, tags=tag)
+
+        left, top, right, bottom = ENCOUNTER_ROW
+        y = (top + bottom) // 2
+        c.create_rectangle(left, top, right, bottom, fill="#34397d", outline="#8caeb8", tags=tag)
+        c.create_text(left + 16, y, text="Random encounters", anchor="w", fill="#f4f5f3",
+                      font=self.font(27, True), tags=tag)
+        enabled = self.random_encounters_enabled()
+        c.create_text(right - 16, y, text="ON" if enabled else "OFF", anchor="e",
+                      fill="#ffe37e", font=self.font(27, True), tags=tag)
+        c.create_text(314, 229, text="Scripted battles still trigger.", anchor="w", fill="#9adbe8",
+                      font=self.font(23), tags=tag)
+        c.create_text(314, 410, text="Display settings are on the title screen.", anchor="w", fill="#9adbe8",
+                      font=self.font(22), tags=tag)
+        if self.feedback:
+            c.create_text(314, 277, text=self.feedback, anchor="nw", width=570, fill="#ffe37e",
+                          font=self.font(22), tags=tag)
 
     def _draw_crescendo(self):
         roster = self.roster()

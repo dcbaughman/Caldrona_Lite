@@ -14,13 +14,13 @@ RECRUIT_OPTIONS = ("Travel with Temur", "Continue alone")
 ENTRY_SHOULDERS = ((7, 3), (9, 3))
 MINER=(48,7)
 MINER_NAME = "Theo"
-# Forecourt north wall, east of Shalehorn's door: the Selvar seal, then the fallen stair
-# flush against the corner. Pixel anchors are world pixels (sprite top-left).
+# The wide panel and its carved column share the inspection tile's centerline.
 SELVAR_SEAL = (50, 4)
-SEALED_STAIR = ((51, 4), (52, 4))
-MAINTENANCE_ALCOVE = (SELVAR_SEAL, *SEALED_STAIR)
-SELVAR_SEAL_AT = (806, 62)
-SEALED_STAIR_AT = (822, 62)
+SEALED_STAIR = (52, 4)
+MAINTENANCE_ALCOVE = (SELVAR_SEAL, SEALED_STAIR)
+SEAL_LIGHT_SECONDS = 1.2
+SEAL_RUMBLE_AT = .98
+SEAL_SCENE_SECONDS = 1.7
 SIGNS={
  'dropped_tools':((7,5),'tools',"A pick and a snapped brace. Whoever left these was in a hurry."),
  'abandoned_cart':((9,28),'cart',"The cart is still loaded. Deep gouges score the wood, far wider than a pick."),
@@ -38,11 +38,24 @@ def old_story():
  return dict(fresh_story(), entrance_collapsed=True)
 
 
+def load_world_strip(master, path, scale, width=None):
+    atlas = tk.PhotoImage(master=master, file=str(path))
+    height = atlas.height()
+    width = height if width is None else width
+    frames = []
+    for left in range(0, atlas.width(), width):
+        frame = tk.PhotoImage(master=master, width=width, height=height)
+        frame.tk.call(frame, "copy", atlas, "-from", left, 0, left + width, height)
+        frames.append(frame.zoom(scale))
+    return tuple(frames)
+
+
 class CaveStory:
  def __init__(self,app,assets,scale):
   self.app = app
   self.scale = scale
   self.scrape_sound = assets / "audio" / "shalehorn-scrape.wav"
+  self.seal_sound = assets / "audio" / "selvar-rumble.wav"
   self.heard_scrape = False
   self.shift = 0
   self.started = 0
@@ -51,9 +64,13 @@ class CaveStory:
   art = assets / "mine-polish"
   self.images = {
    name: tk.PhotoImage(master=app.root, file=str(art / f"{name}.png")).zoom(scale)
-   for name in ("cart", "tools", "lantern", "entrance-open", "entrance-blocked", "sealed-passage",
+   for name in ("cart", "tools", "lantern", "entrance-open", "entrance-blocked",
                 "selvar-inscription-cut", "selvar-closeup")
   }
+  self.stair_frames = load_world_strip(app.root, art / "glyph-stair.png", scale)
+  self.fracture_frames = load_world_strip(app.root, art / "selvar-fracture.png", scale, width=3*TILE)
+  self.stair_frame = 0
+  self.fracture_frame = 0
   self.images["miner-down"] = app._load_world_actor(art / "miner-down.png")
   detail = assets / "entrance-detail"
   self.stone = [
@@ -83,11 +100,12 @@ class CaveStory:
   props.extend((key, self.images[art]) for key, (_, art, _) in SIGNS.items())
   for name, image in props:
    self.items[name] = c.create_image(0, 0, image=image, anchor="s", tags="cave_story_prop")
-  # Both pieces sit in the wall row with the quarry door's crown height.
-  self.alcove_items = [
-   (c.create_image(0, 0, image=self.images[name], anchor="nw", state="hidden", tags="cave_story_prop"), at)
-   for name, at in (("sealed-passage", SEALED_STAIR_AT), ("selvar-inscription-cut", SELVAR_SEAL_AT))
-  ]
+  self.stair_item = c.create_image(0, 0, image=self.stair_frames[0], anchor="s",
+                                   state="hidden", tags="cave_story_prop")
+  self.seal_item = c.create_image(0, 0, image=self.images["selvar-inscription-cut"], anchor="s",
+                                  state="hidden", tags="cave_story_prop")
+  self.fracture_item = c.create_image(0, 0, image=self.fracture_frames[0], anchor="nw",
+                                      state="hidden", tags="cave_story_prop")
   # Close-up of the full inscription, framed above the dialogue box while Retri reads it.
   self.closeup_item = c.create_image(480, 177, image=self.images["selvar-closeup"],
                                      state="hidden", tags="selvar_closeup")
@@ -113,13 +131,27 @@ class CaveStory:
    c.coords(self.items[key], ((tile[0] + .5) * 16 - cx) * s, (baseline - cy) * s)
    c.itemconfigure(self.items[key],state='hidden' if a.outdoors else 'normal')
   shown = "normal" if a.cave_story["trail_search"] and not a.outdoors else "hidden"
-  for item, (px, py) in self.alcove_items:
-   c.coords(item, (px - cx) * s, (py - cy) * s)
-   c.itemconfigure(item, state=shown)
+  x, y = SEALED_STAIR
+  c.coords(self.stair_item, ((x + .5) * TILE - cx) * s, ((y + 1) * TILE - cy) * s)
+  c.itemconfigure(self.stair_item, state=shown)
+  x, y = SELVAR_SEAL
+  c.coords(self.seal_item, ((x + .5) * TILE - cx) * s, ((y + 1) * TILE - cy) * s)
+  c.itemconfigure(self.seal_item, state=shown)
+  c.coords(self.fracture_item, ((x - 1.5) * TILE - cx) * s, ((y - 1) * TILE - cy) * s)
+  c.itemconfigure(self.fracture_item, state=shown)
   if not a.dialogue.active:
    self.hide_closeup()
   c.tag_raise('cave_story_prop');c.tag_raise('world_party');c.tag_raise('hud')
   c.tag_raise('selvar_closeup');c.tag_raise('dialogue')
+
+ def animate_stair(self, now):
+  a = self.app
+  if a.outdoors or a.in_chamber or not a.cave_story["trail_search"]:
+   return
+  frame = int(now * 3) % len(self.stair_frames)
+  if frame != self.stair_frame:
+   self.stair_frame = frame
+   a.canvas.itemconfigure(self.stair_item, image=self.stair_frames[frame])
 
  def show_closeup(self):
   c = self.app.canvas
@@ -135,7 +167,7 @@ class CaveStory:
   if a.boss_cleared:
    lines=[DialogueLine(MINER_NAME,"The shaking has stopped. You drove it off! There's an old survey opening beyond the blue seam. It should lead outside.")]
   elif a.cave_story["trail_search"]:
-   lines = [DialogueLine(MINER_NAME, "Heard someone on the old stair just before it gave way."),
+   lines = [DialogueLine(MINER_NAME, "I heard boots on the old stair. Then that purple glyph lit up and sealed the arch."),
             DialogueLine(MINER_NAME, "Hear that scraping? Shalehorn's still guarding the blue seam. The shrine will see you right if you're going through.")]
   else:
    lines=[DialogueLine(MINER_NAME,"Don't go through that door unprepared. We uncovered a blue rock, and Shalehorn came straight for it."),
@@ -154,21 +186,18 @@ class CaveStory:
  def interact(self):
   a=self.app
   if a.outdoors:return False
-  dx,dy={'up':(0,-1),'down':(0,1),'left':(-1,0),'right':(1,0)}[a.direction]
-  tile=(int(a.x//16)+dx,int(a.y//16)+dy)
+  tile = a._facing_tile()
   if tile==MINER:self.warning();return True
   if tile==ENTRY:
    a.dialogue.show([DialogueLine('Retri',"The entrance is buried. I can't shift these rocks alone. There has to be another way out.")]);return True
-  if self.is_alcove(tile) and tile in SEALED_STAIR:
-   a.dialogue.show([DialogueLine("Retri", "The old stair has come down. Slabs choke the way up.", thought=True)])
+  if self.is_alcove(tile) and tile == SEALED_STAIR:
+   a.dialogue.show([DialogueLine("Retri", "I can see the stairs through the light. The glyph must have sealed them after Temur went up.", thought=True)])
    return True
   if self.is_alcove(tile):
-   if "corrupted_seal" not in a.cave_story["inspected"]:
-    a.cave_story["inspected"].append("corrupted_seal")
-   self.play_scrape()
-   a.dialogue.show([DialogueLine("Retri", "Fresh cuts cross the old carving. Temur’s charcoal lies beside the fallen stair.", thought=True)],
-                   on_complete=self.hide_closeup)
-   self.show_closeup()
+   if "corrupted_seal" in a.cave_story["inspected"]:
+    self.read_seal()
+   else:
+    self.begin_seal_pulse()
    return True
   for key,(point,_,text) in SIGNS.items():
    if tile==point:
@@ -177,15 +206,48 @@ class CaveStory:
     return True
   return False
 
+ def begin_seal_pulse(self):
+  a = self.app
+  a.screen = "seal_pulse"
+  a.keys.clear()
+  a.held_direction = None
+  a.walk_frame = 1
+  a._place_player(a.world_camera)
+  self.pulse_started = time.monotonic()
+  self.pulse_sounded = False
+
+ def update_seal_pulse(self, now):
+  a = self.app
+  elapsed = max(0, now - self.pulse_started)
+  if elapsed >= SEAL_RUMBLE_AT and not self.pulse_sounded:
+   self.pulse_sounded = True
+   a._play_sfx(self.seal_sound, volume=.50)
+  progress = min(1, elapsed / SEAL_LIGHT_SECONDS)
+  frame = int(progress * (len(self.fracture_frames) - 1))
+  if elapsed >= SEAL_SCENE_SECONDS:
+   frame = 0
+  if frame != self.fracture_frame:
+   self.fracture_frame = frame
+   a.canvas.itemconfigure(self.fracture_item, image=self.fracture_frames[frame])
+  if elapsed >= SEAL_SCENE_SECONDS:
+   a.screen = "game"
+   a.cave_story["inspected"].append("corrupted_seal")
+   self.read_seal()
+
+ def read_seal(self):
+  self.app.dialogue.show(
+   [
+    DialogueLine("Retri", "I think it says, ‘May the spirit of the mountain sleep.’", thought=True),
+    DialogueLine("Retri", "Fresh cuts cross the old carving. There's a charcoal smear beside the stair. Temur must have copied the seal.", thought=True),
+   ],
+   on_complete=self.hide_closeup,
+  )
+  self.show_closeup()
+
  def play_scrape(self):
   if not self.heard_scrape:
    self.heard_scrape = True
    self.app._play_sfx(self.scrape_sound, volume=.58)
-
- def at_shalehorn_door(self):
-  self.play_scrape()
-  self.app.dialogue.show([DialogueLine("Retri", "That's Shalehorn on the other side. With the stair gone, I'll have to go through its den.", thought=True)])
-  return True
 
  def open_at_entrance(self):
   a = self.app

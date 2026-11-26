@@ -21,7 +21,7 @@ WAVE_MOVES = frozenset(("tidecaller_rolling_tide", "tidecaller_undertow", "tidec
 # Lower action rank = the next turn comes sooner (CTB recovery is speed x rank).
 FAST_ACTIONS = {"sollers_knife_flick": 2, "ensifer_sheath_step": 1, "pruinor_hold_breath": 2,
                 "tidecaller_swell": 2, "reliquary_lid_shut": 2}
-BOSSES = ("Den Mother", "Shalehorn")
+BOSSES = ("Den Mother", "Shalehorn", "Ember Wyvern")
 STUCK = ("slow", "bogged", "sinking")
 CRIT = CRIT_MULTIPLIER  # same 1.5x as battle._roll_critical (combat_math.critical_damage)
 
@@ -205,7 +205,7 @@ class KitMixin:
             self.critical_hits.add(key)
         return damage
 
-    def _kit_hit(self, member, amount, physical=False, index=None):
+    def _kit_hit(self, member, amount, physical=False, index=None, *, element=None):
         if index is not None:
             self.target = index
         if self.health[self.target] <= 0:
@@ -214,7 +214,8 @@ class KitMixin:
                 self._misses_in_darkness(("party", self.actor), ("enemy", self.target)):
             self._note("A blow misses in the darkness.")
             return 0
-        element = self._weapon_element(member) if physical else None
+        if element is None and physical:
+            element = self._weapon_element(member)
         key = ("enemy", self.target)
         self._hit_target(amount, physical=physical, element=element,
                          can_crit=physical and key not in self.critical_hits)
@@ -236,14 +237,14 @@ class KitMixin:
             return intercept["source"]
         return None
 
-    def kit_incoming(self, index, damage):
+    def kit_incoming(self, index, damage, *, single_target=True):
         """Redirect and reduce an enemy hit. Returns (index, damage)."""
         attacker = getattr(self, "attacker", None)
-        if self.decoy > 0:
+        if single_target and self.decoy > 0:
             self.decoy = 0
             self._note("The clay effigy takes the blow and crumbles.")
             return index, 0
-        warden = self._warden_for(index)
+        warden = self._warden_for(index) if single_target else None
         if warden is not None and warden != index:
             add_progress(self.party[warden], "Warden", 1)
             self._note(f"{self.party[warden]['name']} takes the hit for {self.party[index]['name']}.")
@@ -252,7 +253,7 @@ class KitMixin:
             self.intercepted[warden] = self.intercepted.get(warden, 0) + damage
             if self._has(("party", warden), "unbroken"):
                 damage = max(1, damage // 2)
-        elif self._has(("party", index), "veil"):
+        elif single_target and self._has(("party", index), "veil"):
             others = [i for i in self._living_allies() if i != index and not self._has(("party", i), "veil")]
             if not others:
                 self._note("The attack loses its target in the smoke.")
@@ -582,8 +583,12 @@ class KitMixin:
         self.message = ""
         say = None
 
-        def spell(mult, index=None, echo=True):
-            dealt = self._kit_hit(member, self._spell(member, mult, ability.power or 4), index=index)
+        hit_element = None
+
+        def spell(mult, index=None, echo=True, *, element=None):
+            nonlocal hit_element
+            hit_element = element
+            dealt = self._kit_hit(member, self._spell(member, mult, ability.power or 4), index=index, element=element)
             if echo and dealt:
                 self._echo_spell()
             return dealt
@@ -591,8 +596,9 @@ class KitMixin:
         if lid == "seer_foretell":
             self._buff(ekey, "foretold", 3, 20, me)
             add_progress(member, "Seer", 1)
-            pct = self.enemies[i].fire_damage_percent
-            weak = "Weak to fire!" if pct > 100 else "Resists fire." if pct < 100 else "No weakness."
+            weaknesses = [element for element in ("fire", "water", "ice") if self.enemy_element_percent(element) > 100]
+            weak = ("Weak to " + " and ".join(weaknesses) + "!" if weaknesses else
+                    "Resists fire." if self.enemy_element_percent("fire") < 100 else "No weakness.")
             say = f"Foretell marks {foe}. {weak}"
         elif lid == "seer_starfall_omen":
             say = f"{name} hits for {spell(2.2)}!"
@@ -609,7 +615,7 @@ class KitMixin:
             self._buff(ekey, "prophecy", source=me)
             say = f"{name}: {foe}'s next action is foreseen."
         elif lid == "pruinor_rime_lash":
-            dealt = spell(1.4)
+            dealt = spell(1.4, element="ice")
             self._delay(ekey)
             self._buff(ekey, "delayed", 1)
             say = f"{name} hits for {dealt}!"
@@ -633,7 +639,7 @@ class KitMixin:
             say = f"{name} chills the field."
         elif lid == "pruinor_shatter":
             frozen = self.statuses.has(ekey, "frozen")
-            dealt = spell(3.0 if frozen else 1.2)
+            dealt = spell(3.0 if frozen else 1.2, element="ice")
             if frozen:
                 self.statuses.remove(ekey, "frozen")
                 self._drop(ekey, "vulnerable")
@@ -652,7 +658,7 @@ class KitMixin:
                 self._buff(("party", a), "regen", 1, amount, me)
             say = f"{name} restores {total} HP to the party."
         elif lid == "tidecaller_undertow":
-            dealt = spell(1.2 * swell)
+            dealt = spell(1.2 * swell, element="water")
             self._delay(ekey)
             self._buff(ekey, "delayed", 1)
             say = f"{name} hits for {dealt}!"
@@ -843,6 +849,8 @@ class KitMixin:
         else:
             return False
         self.message = (say or name) + self.message
+        if hit_element:
+            self._show_element_affinity(hit_element)
         return True
 
     # -------------------------------------------------- existing-move riders

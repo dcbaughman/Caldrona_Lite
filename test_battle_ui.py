@@ -3,6 +3,9 @@ import random
 import time
 import tkinter as tk
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import Caldrona_Lite as game
@@ -501,7 +504,10 @@ class BattleIntegrationTests(unittest.TestCase):
                 self.assertEqual(a.screen, "menu")
 
     def setUp(self):
-        with patch.object(tk.Tk, "mainloop"), patch.object(game.CaldronaLite, "_init_controller", no_controller), patch.object(game, "load_display", return_value=DisplayConfig()):
+        with (patch.object(tk.Tk, "mainloop"),
+              patch.object(game.CaldronaLite, "_init_controller", no_controller),
+              patch.object(game, "load_display", return_value=DisplayConfig()),
+              patch.object(game, "_load_random_encounters", return_value=True)):
             self.app = game.CaldronaLite()
         self.app.root.withdraw()
         self.app.root.after_cancel(self.app.tick_after)
@@ -514,6 +520,49 @@ class BattleIntegrationTests(unittest.TestCase):
     def tick(self):
         self.app._tick()
         self.app.root.after_cancel(self.app.tick_after)
+
+    def test_configuration_toggles_encounter_rolls_during_play(self):
+        from game_menu import CONFIGURATION_PAGE, ENCOUNTER_ROW
+
+        a = self.app
+        menu = a.game_menu
+        a.encounters.step = Mock(return_value=True)
+
+        def open_configuration():
+            a._back()
+            menu.selection = CONFIGURATION_PAGE
+            a._activate()
+
+        def walk_right():
+            a.keys = {"right"}
+            a.next_step_at = 0
+            self.tick()
+            a.keys.clear()
+
+        with TemporaryDirectory() as folder, patch.object(game, "GAMEPLAY_FILE", Path(folder) / "gameplay.json"):
+            self.assertTrue(game._load_random_encounters())
+            open_configuration()
+            enter = SimpleNamespace(keysym="Return")
+            a._key_down(enter)
+            a._key_up(enter)
+            self.assertFalse(a.random_encounters or game._load_random_encounters())
+            a._back()
+            a._back()
+            before = a._world_tile()
+            walk_right()
+            self.assertEqual(a._world_tile(), (before[0] + 1, before[1]))
+            self.assertEqual(a.screen, "game")
+            a.encounters.step.assert_not_called()
+
+            open_configuration()
+            left, top, _, _ = ENCOUNTER_ROW
+            a._click(SimpleNamespace(x=a.canvas._value(left + 10), y=a.canvas._value(top + 10)))
+            self.assertTrue(a.random_encounters and game._load_random_encounters())
+            a._back()
+            a._back()
+            walk_right()
+            self.assertEqual(a.screen, "battle_in")
+            a.encounters.step.assert_called_once()
 
     def test_chest_only_opens_once_and_blocks_movement(self):
         a = self.app

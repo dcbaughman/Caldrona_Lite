@@ -14,6 +14,7 @@ AILMENTS={
     'darkness':Ailment('Darkness','DRK','#b0a2cd',-1),
     'silence':Ailment('Silence','SIL','#e3b3d3',-1),
     'webbed':Ailment('Webbed','WEB','#c9c7df',3),
+    'sundered':Ailment('Defense Down','DEF↓','#f4a473',2),
     # Moveset statuses (movesets.md). Timed, so saves never persist them.
     'slow':Ailment('Slow','SLW','#8fb6e8',3),
     'bogged':Ailment('Bogged','BOG','#a08a5c',2),

@@ -1,21 +1,27 @@
 from __future__ import annotations
 
 import ctypes
+import json
 import math
 import os
 import subprocess
 import sys
+import tempfile
 import time
 import tkinter as tk
 import tkinter.font as tkfont
 from collections import OrderedDict
+from contextlib import suppress
+from copy import deepcopy
 from pathlib import Path
 
 from animation_lab import AnimationLab, CrescendoLab, EnemyMoveLab, PlayerMoveLab
 from side_drift import DRIFT_HALL, DRIFT_ROOM, SideDrift
-from cave_story import CaveStory, fresh_story, old_story, ENTRY, ENTRY_SHOULDERS, MINER, MINER_NAME
+from lower_workings import LowerWorkings, WORKINGS_FLOOR, WORKINGS_HEIGHT
+from cave_story import (CaveStory, fresh_story, old_story, load_world_strip,
+                        ENTRY, ENTRY_SHOULDERS, MINER, MINER_NAME)
 from classes import BLUE_STONE, NOKTAKORO, OUTFIT_JOBS, RIQIZAURKEIS, SENBRANKA, current_job
-from den_art import black_stone, egg_sacs, white_stone
+from den_art import black_stone, cave_exit_threshold, den_gate, egg_sacs, white_stone
 from depths import (BROOD_CHAMBER, DEN_CHESTS, DEN_DOOR, DEN_APPROACH, DEN_ENTRY, DEN_FLOOR, DEN_HEIGHT, DEN_HEART_GATE,
                     DEN_NEST, DEN_NEST_FOOTPRINT, DEN_SHRINE, DEN_STONE, DEN_STONE_TILES, EGG_SACS,
                     WEB_PANELS, boss_footprint, den_danger, den_location)
@@ -38,7 +44,7 @@ from stats import RETRI, member, grow, restore_party
 from consumables import RARE_SUPPLIES, SUPPLIES, apply_supply, item_gain_text
 from equipment import STARTING_GEAR, item_for, stat_value
 from battle import (BattleModel, BattleScene, BattleTransition, EncounterMeter,
-                    DenMotherBattle, MAX_HP, MAX_POTIONS, gain_xp, SHALEHORN, ShalehornBattle,
+                    DenMotherBattle, EmberWyvernBattle, MAX_HP, MAX_POTIONS, gain_xp, SHALEHORN, ShalehornBattle,
                     cave_encounter, depths_encounter, grassland_encounter)
 
 TILE = 16
@@ -54,6 +60,7 @@ CHUNK_SCREEN = CHUNK_PIXELS * SCALE
 
 ROOT = Path(__file__).resolve().parent
 DISPLAY_FILE = ROOT / "display_settings.json"
+GAMEPLAY_FILE = ROOT / "gameplay_settings.json"
 SAVE_DIRECTORY = ROOT / "saves"
 ASSETS = ROOT / "assets"
 CAVERN_MUSIC = ASSETS / "audio" / "cavern-travel.mp3"
@@ -145,6 +152,14 @@ def _menu_row_y(index: int) -> int:
 
 def _settings_row_y(index: int) -> int:
     return SETTINGS_PANEL_TOP + SETTINGS_ROW_OFFSET + index * SETTINGS_ROW_STRIDE
+
+
+def _load_random_encounters() -> bool:
+    try:
+        settings = json.loads(GAMEPLAY_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    return not isinstance(settings, dict) or settings.get("random_encounters") is not False
 
 
 class TitleBackdrop:
@@ -261,6 +276,49 @@ class TitleBackdrop:
                 canvas.create_line(x, sy - r, x, sy + r, fill="#fff2ba", width=1, tags="title_glint")
 
 
+def _tall_cave_wall(root, wall, rock, neutral):
+    """Extend the rock face between the original roof lip and the base details."""
+    lip, foot = 5, 6
+    height = TILE * 2
+    body_end = height - foot
+    body_height = body_end - lip
+    upper, lower = (tk.PhotoImage(master=root, width=TILE, height=TILE) for _ in range(2))
+    for y in range(height):
+        row = []
+        for x in range(TILE):
+            if y < lip or y >= body_end:
+                color = wall.get(x, y if y < lip else y - TILE)
+            else:
+                src_y = lip + (y - lip) * (TILE - lip - foot) // body_height
+                face = wall.get(x, src_y)
+                if face[0] > face[2]:
+                    # Keep the warm glints near the lip instead of stretching them down the face.
+                    warmth = max(0, 1 - (y - lip) / 5)
+                    stone = neutral.get(x, src_y)
+                    face = tuple(round(base + (lit - base) * warmth) for base, lit in zip(stone, face))
+                grain = rock.get(x, (y - lip) % TILE)
+                blend = min(y - lip + 1, body_end - y, 6) / 10
+                color = tuple(round(base + (detail - base) * blend) for base, detail in zip(face, grain))
+            row.append("#%02x%02x%02x" % color)
+        (upper if y < TILE else lower).put("{" + " ".join(row) + "}", to=(0, y % TILE))
+    return upper.zoom(SCALE), lower.zoom(SCALE)
+
+
+def _cave_side_cap(side, roof, rock, floor_on_left):
+    """Turn the roof lip into the vertical side face at the top row."""
+    cap = side.subsample(SCALE)
+    for x in range(TILE):
+        from_room = x if floor_on_left else TILE - 1 - x
+        bend = max(0, (from_room - TILE // 2) // 2)
+        for y in range(bend + 5):
+            if y < bend:
+                color = rock.get(x * SCALE, y * SCALE)
+            else:
+                color = roof.get(x * SCALE, (y - bend) * SCALE)
+            cap.put("#%02x%02x%02x" % color, (x, y))
+    return cap.zoom(SCALE)
+
+
 class CavernInstance:
     """A fixed first-floor cave, built once and kept as a light tile map."""
 
@@ -278,14 +336,15 @@ class CavernInstance:
         # A single backbone: entry -> lower workings -> upper seam -> boss forecourt.
         for start,end in (((10,12),(11,25)),((20,26),(33,26)),((34,22),(29,14)),((34,9),(45,11))):
             self._hall(start,end,3)
+        self.floor.add((28, 24))  # Clear the rock spur where the two workings meet.
         self._hall((47, 28), (55, 28), 3)
         # Larvel's side drift, off the shaft down to the lower workings.
         self._hall(*DRIFT_HALL, 1)
         self._room(*DRIFT_ROOM)
-        self.floor.discard((56, 27))
         self.floor.difference_update(ENTRY_SHOULDERS)
         self.public_floor = self.floor.copy()
         self.floor.update(DEN_FLOOR)
+        self.floor.update(WORKINGS_FLOOR)
         self.blocked=set()
         self.spawn = (8 * TILE + TILE / 2, 8 * TILE + TILE / 2)
 
@@ -349,6 +408,7 @@ class CaldronaLite:
         self.dialogue.register_portrait("Merren", MERREN_PORTRAIT)
         self.dialogue.register_portrait("Korward", KORWARD_PORTRAIT)
         self.dialogue.register_portrait(MINER_NAME, THEO_PORTRAIT)
+        self.random_encounters = _load_random_encounters()
         self.game_menu = GameMenu(
             self.canvas, self._font,
             lambda: self.dialogue.portrait(RETRI_PORTRAIT, RETRI_PORTRAIT_REGION),
@@ -361,6 +421,8 @@ class CaldronaLite:
         self.game_menu.use_item = self._use_menu_item
         self.game_menu.gear_inventory = lambda: self.gear_inventory
         self.game_menu.gear_changed = self._gear_changed
+        self.game_menu.random_encounters_enabled = lambda: self.random_encounters
+        self.game_menu.toggle_random_encounters = self._toggle_random_encounters
         self.game_menu.progress = lambda: (self.level, self.xp, 30*self.level)
         self.game_menu.sync_unlocked = lambda: self.astral_sync
         self.game_menu.party_names = lambda: [member["name"] for member in getattr(self, "party", [{"name": "Retri"}]) if member.get("active", True)]
@@ -873,7 +935,7 @@ class CaldronaLite:
         if self.screen == "shop":
             self._buy_supply()
             return
-        if self.screen in ("faint", "cave_walk", "entrance_collapse"):
+        if self.screen in ("faint", "cave_walk", "entrance_collapse", "seal_pulse"):
             return
         if self.screen == "astral":
             self._finish_astral(self.astral_scene.confirm())
@@ -920,7 +982,7 @@ class CaldronaLite:
                     self._open_tome()
             elif not self.game_menu.active:
                 self.canvas.itemconfigure(self.interaction_hint, state="hidden")
-                if not (self.mine_story.interact() or self.side_drift.interact() or self._interact_save_sphere() or self._interact_merren()
+                if not (self.lower_workings.interact() or self.mine_story.interact() or self.side_drift.interact() or self._interact_save_sphere() or self._interact_merren()
                         or self._interact_korward()
                         or self._interact_white_stone() or self._interact_quarry()
                         or self._interact_den() or self._interact_temur()):
@@ -1020,7 +1082,7 @@ class CaldronaLite:
             self.held_direction = None
             self.next_step_at = time.monotonic() + STEP_INTERVAL
             return
-        if self.screen in ("faint", "game_over", "cave_walk", "entrance_collapse", "temur_choice"):
+        if self.screen in ("faint", "game_over", "cave_walk", "entrance_collapse", "temur_choice", "seal_pulse"):
             return
         if self.screen == "astral":
             self._finish_astral(self.astral_scene.back())
@@ -1035,7 +1097,8 @@ class CaldronaLite:
                 if self.merren_shop_pending:
                     self.merren_shop_pending = False
                     self.dialogue.clear()
-                elif self.grass_intro_active or self.boss_intro or getattr(self,"opening_intro_active",False) or self.temur_story == "offering":
+                elif (self.grass_intro_active or self.boss_intro or self.lower_workings.boss_pending or self.lower_workings.rescue_scene
+                      or getattr(self, "opening_intro_active", False) or self.temur_story == "offering"):
                     self._activate()
                 else:
                     self.dialogue.clear()
@@ -1053,6 +1116,23 @@ class CaldronaLite:
             self.game_menu.close()
         else:
             self.game_menu.open()
+
+    def _toggle_random_encounters(self) -> str:
+        self.random_encounters = not self.random_encounters
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=GAMEPLAY_FILE.parent,
+                                             prefix=".gameplay-", suffix=".tmp", delete=False) as stream:
+                temporary_path = Path(stream.name)
+                json.dump({"random_encounters": self.random_encounters}, stream, indent=2)
+                stream.write("\n")
+            temporary_path.replace(GAMEPLAY_FILE)
+        except OSError:
+            if temporary_path is not None:
+                with suppress(OSError):
+                    temporary_path.unlink(missing_ok=True)
+            return "Changed for this session. Could not save configuration."
+        return ""
 
     def _leave_cavern(self) -> None:
         self.dialogue.clear()
@@ -1296,7 +1376,12 @@ class CaldronaLite:
         self.floor_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"floor_{i}.png")).zoom(SCALE) for i in range(4)]
         source_walls = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"wall_{i}.png")) for i in range(4)]
         self.wall_tiles = [tile.zoom(SCALE) for tile in source_walls]
-        self.solid_rock_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"side_wall_{i}.png")).zoom(SCALE) for i in range(3)]
+        source_rock = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"side_wall_{i}.png")) for i in range(3)]
+        self.solid_rock_tiles = [tile.zoom(SCALE) for tile in source_rock]
+        self.tall_wall_tiles = [
+            _tall_cave_wall(self.root, wall, source_rock[index % len(source_rock)], source_walls[0])
+            for index, wall in enumerate(source_walls)
+        ]
         def side_wall(source, clockwise):
             # Rotate the actual horizontal wall pixels so color and texture match.
             size = source.width()
@@ -1310,6 +1395,13 @@ class CaldronaLite:
             return rotated.zoom(SCALE)
         self.side_wall_tiles = [[side_wall(tile, clockwise) for tile in source_walls[:2]]
                                 for clockwise in (False, True)]
+        self.side_wall_caps = [
+            [_cave_side_cap(tile, self.tall_wall_tiles[0][0], self.solid_rock_tiles[index],
+                            floor_on_left=bool(direction))
+             for index, tile in enumerate(variants)]
+            for direction, variants in enumerate(self.side_wall_tiles)
+        ]
+        self.wall_end_tiles = {}
         self.crystal_tiles = [tk.PhotoImage(master=self.root, file=str(cavern_art / f"crystal_lit_{i}.png")).zoom(SCALE) for i in range(4)]
         grass_art = ASSETS / "grassland"
         def grass_image(name):
@@ -1350,23 +1442,34 @@ class CaldronaLite:
         self.den_intro_camera = self.shalehorn_shake_started = None
         self.shalehorn_shake = (0, 0)
         self.stone_reveal = False
-        self.outer_door, self.inner_door, self.stone_tile = (49, 4), (70, 21), (70, 14)
+        self.outer_door, self.inner_door, self.stone_tile = (47, 4), (70, 21), (70, 14)
         self.shalehorn_footprint = boss_footprint(self.stone_tile)
+        self.cave_exit_image = cave_exit_threshold(self.root, SCALE, self.floor_tiles[0])
+        forecourt_gate = tk.PhotoImage(
+            master=self.root, file=str(ASSETS / "mine-polish" / "forecourt-gate.png")
+        ).zoom(SCALE)
+        blue_stone = tk.PhotoImage(master=self.root, file=str(ASSETS / "astral-stone-outlined.png"))
+        self.ondastela_frames = load_world_strip(
+            self.root, ASSETS / "mine-polish" / "ondastela-pulse.png", SCALE, width=blue_stone.width()
+        )
+        self.ondastela_frame = 0
         self.quarry_objects = []
-        for tile, filename in (
-            (self.outer_door, "quarry-door.png"),
-            (self.inner_door, "quarry-door.png"),
-            (self.stone_tile, "astral-stone-outlined.png"),
+        for tile, image, anchor in (
+            (self.outer_door, forecourt_gate, "s"),
+            (self.inner_door, self.cave_exit_image, "n"),
+            (self.stone_tile, self.ondastela_frames[0], "center"),
         ):
-            image = tk.PhotoImage(master=self.root, file=str(ASSETS / filename)).zoom(SCALE)
-            item = self.canvas.create_image(0, 0, image=image)
+            item = self.canvas.create_image(0, 0, image=image, anchor=anchor)
             self.quarry_objects.append((tile, image, item))
+            if tile == self.stone_tile:
+                self.ondastela_item = item
         boss_art = ASSETS / "overworld-bosses"
         self.shalehorn_world_image = tk.PhotoImage(master=self.root, file=str(boss_art / "shalehorn.png")).zoom(SCALE)
         self.shalehorn_world_item = self.canvas.create_image(
             0, 0, image=self.shalehorn_world_image, anchor="s", state="hidden"
         )
-        self.den_door_item = self.canvas.create_image(0, 0, image=self.quarry_objects[0][1])
+        self.den_door_frames = den_gate(self.root, SCALE)
+        self.den_door_item = self.canvas.create_image(0, 0, image=self.den_door_frames[0], anchor="s")
         self.den_gate_web = gate_web(self.root, SCALE)
         self.den_floor_webs = floor_web_tiles(self.root, WEB_PANELS, SCALE, TILE)
         self.den_egg_art = egg_sacs(self.root, SCALE)
@@ -1432,6 +1535,7 @@ class CaldronaLite:
         )
         self.mine_story = CaveStory(self, ASSETS, SCALE)
         self.side_drift = SideDrift(self, ASSETS, SCALE)
+        self.lower_workings = LowerWorkings(self, ASSETS, SCALE)
         # A visible speaker turns when its first dialogue page appears.
         self.dialogue_actors = {
             MINER_NAME.casefold(): (self.mine_story.items["miner"], MINER,
@@ -1502,6 +1606,10 @@ class CaldronaLite:
         self.cave_story.pop("black_stone_claimed", None)
         self.cave_story["depths_chests"] = list(self.cave_story["depths_chests"])
         self.cave_story["inspected"] = list(story["inspected"])
+        if "workings" in story:
+            self.cave_story["workings"] = deepcopy(story["workings"])
+            if self.lower_workings.stage == "complete":
+                self.cave_story["entrance_collapsed"] = False
         for key in SAVE_FIELDS:
             setattr(self, key, state[key])
         self.field_leader = state.get("field_leader", "Retri")
@@ -1604,8 +1712,6 @@ class CaldronaLite:
             return False
         tile = self._facing_tile()
         if tile == self.outer_door:
-            if self.cave_story["trail_search"]:
-                return self.mine_story.at_shalehorn_door()
             self.in_chamber = True
             self.x, self.y = 70.5*TILE, 17.5*TILE
             self.direction = "up"
@@ -1614,7 +1720,8 @@ class CaldronaLite:
                 self._meet_shalehorn()
         elif tile == self.inner_door:
             self.in_chamber = False
-            self.x, self.y = 49.5*TILE, 5.5*TILE
+            x, y = self.outer_door
+            self.x, self.y = (x + .5) * TILE, (y + 1.5) * TILE
             self.direction = "down"
             self._update_world(force=True)
         elif tile == self.stone_tile or (not self.boss_cleared and tile in self.shalehorn_footprint):
@@ -1679,7 +1786,7 @@ class CaldronaLite:
                     self.cave_story["den_unsealed"] = True
                     self._update_world(force=True)
                     self.dialogue.show([DialogueLine(
-                        "Retri", "The torch takes. Silk burns away from the rock.")])
+                        "Retri", "The torch takes. Silk burns away from the rock. The seal goes dark.")])
                     return True
                 self.dialogue.show([
                     DialogueLine("Retri", "Silk binds the gate to the rock. It won't budge."),
@@ -1972,7 +2079,17 @@ class CaldronaLite:
         self.boss_intro = True
         self.shalehorn_shake_started = time.monotonic()
         self._update_shalehorn_shake(self.shalehorn_shake_started)
-        lines = [DialogueLine("Retri", "That scraping sound... Look under its tusks. Something blue is pulsing.")]
+        if self.cave_story["trail_search"]:
+            self.mine_story.play_scrape()
+            light = "There's a blue light under its tusks."
+            if "corrupted_seal" in self.cave_story["inspected"]:
+                light = "The same blue light as the crack."
+            lines = [
+                DialogueLine("Retri", "The stair is sealed. I have to get past Shalehorn to find Temur.", thought=True),
+                DialogueLine("Retri", light, thought=True),
+            ]
+        else:
+            lines = [DialogueLine("Retri", "That scraping sound... Look under its tusks. Something blue is pulsing.")]
         if any(p["name"] == "Temur" for p in self.party):
             lines.append(DialogueLine("Temur", "Shalehorn. See how it leans into the light? Brace when it lowers its head."))
         lines.append(DialogueLine("", "A hoof strikes the shale. The beast turns toward the footsteps."))
@@ -2089,6 +2206,7 @@ class CaldronaLite:
             for spoils in (model.drops, model.stolen):
                 for key, count in spoils.items():
                     self._receive_loot(key, count)
+        self.lower_workings.finish_battle(model, outcome)
         self.encounters.reset()
         self.screen = "battle_out"
         self.keys.clear()
@@ -2110,6 +2228,8 @@ class CaldronaLite:
                 model = BattleModel(grassland_encounter(self.encounters.rng, len(active)), **battle_args)
             elif self.den_boss_pending:
                 model = DenMotherBattle(**battle_args)
+            elif self.lower_workings.boss_pending:
+                model = self.lower_workings.boss_battle(battle_args)
             elif in_depths:
                 model = BattleModel(depths_encounter(self.encounters.rng, den_danger(self._world_tile()), len(active)),
                                     **battle_args)
@@ -2121,7 +2241,7 @@ class CaldronaLite:
             self.battle.start(model, now, outdoors=self.outdoors, in_depths=in_depths)
             self.screen = "battle"
             self._play_music(ASSETS / "audio" / "first-boss.mp3"
-                             if isinstance(model, (DenMotherBattle, ShalehornBattle)) else BATTLE_MUSIC,
+                             if isinstance(model, (DenMotherBattle, ShalehornBattle, EmberWyvernBattle)) else BATTLE_MUSIC,
                              restart=True)
         else:
             self.battle.close()
@@ -2162,7 +2282,8 @@ class CaldronaLite:
         return self.world_frames.get(name)
 
     def _world_height(self):
-        return DEN_HEIGHT if self._in_den() else self.cave.height
+        return (DEN_HEIGHT if self._in_den() else WORKINGS_HEIGHT if self.lower_workings.here()
+                else self.cave.height)
 
     def _center_camera(self, x, y) -> tuple[float, float]:
         max_x = max(0, self.cave.width * TILE - VIEW_W)
@@ -2187,7 +2308,8 @@ class CaldronaLite:
         photo = tk.PhotoImage(master=self.root, width=CHUNK_SCREEN, height=CHUNK_SCREEN)
         gx, gy = key
         in_den = self._in_den()
-        floor = self.cave.floor if self.outdoors else DEN_FLOOR if in_den else self.cavern_map.public_floor
+        floor = (self.cave.floor if self.outdoors else DEN_FLOOR if in_den
+                 else self.lower_workings.floor() if self.lower_workings.here() else self.cavern_map.public_floor)
         for oy in range(CHUNK_TILES):
             for ox in range(CHUNK_TILES):
                 tx, ty = gx*CHUNK_TILES + ox, gy*CHUNK_TILES + oy
@@ -2208,20 +2330,84 @@ class CaldronaLite:
                     if in_den:
                         for web in self.den_floor_webs.get((tx, ty), ()):
                             photo.tk.call(photo, "copy", web, "-to", *dest, "-compositingrule", "overlay")
-                elif any((tx+dx, ty+dy) in floor
-                         for dx, dy in ((0,1),(0,-1),(1,0),(-1,0))):
-                    roll = variation % 100
-                    index = 0 if roll < 55 else 1 if roll < 92 else 2 if roll < 97 else 3
-                    side = ((tx-1, ty) in floor or (tx+1, ty) in floor) and (tx, ty+1) not in floor
-                    wall = self.side_wall_tiles[0 if (tx+1, ty) in floor else 1][variation % 2] if side else self.wall_tiles[index]
-                    photo.tk.call(photo, "copy", wall, "-to", *dest)
-                    if (tx, ty+1) in floor and variation % 13 == 0:
-                        crystal = self.crystal_tiles[(variation // 13) % 4]
-                        photo.tk.call(photo, "copy", crystal, "-to", *dest, "-compositingrule", "overlay")
+                    continue
+                north_wall = (tx, ty+1) in floor
+                upper_wall = not north_wall and (tx, ty+2) in floor
+                if upper_wall:
+                    # Match the lower half across chunk boundaries.
+                    variation = ((tx * 73856093) ^ ((ty+1) * 19349663)) & 0xffffffff
+                roll = variation % 100
+                index = 0 if roll < 55 else 1 if roll < 92 else 2 if roll < 97 else 3
+                face = 0
+                if upper_wall:
+                    wall = self.tall_wall_tiles[index][0]
+                    face = 2
+                elif north_wall and (tx, ty-1) not in floor:
+                    wall = self.tall_wall_tiles[index][1]
+                    face = 1
+                elif not north_wall and (side_wall := self._cave_side_wall(floor, tx, ty, variation)):
+                    wall = side_wall
+                elif north_wall or (tx, ty-1) in floor:
+                    wall = self.wall_tiles[index]
+                    face = 1 if north_wall else -1
                 else:
-                    photo.tk.call(photo, "copy", self.solid_rock_tiles[variation % 3], "-to", *dest)
+                    wall = self.solid_rock_tiles[variation % 3]
+                if face:
+                    ends = tuple(self._cave_wall_end(floor, tx + step, ty, face, step) for step in (-1, 1))
+                    if any(ends):
+                        wall = self._bevel_cave_wall(wall, ends, face)
+                photo.tk.call(photo, "copy", wall, "-to", *dest)
+                if north_wall and variation % 13 == 0:
+                    crystal = self.crystal_tiles[(variation // 13) % 4]
+                    photo.tk.call(photo, "copy", crystal, "-to", *dest, "-compositingrule", "overlay")
         self.chunk_cache[key] = photo
         return photo
+
+    def _cave_side_wall(self, floor, x, y, variation):
+        # Follow the side of the room up through both wall rows, stopping at other floor.
+        for rise in range(3):
+            row = y + rise
+            if (x, row) in floor:
+                break
+            if (x + 1, row) in floor:
+                direction = 0
+            elif (x - 1, row) in floor:
+                direction = 1
+            else:
+                continue
+            tiles = self.side_wall_caps if rise == 2 else self.side_wall_tiles
+            return tiles[direction][variation % 2]
+        return None
+
+    def _cave_wall_end(self, floor, x, y, face, side):
+        variation = ((x * 73856093) ^ (y * 19349663)) & 0xffffffff
+        if (x, y) in floor:
+            # Curl the ledge back into the corridor's side face.
+            return self.side_wall_tiles[0 if side > 0 else 1][variation % 2]
+        if (x, y + face) in floor and (face != 2 or (x, y + 1) not in floor):
+            return None
+        return self._cave_side_wall(floor, x, y, variation) or self.solid_rock_tiles[variation % 3]
+
+    def _bevel_cave_wall(self, wall, ends, face):
+        key = (wall, ends, face)
+        if key in self.wall_end_tiles:
+            return self.wall_end_tiles[key]
+        tile = wall.subsample(SCALE)
+        for side, rock in zip((-1, 1), ends):
+            if rock is None:
+                continue
+            for y in range(TILE):
+                # An oblique return at the lip meets a wider bevel at the foot.
+                reach = 3 + (TILE - y if face == 2 else y) // 6
+                for distance in range(reach):
+                    x = distance if side < 0 else TILE - 1 - distance
+                    px, py = x * SCALE, y * SCALE
+                    alpha = .9 * (1 - distance / reach)
+                    color = tuple(round(original + (background - original) * alpha)
+                                  for original, background in zip(wall.get(px, py), rock.get(px, py)))
+                    tile.put("#%02x%02x%02x" % color, to=(x, y))
+        self.wall_end_tiles[key] = tile.zoom(SCALE)
+        return self.wall_end_tiles[key]
 
     def _grassland_tile(self, tx, ty, variation):
         tile = tx, ty
@@ -2276,7 +2462,9 @@ class CaldronaLite:
         self.canvas.coords(self.temur_item, (self.temur_tile[0]*TILE + TILE/2-cx)*SCALE,
                            (self.temur_tile[1]*TILE + TILE/2-cy)*SCALE)
         for tile, image, item in self.quarry_objects:
-            self.canvas.coords(item, ((tile[0]+0.5)*TILE-cx)*SCALE, ((tile[1]+0.5)*TILE-cy)*SCALE)
+            baseline = 1 if tile == self.outer_door else 0 if tile == self.inner_door else .5
+            self.canvas.coords(item, ((tile[0] + .5) * TILE - cx) * SCALE,
+                               ((tile[1] + baseline) * TILE - cy) * SCALE)
             hidden = self.outdoors or in_den
             self.canvas.itemconfigure(item, state="hidden" if hidden else "normal")
         self._position_overworld_boss(self.shalehorn_world_item, self.stone_tile, camera)
@@ -2293,15 +2481,20 @@ class CaldronaLite:
                            ((wy + 1) * TILE - cy) * SCALE)
         self.canvas.itemconfigure(self.white_stone_item, state="normal" if self.outdoors else "hidden")
         location = ("Sunrest Grasslands" if self.outdoors else den_location(self._world_tile()) if in_den
+                    else self.lower_workings.location() if self.lower_workings.here()
                     else "Astral Hollow" if self.in_chamber else "Sunrest Excavation")
         self.canvas.itemconfigure(self.location_label, text=location)
         searching = self.cave_story["trail_search"] and not self.outdoors and not in_den
-        self.canvas.itemconfigure(self.cave_objective, text="Find Temur" if searching else "")
+        objective = ("Find Temur" if searching else "")
+        if self.lower_workings.here():
+            objective = self.lower_workings.objective()
+        self.canvas.itemconfigure(self.cave_objective, text=objective)
         self._draw_den(camera)
         self.cordon.render(camera)
         self._place_player(camera)
         self.mine_story.render()
         self.side_drift.render(camera)
+        self.lower_workings.render(camera)
 
     def _position_overworld_boss(self, item, base, camera):
         x, y = base
@@ -2328,9 +2521,14 @@ class CaldronaLite:
             return (((tile[0] + .5) * TILE - cx) * SCALE, ((tile[1] + .5) * TILE - cy) * SCALE)
 
         x, y = center(DEN_DOOR)
-        c.coords(self.den_door_item, x, y)
-        if not self.cave_story["den_unsealed"]:
-            c.create_image(x, y-3, image=self.den_gate_web, tags="den_decor")
+        unsealed = self.cave_story["den_unsealed"]
+        # Mount the portal into the rock on the side the camera can see.
+        edge = y - TILE * SCALE / 2 if inside else y + TILE * SCALE / 2
+        c.coords(self.den_door_item, x, edge)
+        image = self.cave_exit_image if inside else self.den_door_frames[int(unsealed)]
+        c.itemconfigure(self.den_door_item, anchor="n" if inside else "s", image=image)
+        if not unsealed:
+            c.create_image(x, edge - 10 * SCALE, image=self.den_gate_web, tags="den_decor")
         if inside:
             self._position_overworld_boss(self.den_spider_item, DEN_NEST, camera)
             for tile, item in props:
@@ -2397,7 +2595,8 @@ class CaldronaLite:
 
     def _follower_floor(self, x, y):
         tile = int(x // TILE), int(y // TILE)
-        return self._can_walk_world(x, y) and (self.outdoors or (tile in DEN_FLOOR) == self._in_den())
+        return self._can_walk_world(x, y) and (self.outdoors or ((tile in DEN_FLOOR) == self._in_den()
+                                                and (tile in WORKINGS_FLOOR) == self.lower_workings.here()))
 
     def _can_walk_world(self, x, y):
         if not self.cave.walkable(x, y):
@@ -2406,6 +2605,10 @@ class CaldronaLite:
         if self.outdoors:
             return ((self.cordon_open or tile != GATE)
                     and tile not in (self.merren_tile, (self.merren_tile[0]+1, self.merren_tile[1])))
+        if tile in WORKINGS_FLOOR:
+            return self.lower_workings.walkable(tile)
+        if self.lower_workings.here():
+            return False
         if tile in DEN_FLOOR:
             if not self._in_den() or tile in DEN_STONE_TILES or tile in EGG_SACS or tile in DEN_CHESTS or tile == DEN_SHRINE:
                 return False
@@ -2417,7 +2620,7 @@ class CaldronaLite:
         stationary_objects = (self.chest_tile, self.stone_tile, self.save_sphere_tile,
                               self.outer_door, self.inner_door, DEN_DOOR)
         return (tile not in stationary_objects and not self.mine_story.blocked(tile)
-                and not self.side_drift.blocked(tile)
+                and not self.side_drift.blocked(tile) and not self.lower_workings.blocks_cavern(tile)
                 and (self.temur_story != "waiting" or tile != self.temur_tile))
 
     def _update_interaction_hint(self):
@@ -2437,6 +2640,8 @@ class CaldronaLite:
                 label = "ATTUNE"
             elif tile == self.stone_tile and self.boss_cleared:
                 label = "ATTUNE"
+            elif workings_label := self.lower_workings.hint(tile):
+                label = workings_label
             elif self.mine_story.is_alcove(tile) or self.side_drift.is_stairwell(tile):
                 label = "INSPECT"
             elif tile == DEN_DOOR or (not self._in_den() and tile in (self.outer_door, self.inner_door)):
@@ -2446,11 +2651,16 @@ class CaldronaLite:
             return
         cx, cy = self.world_camera
         x, y = tile
+        tall_front = not self.outdoors and (tile == self.outer_door or self.mine_story.is_alcove(tile)
+                                           or (tile == DEN_DOOR and not self._in_den()))
+        lift = 1.5 * TILE * SCALE + 12 if tall_front else 44
         self.canvas.coords(self.interaction_hint, ((x + .5) * TILE - cx) * SCALE,
-                           ((y + .5) * TILE - cy) * SCALE - 44)
+                           ((y + .5) * TILE - cy) * SCALE - lift)
         self.canvas.itemconfigure(self.interaction_hint, text=f"{label} · ENTER / CROSS", state="normal")
 
     def _roll_field_encounter(self, tile):
+        if not self.random_encounters:
+            return False
         if self.outdoors:
             return (self.cordon_open and tile != GATE and not self.grassland_map.sheltered(tile)
                     and self.encounters.step())
@@ -2518,6 +2728,8 @@ class CaldronaLite:
             self.mine_story.update_walk(now)
         elif self.screen == "entrance_collapse":
             self.mine_story.update(now)
+        elif self.screen == "seal_pulse":
+            self.mine_story.update_seal_pulse(now)
         elif self.screen == "temur_choice":
             self.mine_story.navigate_choice(direction)
         elif self.screen == "cordon_choice":
@@ -2590,7 +2802,8 @@ class CaldronaLite:
                         self._area_step_latch = False
                         self.walk_frame = 0 if self.walk_frame == 2 else 2
                         self._update_world()
-                        if (not self._start_den_intro(next_tile, now) and not self.mine_story.maybe_warn()
+                        if (not self._start_den_intro(next_tile, now) and not self.lower_workings.on_step(next_tile, now)
+                                and not self.mine_story.maybe_warn()
                                 and self._roll_field_encounter(next_tile)):
                             self._begin_battle(now)
                     else:
@@ -2607,6 +2820,13 @@ class CaldronaLite:
         if self.screen == "game" and hasattr(self, "save_sphere_frames"):
             self._update_shalehorn_shake(now)
             self.canvas.itemconfigure("save_sphere", image=self.save_sphere_frames[int(now*2)%4])
+            self.mine_story.animate_stair(now)
+            if self.in_chamber and not self.outdoors:
+                pause = 8
+                frame = max(0, int(now * 6) % (pause + len(self.ondastela_frames)) - pause)
+                if frame != self.ondastela_frame:
+                    self.ondastela_frame = frame
+                    self.canvas.itemconfigure(self.ondastela_item, image=self.ondastela_frames[frame])
             self._update_interaction_hint()
         if self.screen in ("menu", "settings", "notice"):
             self.title_art.advance(now)

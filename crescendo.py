@@ -19,6 +19,7 @@ class Crescendo:
     action_rank: int = 5
     # Extra behaviour handled by kit_effects.py (empty for the original moves).
     rider: str = ""
+    element: str | None = None
 
     @property
     def target(self):
@@ -55,7 +56,7 @@ LOADOUTS = {
         Crescendo("flood_tide", "Flood Tide", "heal", 12,
                   "Heal the party 12 plus Magic now and again next turn.", rider="tide_again"),
         Crescendo("riptide", "Riptide", "magic_sweep", 9,
-                  "Water on every enemy. Each is pulled back one turn slot.", rider="delay_all"),
+                  "Water on every enemy. Each is pulled back one turn slot.", rider="delay_all", element="water"),
         Crescendo("slack_water", "Slack Water", "party", 6,
                   "Cleanse every ailment from the party and restore 6 MP each.", rider="slack"),
         Crescendo("return_tide", "Return Tide", "party", 0,

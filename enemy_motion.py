@@ -68,6 +68,7 @@ MOTIONS = {
         "den-mother-stride.png", (0, 1, 2, 3, 2, 0), ticks_per_second=10,
     ),
     "shalehorn.png": EnemyMotion("Shale shudder", 29, ((0, 0), (-2, 0), (2, -1), (-1, 0), (1, 1))),
+    "ember-wyvern.png": EnemyMotion("Coil shift", 21, ((0, 0), (-1, 0), (-3, 0), (3, 0), (1, 0))),
 }
 
 

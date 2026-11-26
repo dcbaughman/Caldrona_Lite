@@ -16,7 +16,10 @@ class CaveProgressionTests(unittest.TestCase):
   self.a=self.case.app
 
  def test_main_route_passes_through_lower_workings(self):
-  cave=game.CavernInstance();start=(8,8);goal=(49,5)
+  cave = game.CavernInstance()
+  start = (8, 8)
+  door_x, door_y = self.a.outer_door
+  goal = (door_x, door_y + 1)
   queue=deque([start]);previous={start:None}
   while queue:
    point=queue.popleft()
@@ -28,7 +31,8 @@ class CaveProgressionTests(unittest.TestCase):
   path=[];p=goal
   while p is not None:path.append(p);p=previous[p]
   self.assertTrue(any(y>=21 and x<23 for x,y in path))
-  self.assertTrue(any(y>=21 and x>=29 for x,y in path))
+  self.assertIn((28,24),cave.public_floor)
+  self.assertTrue(any(y>=21 and x>=28 for x,y in path))
   self.assertNotIn((18,8),cave.floor);self.assertIn((18,8),cave.legacy_floor)
   for _,(tile,_,_) in SIGNS.items():self.assertIn(tile,cave.floor)
   self.assertIn(MINER,cave.floor)

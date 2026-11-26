@@ -51,7 +51,8 @@ class SaveJourneyTests(unittest.TestCase):
         self.assertEqual(capture(a),expected)
         self.assertEqual(a.canvas.itemcget(a.chest_item,'image'),str(a.canvas._image(a.chest_images[1])))
         self.assertEqual(a.canvas.itemcget(a.save_sphere_item,'state'),'normal')
-        self.assertFalse(a.cave.walkable(49.5*16,4.5*16)) # Door remains an interaction tile.
+        door_x, door_y = a.outer_door
+        self.assertFalse(a.cave.walkable((door_x + .5) * 16, (door_y + .5) * 16))
 
     def test_empty_corrupt_and_failed_write_keep_other_slots(self):
         state=capture(self.app);write_slot(self.directory,2,state)

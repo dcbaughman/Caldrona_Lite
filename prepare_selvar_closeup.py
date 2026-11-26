@@ -2,8 +2,8 @@
 
 Reads `assets/mine-polish/selvar-inscription-source.svg`, rasterises each of its
 stacked columns into hard-edged pixel grooves, and sets the columns side by side,
-left to right in source order, on a worn purple slate tablet. Fresh Veskar cuts run
-across the whole face and glint where they cross the old grooves.
+left to right in source order, on a worn purple slate tablet. A fracture breaks
+several columns and interrupts the fresh Veskar cuts.
 
     selvar-closeup.png      the tablet at native pixel density (the game zooms it by SCALE)
 
@@ -27,12 +27,14 @@ MARGIN_X, MARGIN_Y = 14, 9
 SUPERSAMPLE = 6
 COVERAGE = .26         # share of a native pixel a stroke must cover to carve it
 
-RIM = (18, 12, 20)
+RIM = (42, 40, 51)
 EDGE = (40, 30, 54)
 SLATE = ((58, 46, 78), (86, 70, 108), (110, 92, 132), (140, 122, 158))
 GROOVE = (18, 10, 26)
 GROOVE_SIDE = (40, 28, 54)
-CRACK = (20, 14, 28)
+FRACTURE_DEPTH = (19, 15, 32)
+FRACTURE_SHADE = (37, 29, 53)
+FRACTURE_LIP = (83, 71, 108)
 CUT = (204, 194, 214)
 CUT_SHADOW = (70, 58, 88)
 GLINT = (150, 196, 230)
@@ -162,6 +164,45 @@ def _tablet_mask(width, height, rng):
     return cells
 
 
+def _break_tablet(surface, mask):
+    """Draw broken edges with missing stone across both generations of writing."""
+    width, height = surface.get_size()
+    damage = pygame.Surface((width, height), pygame.SRCALPHA)
+
+    def points(outline):
+        return [(round(x * width / 196), round(y * height / 110)) for x, y in outline]
+
+    upper = points(((0, 91), (16, 83), (26, 84), (36, 74), (47, 76), (57, 68),
+                    (63, 69), (69, 58), (76, 54), (83, 51), (94, 54), (105, 44),
+                    (118, 43), (125, 35), (137, 34), (142, 26), (149, 24), (156, 19),
+                    (165, 22), (178, 13), (181, 9), (196, 6)))
+    lower = points(((0, 96), (18, 90), (29, 91), (41, 82), (49, 84), (60, 75),
+                    (69, 76), (76, 68), (84, 65), (92, 61), (99, 63), (109, 51),
+                    (121, 50), (130, 42), (141, 43), (150, 38), (155, 30), (163, 27),
+                    (169, 29), (182, 19), (185, 15), (196, 12)))
+    branches = (
+        ((67, 72), (63, 84), (67, 90), (65, 102), (63, 91), (60, 85), (64, 74)),
+        ((111, 47), (114, 34), (109, 25), (111, 17), (112, 26), (118, 34), (116, 46)),
+        ((147, 35), (151, 49), (148, 56), (152, 65), (147, 60), (145, 55), (148, 49), (143, 38)),
+    )
+    for branch in branches:
+        pygame.draw.polygon(damage, FRACTURE_SHADE, points(branch))
+    pygame.draw.lines(damage, FRACTURE_SHADE, False, upper, 4)
+    pygame.draw.lines(damage, FRACTURE_LIP, False, lower, 3)
+    pygame.draw.polygon(damage, FRACTURE_DEPTH, upper + lower[::-1])
+    for shelf in (
+        ((66, 72), (71, 64), (76, 62), (79, 65), (75, 68), (69, 75)),
+        ((82, 64), (87, 59), (93, 58), (98, 62), (92, 61)),
+        ((139, 42), (145, 36), (152, 33), (153, 36), (149, 40)),
+        ((171, 26), (179, 18), (184, 16), (181, 20)),
+    ):
+        pygame.draw.polygon(damage, FRACTURE_SHADE, points(shelf))
+    for point in mask:
+        ink = damage.get_at(point)
+        if ink.a:
+            surface.set_at(point, ink)
+
+
 def build():
     columns = _columns()
     tallest = max(max(p[1] for line, _ in c for p in line) - min(p[1] for line, _ in c for p in line)
@@ -204,14 +245,6 @@ def build():
         surface.set_at((x, y), GROOVE if (x, y - 1) in grooves else GROOVE_SIDE)
         if (x, y + 1) in inner and (x, y + 1) not in grooves:
             surface.set_at((x, y + 1), SLATE[3])
-    # A natural crack runs down through the stone, older than the carving.
-    cx, cy = width * .63, 0
-    while cy < height:
-        for point in ((round(cx), round(cy)),):
-            if point in mask:
-                surface.set_at(point, CRACK)
-        cy += 1
-        cx += rng.choice((-1, 0, 0, 1)) * .8
     # Fresh Veskar cuts: long slashes across the whole face, slightly downhill.
     for (sx, sy), (ex, ey) in (((8, height * .34), (width - 8, height * .28)),
                                ((14, height * .66), (width - 12, height * .58))):
@@ -223,6 +256,7 @@ def build():
                 surface.set_at((x, y), GLINT if (x, y) in grooves else CUT)
                 if (x, y + 1) in inner and (x, y + 1) not in grooves:
                     surface.set_at((x, y + 1), CUT_SHADOW)
+    _break_tablet(surface, mask)
     return surface
 
 

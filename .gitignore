@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 .idea/
 display_settings.json
+gameplay_settings.json

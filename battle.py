@@ -9,7 +9,7 @@ import random
 import tkinter as tk
 from stats import RETRI, RETRI_HP_PER_LEVEL, grow
 from classes import OUTFIT_JOBS, current_job
-from equipment import equipment_crit_bonus, item_for, stat_bonus, stat_value, worn_id
+from equipment import equipment_crit_bonus, item_for, resist_fire, stat_bonus, stat_value, worn_id
 from combat_math import critical_chance, critical_damage, physical_damage
 from consumables import RARE_SUPPLIES, SUPPLIES, apply_supply, item_gain_text
 from shalehorn_fx import ShalehornEffects
@@ -19,6 +19,9 @@ from darkness_silence_fx import DarknessSilenceFX
 from ctb import CTBQueue, recovery
 from statuses import StatusBook, AILMENTS, PLAYER_AILMENTS
 from enemy_skills import EnemySkill, SKILLS
+from ember_wyvern_fx import (ATTACK_TIMING as WYVERN_ATTACK_TIMING, PHASE_NAMES as WYVERN_PHASE_NAMES,
+                             TRANSITION_SECONDS as WYVERN_REVEAL_SECONDS, EmberWyvernArt,
+                             attack as draw_wyvern_attack, ground_flare)
 from brood_fx import BROOD_DURATION, BroodSilk, brood_shade
 from enemy_motion import BROOD_SHADE_STEPS, enemy_pose_frame, idle_offset, load_brood_shades, load_enemy_frames
 from research import ATTACK_MULTIPLIERS, LESSONS
@@ -237,7 +240,13 @@ def depths_encounter(rng, danger, party_size):
 SHALEHORN = Enemy("Shalehorn", "shalehorn.png", 150, (16, 22), 4, 32, "charges",
                   strength=14, defense=4, luck=9, status_immunities=("frozen", "silence"))
 
-ENEMY_ROSTER = (*ENEMIES, *GRASSLAND_ENEMIES, *DEPTHS_ENEMIES, SPIDERLING, DEN_MOTHER, SHALEHORN)
+# The bound beast beneath the Lower Workings.
+WYVERN_GROUND = 312
+EMBER_WYVERN = Enemy("Ember Wyvern", "ember-wyvern.png", 120, (14, 18), 3, 28, "Fire Bite",
+                    strength=12, defense=3, magic_defense=2, agility=7, luck=8, pursuit=8,
+                    fire_damage_percent=50, status_immunities=("frozen",), level=5)
+
+ENEMY_ROSTER = (*ENEMIES, *GRASSLAND_ENEMIES, *DEPTHS_ENEMIES, SPIDERLING, DEN_MOTHER, SHALEHORN, EMBER_WYVERN)
 
 
 class BattleModel(KitMixin):
@@ -477,8 +486,9 @@ class BattleModel(KitMixin):
         if physical and damage > 0:
             self.statuses.remove(("enemy", self.target), "frozen")
             damage = max(1, damage * self.enemy.physical_damage_percent // 100)
-        if element == "fire":
-            damage = math.ceil(damage * self.enemy.fire_damage_percent / 100)
+        affinity = self.enemy_element_percent(element)
+        if affinity != 100:
+            damage = math.ceil(damage * affinity / 100)
         if can_crit and ("enemy", self.target) not in self.critical_hits:  # no double crit (Backstab)
             damage = self._roll_critical(damage, ("party", self.actor), ("enemy", self.target))
         self.damage = damage + (self.marks.pop(self.target, 0) if include_mark else 0)
@@ -488,12 +498,16 @@ class BattleModel(KitMixin):
         self.collect_kill_drops()
         if self.enemy_hp == 0:self.statuses.clear_ko(("enemy",self.target))
 
-    def _take_party_damage(self, index, damage, *, clip=False, incoming=True):
+    def _take_party_damage(self, index, damage, *, clip=False, incoming=True, fire_damage=0, single_target=True):
         original = index
+        raw_damage = damage
         if incoming:
             self._kit_redirect = None
         if incoming and damage > 0:
-            index, damage = self.kit_incoming(index, damage)
+            index, damage = self.kit_incoming(index, damage, single_target=single_target)
+        if fire_damage and damage > 0:
+            fire = math.ceil(damage * fire_damage / raw_damage)
+            damage += resist_fire(self.party[index], fire) - fire
         if self.reliquary is not None:
             absorbed = damage * self.reliquary.absorb_percent // 100
             self.reliquary.stored += absorbed
@@ -586,12 +600,15 @@ class BattleModel(KitMixin):
         weapon = item_for(worn_id(member, "weapon"))
         return weapon.element if weapon is not None else None
 
-    def _show_fire_affinity(self, element):
-        if element == "fire":
-            if self.enemy.fire_damage_percent > 100:
-                self.message += " Weak to fire!"
-            elif self.enemy.fire_damage_percent < 100:
-                self.message += " Resists fire!"
+    def enemy_element_percent(self, element):
+        return self.enemy.fire_damage_percent if element == "fire" else 100
+
+    def _show_element_affinity(self, element):
+        percent = self.enemy_element_percent(element)
+        if percent > 100:
+            self.message += f" Weak to {element}!"
+        elif percent < 100:
+            self.message += f" Resists {element}!"
 
     def _player_physical_damage(self, power=0):
         member = self.party[self.actor]
@@ -642,7 +659,7 @@ class BattleModel(KitMixin):
                 can_crit = weapon is None or weapon.basic_attack_fx not in ("wand_bolt", "focus_pulse")
                 self._hit_target(self._player_physical_damage(), physical=True, element=element, can_crit=can_crit)
                 self.message = f"{member['name']} strikes for {self.damage}!"
-                self._show_fire_affinity(element)
+                self._show_element_affinity(element)
         elif action == "Guard":
             self.guarded.add(self.actor)
             member = self.party[self.actor]
@@ -734,7 +751,7 @@ class BattleModel(KitMixin):
         physical = move.effect in ("strike", "sweep", "riposte")
         magic = stat_value(member, "magic")
         physical_scale = {"strike": 160, "sweep": 120, "riposte": 135}.get(move.effect)
-        element = self._weapon_element(member) if physical else None
+        element = self._weapon_element(member) if physical else move.element
         for i in targets:
             self.target = i
             if move.effect == "field":
@@ -753,6 +770,8 @@ class BattleModel(KitMixin):
         self.message = (f"{move.name} deals {self.damage} damage!" if self.crescendo_hits
                         else f"{move.name}!" if move.effect == "field"
                         else f"{move.name} misses in the darkness.")
+        if move.element and self.damage and len(targets) == 1:
+            self._show_element_affinity(element)
         if move.effect == "riposte":
             self.wards[self.actor] = max(45, self.wards.get(self.actor, 0))
             self.message += " Ward raised."
@@ -847,13 +866,13 @@ class BattleModel(KitMixin):
                 hit = self._player_physical_damage(power)
             self._hit_target(hit, physical=True, element=element, can_crit=True)
             self.message = f"{ability.name} hits for {self.damage}!"
-            self._show_fire_affinity(element)
+            self._show_element_affinity(element)
         elif effect == "arcane":
-            element = {"unbound_ember_arc": "fire", "tidecaller_tide_dart": "water",
+            element = {"unbound_ember_arc": "fire", "tidecaller_tide_dart": "water", "seer_mist_ray": "ice",
                        "weaver_silkbolt": "onyx"}.get(ability.id)
             self._hit_target(stat_value(member, "magic") * 2 + power, element=element)
             self.message = f"{ability.name} hits for {self.damage}!"
-            self._show_fire_affinity(element)
+            self._show_element_affinity(element)
             self._echo_spell()
         elif effect == "link":
             self.black_thread = (*target, power)
@@ -949,7 +968,8 @@ class BattleModel(KitMixin):
         if damage and not magical:
             self.statuses.remove(("party", self.defender), "frozen")
             damage = self._roll_critical(damage, ("enemy", self.attacker), ("party", self.defender))
-        damage = self._take_party_damage(self.defender, damage)
+        damage = self._take_party_damage(self.defender, damage,
+                                         fire_damage=damage if skill and skill.element == "fire" else 0)
         if self._kit_redirect:
             self.defender, damage = self._kit_redirect
             target = self.party[self.defender]
@@ -1149,6 +1169,155 @@ class DenMotherBattle(BattleModel):
         self._check_outcome()
 
 
+class EmberWyvernBattle(BattleModel):
+    """The mountain spirit's binding gives way as the Wyvern loses HP."""
+
+    HEAT_TURNS = 5
+    SCORCH_PERCENT = 7
+    BREATH_PERCENT = 65
+
+    def __init__(self, **kwargs):
+        super().__init__(EMBER_WYVERN, **kwargs)
+        self.stage = 1
+        self.heat_turns = 0
+        self.bites_until_inhale = 2
+        self.breath_waiting = None
+        self.last_move = None
+        self.scorch_event = None
+
+    def advance_phase(self):
+        if self.outcome or not self.enemy_hp or self.stage == 3:
+            return False
+        if 3 * self.enemy_hp > (3 - self.stage) * self.enemy.hp:
+            return False
+        self.stage += 1
+        if self.stage == 3:
+            self.heat_turns = self.HEAT_TURNS
+        return True
+
+    def enemy_element_percent(self, element):
+        if self.stage == 3 and element in ("water", "ice"):
+            return 150
+        return super().enemy_element_percent(element)
+
+    def enemy_intent(self, index):
+        if self.breath_waiting is not None:
+            return "Fire Breath · Guard!"
+        if self.stage >= 2 and self.bites_until_inhale == 0:
+            return "Deep Inhale"
+        return "Fire Bite"
+
+    def resolve_turn_end(self):
+        queue = self.ctb
+        if queue is None or self._status_end_serial == queue.completed:
+            return []
+        key = queue.current
+        events = super().resolve_turn_end()
+        self.scorch_event = None
+        if self.outcome or key is None:
+            return events
+        side, index = key
+        if side == "party":
+            if self.breath_waiting is not None:
+                self.breath_waiting.discard(index)
+            if self.stage == 3 and self._ctb_alive(key):
+                maximum = stat_value(self.party[index], "max_hp")
+                fire = max(1, (maximum * self.SCORCH_PERCENT + 50) // 100)
+                loss = self._take_party_damage(index, fire, clip=True, incoming=False, fire_damage=fire)
+                if loss:
+                    self.scorch_event = (key, loss)
+                    events.append(self.scorch_event)
+                    self.message += f" Scorched Ground burns {self.party[index]['name']} for {loss}."
+                    self._check_outcome()
+        elif self.heat_turns:
+            self.heat_turns -= 1
+        return events
+
+    def finish_ctb_turn(self):
+        self.resolve_turn_end()
+        while self.advance_phase():
+            pass
+        return super().finish_ctb_turn()
+
+    def reply(self, attacker=None):
+        self.last_move = None
+        super().reply(attacker)
+
+    def _reply(self, attacker=None):
+        self.pending_reply = False
+        self.attacker = 0
+        self.enemy_turns[0] += 1
+        self.enemy_skill = None
+        self.effect = "enemy"
+        self.hits = {}
+        self.damage = 0
+        living = [index for index, member in enumerate(self.party) if member["hp"] > 0]
+        self.defender = living[0]
+        if self.breath_waiting is not None and not self.breath_waiting.intersection(living):
+            self._fire_breath(living)
+        elif self.stage >= 2 and self.bites_until_inhale == 0:
+            self.message = "The Wyvern holds its breath... Guard!"
+            if self.breath_waiting is None:
+                self.breath_waiting = set(living) if self.ctb is not None else set()
+                self.message = "The beast inhales deeply... Guard against Fire Breath!"
+            self.last_move = "inhale"
+            self.action_rank = 4
+        else:
+            self._fire_bite(living)
+            if self.stage >= 2:
+                self.bites_until_inhale -= 1
+        if self.ctb is None:
+            self.guarded.clear()
+            self.wards.clear()
+        self._check_outcome()
+
+    def _attack_roll(self):
+        damage = self.rng.randint(*self.enemy.attack)
+        return damage * 3 // 2 if self.heat_turns else damage
+
+    def _guarded_damage(self, index, damage):
+        reduction = max(self.wards.get(index, 0), 50 if index in self.guarded else 0)
+        return damage * max(0, 100 - reduction) // 100
+
+    def _fire_bite(self, living):
+        self.last_move = "bite"
+        self.action_rank = 3
+        self.defender = index = living[0] if len(living) == 1 else self.rng.choice(living)
+        record_observation(self.party, "Fire Bite")
+        key = ("party", index)
+        if self._misses_in_darkness(("enemy", 0), key):
+            self.message = "Fire Bite misses in the darkness."
+            return
+        bite = self._attack_roll()
+        defense = stat_value(self.party[index], "defense")
+        if self.statuses.has(key, "sundered"):
+            defense = max(0, defense - 2)
+        fire = self._guarded_damage(index, bite // 2)
+        physical = self._guarded_damage(index, max(1, math.ceil(bite / 2) - defense))
+        physical = self._roll_critical(physical, ("enemy", 0), key)
+        damage = self._take_party_damage(index, physical + fire, fire_damage=fire)
+        if self._kit_redirect:
+            self.defender, damage = self._kit_redirect
+        self.damage = self.hits[self.defender] = damage
+        self.message = f"Fire Bite hits {self.party[self.defender]['name']} for {damage}!"
+        if damage and self.status_rng.random() < .30:
+            self.apply_status(("party", self.defender), "sundered", turns=2)
+
+    def _fire_breath(self, living):
+        self.last_move = "breath"
+        self.action_rank = 4
+        self.breath_waiting = None
+        self.bites_until_inhale = 2
+        self._kit_incoming_magic = True
+        record_observation(self.party, "Fire Breath")
+        fire = math.ceil(self._attack_roll() * self.BREATH_PERCENT / 100)
+        for index in living:
+            damage = self._guarded_damage(index, fire)
+            self.hits[index] = self._take_party_damage(index, damage, fire_damage=damage, single_target=False)
+        self.damage = sum(self.hits.values())
+        self.message = "Fire Breath sweeps across the party!"
+
+
 class ShalehornBattle(BattleModel):
     """One telegraphed move per party round."""
     def __init__(self, *args, **kwargs):
@@ -1317,6 +1486,8 @@ class BattleScene:
         self.background_bag = []
         self.background_index = None
         self.formation_mirrored = False
+        self.wyvern_art = None
+        self.wyvern_floor_item = None
         self.model = None
         self.level_roster = None
         self.ability_menu = False
@@ -1340,7 +1511,12 @@ class BattleScene:
         self.shalehorn_fx.clear()
         self.darkness_silence_fx.clear(self)
         self.frozen_fx.clear()
-        if outdoors:
+        self.wyvern_floor_item = None
+        if isinstance(model, EmberWyvernBattle):
+            self.glow_frames = self.backgrounds[2]
+            if self.wyvern_art is None:
+                self.wyvern_art = EmberWyvernArt(self.canvas, self.battle_assets, self.enemies[EMBER_WYVERN.sprite])
+        elif outdoors:
             self.glow_frames = [self.grassland_background] * 3
         elif in_depths or isinstance(model, DenMotherBattle):
             if isinstance(model, DenMotherBattle):
@@ -1396,20 +1572,30 @@ class BattleScene:
         self.glow_started = now
         self.glow_index = 0
         self.backdrop_item = c.create_image(0, 0, image=self.glow_frames[0], anchor="nw", tags=self.TAG)
+        wyvern = isinstance(model, EmberWyvernBattle)
         if isinstance(model, DenMotherBattle):
             self.enemy_positions = [(230, 177), (363, 140), (373, 243)]
         elif isinstance(model, ShalehornBattle):
             self.enemy_positions = [(270, 190)]
+        elif wyvern:
+            pose = self.wyvern_art.pose(model.stage)
+            self.enemy_positions = [(270, WYVERN_GROUND - pose.height() // 2)]
+            self.wyvern_floor_item = c.create_image(0, 0, image=self.wyvern_art.scorched_floor,
+                                                   anchor="nw", state="hidden", tags=self.TAG)
         else:
             self.enemy_positions = _field_enemy_positions(model.enemies, self.enemies, self.formation_mirrored)
             if len(model.enemies) > 1:
                 self.formation_mirrored = not self.formation_mirrored
-        self.enemy_items = [c.create_image(x, y, image=self.enemies[foe.sprite], tags=self.TAG,
+        self.enemy_poses = [pose] if wyvern else [self.enemies[foe.sprite] for foe in model.enemies]
+        self.enemy_items = [c.create_image(x, y, image=image, tags=self.TAG,
                                            state="normal" if hp > 0 else "hidden")
-                            for (x, y), foe, hp in zip(self.enemy_positions, model.enemies, model.health)]
+                            for (x, y), image, hp in zip(self.enemy_positions, self.enemy_poses, model.health)]
         self.enemy_stances = tuple(self.enemy_positions)
-        self.enemy_poses = [self.enemies[foe.sprite] for foe in model.enemies]
         self.enemy_item = self.enemy_items[0]
+        if wyvern and model.stage == 1:
+            self.wyvern_art.rubble(270, WYVERN_GROUND, (self.TAG, "wyvern_rubble"))
+        if wyvern and model.stage == 3:
+            c.itemconfigure(self.wyvern_floor_item, state="normal")
         sprites = {"Retri": self.hero, "Temur": self.temur}
         self.party_sprites = [
             self.class_sprites.get((p["name"], current_job(p)), sprites.get(p["name"]))
@@ -1569,6 +1755,15 @@ class BattleScene:
         c.create_text(326, 482, text=f"HP {enemy_hp}/{m.enemy.hp}", anchor="w",
                       fill="#ffffff", font=self.font(17), tags=tags)
         enemy_detail=m.statuses.label(("enemy",m.target)) or (f"Next: {m.enemy_intent(m.target)}" if not isinstance(m,ShalehornBattle) else "Watch its tell")
+        if isinstance(m, EmberWyvernBattle):
+            if m.breath_waiting is not None:
+                enemy_detail = m.enemy_intent(0)
+            c.create_rectangle(17, 13, 239, 53 if m.stage == 3 else 36, fill="#1e1624", outline="#785344", tags=tags)
+            c.create_text(25, 25, text=WYVERN_PHASE_NAMES[m.stage - 1].upper(), anchor="w",
+                          fill="#ffd090", font=self.font(16, True), tags=tags)
+            if m.stage == 3:
+                heat = f"  ·  HEAT {m.heat_turns}" if m.heat_turns else ""
+                c.create_text(25, 43, text="SCORCHED GROUND" + heat, anchor="w", fill="#f0a16e", font=self.font(13), tags=tags)
         c.create_text(326, 503, text=enemy_detail, anchor="w", width=174, fill="#c8bf9e", font=self.font(11), tags=tags)
         if m.enemy.loot is not None and m.enemy.loot.rank != "Regular":
             c.create_text(490, 425, text="BOSS" if den_boss else m.enemy.loot.rank.upper(), anchor="e",
@@ -2232,8 +2427,12 @@ class BattleScene:
             self._position_battlefield(0, 0)
 
     def _position_battlefield(self, dx, dy):
+        old_x, old_y = self._camera_offset
         self._camera_offset = (dx, dy)
         self.canvas.coords(self.backdrop_item, dx, dy)
+        if self.wyvern_floor_item is not None:
+            self.canvas.coords(self.wyvern_floor_item, dx, dy)
+            self.canvas.move("wyvern_rubble", dx - old_x, dy - old_y)
         for item, (x, y) in zip(self.enemy_items, self.enemy_positions):
             self.canvas.coords(item, x + dx, y + dy)
         for i, item in enumerate(self.party_items):
@@ -2349,6 +2548,9 @@ class BattleScene:
         return None
 
     def update(self, now):
+        if self.phase == "wyvern_reveal":
+            self._update_wyvern_reveal(now)
+            return
         if self.phase != "result":
             dx, dy = self._camera_offset
             elapsed = max(0, now - self.glow_started)
@@ -2360,6 +2562,8 @@ class BattleScene:
                 action_elapsed = now - self.phase_at if attacker == i else None
                 pose_index = enemy_pose_frame(foe, max(0, elapsed - i * .23), action_elapsed=action_elapsed)
                 pose = self.enemy_frames[foe.sprite][pose_index]
+                if isinstance(self.model, EmberWyvernBattle):
+                    pose = self.wyvern_art.pose(self.model.stage)
                 if i == 0 and isinstance(self.model, DenMotherBattle) and self.model.brood_consumed:
                     shade = brood_shade(now - self.phase_at) if self.phase == "last_brood" else BROOD_SHADE_STEPS
                     if shade:
@@ -2400,10 +2604,16 @@ class BattleScene:
             return
         if self.phase == "status_tick":
             self.canvas.delete("status_damage")
-            for (side,i),loss in self.model.status_events:
+            for event in self.model.status_events:
+                (side, i), loss = event
                 x,y=self._party_position(i) if side=="party" else self.enemy_positions[i]
                 release = side == "enemy" and self.model.reliquary_release.get(i) == loss
-                self.canvas.create_text(x,y-55-int((now-self.phase_at)*24),text=f"-{loss}",fill="#e4b5fc" if release else "#89d67b",
+                scorch = isinstance(self.model, EmberWyvernBattle) and event is self.model.scorch_event
+                if scorch:
+                    ground_flare(self.canvas, x, y, now - self.phase_at, (self.TAG, "status_damage"))
+                lift = 80 if scorch and len(self.model.status_events) > 1 else 55
+                color = "#ff9d55" if scorch else "#e4b5fc" if release else "#89d67b"
+                self.canvas.create_text(x,y-lift-int((now-self.phase_at)*24),text=f"-{loss}",fill=color,
                                         font=self.font(24,True),tags=(self.TAG,"status_damage"))
             if now-self.phase_at >= (.85 if self.model.reliquary_release else .55):
                 self.canvas.delete("status_damage")
@@ -2436,7 +2646,9 @@ class BattleScene:
             and not getattr(self, "_ability_presented", False))
         enemy_attacking = self.phase == "enemy_action"
         boss_fx = self.shalehorn_fx if enemy_attacking and isinstance(self.model, ShalehornBattle) else None
-        enemy_hit_elapsed = elapsed - (boss_fx.hit_delay if boss_fx else 0)
+        wyvern_move = self.model.last_move if enemy_attacking and isinstance(self.model, EmberWyvernBattle) else None
+        wyvern_timing = WYVERN_ATTACK_TIMING.get(wyvern_move)
+        enemy_hit_elapsed = elapsed - (boss_fx.hit_delay if boss_fx else wyvern_timing[0] if wyvern_timing else 0)
         offset = int(18 * max(0, 1 - abs(elapsed - 0.18) / 0.18))
         c = self.canvas
         index = getattr(self.model, "attacker", self.model.target) if enemy_attacking else self.model.target
@@ -2455,8 +2667,8 @@ class BattleScene:
         hit_at = self.attack_contact_ms / 1000 if attacking else 0
         hit_elapsed = elapsed - hit_at
         if attacking and hit_elapsed >= 0:
-            height = self.enemies[self.model.enemies[index].sprite].height()
-            y = ey-max(50, height // 2 + 12)-int(hit_elapsed*25)
+            height = self.enemy_poses[index].height()
+            y = max(36, ey-max(50, height // 2 + 12))-int(hit_elapsed*25)
             self._draw_damage_number(ex, y, self.model.damage, "damage_number",
                                      ("enemy", index) in self.model.critical_hits)
         if enemy_attacking and self._enemy_variant is not None:
@@ -2486,7 +2698,15 @@ class BattleScene:
             boss_frame=c.itemcget(self.enemy_item,"image")
             self._draw_ailments(now)
             c.itemconfigure(self.enemy_item,image=boss_frame)
+        if wyvern_timing:
+            c.delete("wyvern_effect")
+            sprite = self.enemy_poses[index]
+            mouth = (ex + .37 * sprite.width(), ey - sprite.height() * (.09 if self.model.stage == 1 else .17))
+            targets = [self._party_position(i) for i in self.model.hits]
+            draw_wyvern_attack(c, wyvern_move, elapsed, mouth, targets, (self.TAG, "wyvern_effect"))
         duration=boss_fx.duration if boss_fx else max(.65,self._enemy_variant.total_ms/1000) if enemy_attacking and self._enemy_variant is not None else .65
+        if wyvern_timing:
+            duration = wyvern_timing[1]
         if attacking and self.player_motion is not None:
             effect_end = delay + (self.attack_fx.total_ms if self.attack_fx else 0)
             pose_end = release + self.player_motion.release_duration_ms
@@ -2496,6 +2716,7 @@ class BattleScene:
         c.coords(active_item, *self._party_position(i))
         c.delete("damage_number")
         c.delete('battle_healing')
+        c.delete("wyvern_effect")
         self._clear_fx()
         if boss_fx:boss_fx.finish(self)
         c.coords(self.enemy_item, ex, ey)
@@ -2529,9 +2750,36 @@ class BattleScene:
                     self.loot_page = 1
                     return
         else:
+            if isinstance(self.model, EmberWyvernBattle) and self.model.advance_phase():
+                self.phase, self.phase_at = "wyvern_reveal", now
+                self.model.message = ("The Wyvern tears free of the shale! Watch its breath." if self.model.stage == 2 else
+                                      "The moss burns away. Scorched Ground burns each acting ally. Water and ice cut deeper.")
+                self.draw_status()
+                return
             self.model.finish_ctb_turn()
             self._begin_ctb_actor(now)
         self.draw_status()
+
+    def _update_wyvern_reveal(self, now):
+        stage = self.model.stage
+        age = max(0, now - self.phase_at)
+        pose = self.wyvern_art.pose(stage, age)
+        c = self.canvas
+        c.delete("wyvern_effect")
+        if stage == 2 and age >= .24:
+            c.delete("wyvern_rubble")
+        if stage == 3 and age >= .36:
+            c.itemconfigure(self.wyvern_floor_item, state="normal")
+        x, y = 270, WYVERN_GROUND - pose.height() // 2
+        self.enemy_poses[0] = pose
+        self.enemy_positions[0] = (x, y)
+        self.enemy_stances = ((x, y),)
+        c.itemconfigure(self.enemy_items[0], image=pose, state="normal")
+        c.coords(self.enemy_items[0], x, y)
+        if age < WYVERN_REVEAL_SECONDS[stage]:
+            self.wyvern_art.transition_effect(stage, age, x, WYVERN_GROUND, (self.TAG, "wyvern_effect"))
+            return
+        self._finish_action(now)
 
     def _victory_screen(self, now):
         c, m = self.canvas, self.model

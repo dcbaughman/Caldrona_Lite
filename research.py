@@ -7,7 +7,8 @@ from statuses import AILMENTS, PLAYER_AILMENTS
 CATEGORIES = ("Combat", "Healing", "Arcane", "Support")
 QUARRY_ANALECT = "Quarry Analect"
 ECHO_ANALECT = "Echo Analect"
-ANALECTS = (QUARRY_ANALECT, ECHO_ANALECT)
+SELVAR_ANALECT = "Selvar Analect"  # bound from every rubbing in Larvel's sidequest
+ANALECTS = (QUARRY_ANALECT, ECHO_ANALECT, SELVAR_ANALECT)
 
 
 @dataclass(frozen=True)
@@ -105,6 +106,7 @@ LESSONS = {
         ("cover", "Cover", "Support", 2, 2, 2, "ward", 35),
         ("read_stance", "Read Stance", "Support", 5, 3, 2, "mark", 5),
         ("hold_line", "Hold the Line", "Support", 12, 5, 3, "ward", 70),
+        ("sleepers_ward", "Sleeper's Ward", "Support", 6, 3, 3, "ward", 55, SELVAR_ANALECT),
     )),
     "Seer": _lessons("seer", (
         ("glimpse", "Glimpse", "Support", 1, 1, 1, "mark", 4, "", "Abilities"),

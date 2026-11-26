@@ -7,28 +7,47 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 from arrow_fx import DRAW_HAND, NOCKED_TIP, arrow_parts
+from classes import OUTFIT_JOBS
 from player_motion import CAST_STYLES, CELL_H, CELL_W, PAD_X, STYLES
-from prepare_class_skins import NEW_COSTUMES, insignia
 
 
 ROOT = Path(__file__).resolve().parent / "assets"
 INK = "#17131b"
-BOOTS = ("#613932", "#a46a4a")
 RIGID_LENGTHS = {"sword": 14, "greatsword": 22, "pike": 24, "halberd": 20}
 TWO_HANDS = {"greatsword": 6, "pike": 10, "halberd": 8}
 
-# Dark, mid, highlight, and trim for each of the existing outfits.
-COSTUMES = {
-    ("retri", "unbound"): ("#242338", "#314b6d", "#537da5", "#dc923c"),
-    ("retri", "seer"): ("#24234a", "#484c99", "#7685c8", "#63d9fc"),
-    ("retri", "sollers"): ("#222234", "#3d4153", "#626273", "#9c6949"),
-    ("retri", "saint"): ("#3e3940", "#81777f", "#d1c0a7", "#e4aa53"),
-    ("temur", "unbound"): ("#20233a", "#344776", "#657bb1", "#ad5848"),
-    ("temur", "seer"): ("#282248", "#534c91", "#8b80bd", "#8dd6f0"),
-    ("temur", "sollers"): ("#222130", "#414051", "#6d5d63", "#9a6a4b"),
-    ("temur", "saint"): ("#39343b", "#827670", "#cab9a4", "#e0a24d"),
-    **{(character, job): palette for character in ("retri", "temur")
-       for job, palette in NEW_COSTUMES.items()},
+# Pixel coordinates on the approved 32 x 32 standing sprites.
+# Each sleeve uses a shadow, body color, and highlight from its own costume.
+SLEEVE_SWATCHES = {
+    "retri": {
+        "unbound": ((16, 14), (14, 20), (19, 21)),
+        "seer": ((18, 22), (18, 14), (14, 15)),
+        "sollers": ((17, 14), (19, 14), (12, 22)),
+        "saint": ((19, 15), (16, 19), (14, 19)),
+        "weaver": ((16, 14), (14, 15), (19, 15)),
+        "riqizaurkeis": ((16, 14), (16, 18), (19, 14)),
+        "tidecaller": ((16, 14), (16, 18), (19, 15)),
+    },
+    "temur": {
+        "unbound": ((16, 15), (14, 15), (14, 16)),
+        "seer": ((18, 15), (14, 15), (18, 17)),
+        "sollers": ((18, 14), (14, 15), (13, 15)),
+        "saint": ((17, 14), (14, 15), (13, 15)),
+        "weaver": ((16, 15), (14, 15), (19, 15)),
+        "riqizaurkeis": ((16, 15), (14, 15), (19, 15)),
+        "tidecaller": ((16, 15), (14, 15), (19, 15)),
+    },
+}
+# Lead and rear legs each sample trousers and boots separately.
+LEG_SWATCHES = {
+    "retri": (
+        (((13, 23), (12, 22), (13, 24)), ((11, 27), (13, 25), (12, 25))),
+        (((18, 24), (18, 23), (18, 22)), ((20, 27), (20, 26), (19, 25))),
+    ),
+    "temur": (
+        (((12, 21), (13, 22), (13, 23)), ((13, 26), (12, 25), (12, 26))),
+        (((17, 22), (17, 24), (17, 23)), ((21, 27), (20, 26), (20, 27))),
+    ),
 }
 SKIN = {"retri": ("#6c3c2e", "#b27749", "#efb779"),
         "temur": ("#644138", "#a86b52", "#f3bd88")}
@@ -132,29 +151,51 @@ def line(draw, points, colors, width):
     draw.point((round((x+ex)/2), round((y+ey)/2)-1), fill=light)
 
 
-def armor(draw, source, pose, palette, job):
+def sleeve_colors(source, character, job):
+    return tuple(source.getpixel(point) for point in SLEEVE_SWATCHES[character][job])
+
+
+def leg_colors(source, character):
+    return tuple(
+        (tuple(source.getpixel(point) for point in cloth),
+         tuple(source.getpixel(point) for point in boot))
+        for cloth, boot in LEG_SWATCHES[character]
+    )
+
+
+def armor(draw, source, pose, palette, character):
     sx, sy = pose.shoulder
     wx, wy = pose.waist
-    dark, mid, light, trim = palette
+    dark, mid, light = palette
     draw.polygon(((sx-4, sy-1), (sx+2, sy-2), (sx+4, sy+1),
                   (wx+3, wy+2), (wx-4, wy+2), (sx-5, sy+2)),
                  fill=dark, outline=INK)
     draw.polygon(((sx-3, sy), (sx+2, sy), (wx+2, wy), (wx-3, wy)),
                  fill=mid)
-    # Carry the original breastplate and sash pixels across the shift of the torso.
-    for y in range(14, 20):
-        t = (y - 14) / 5
-        row = round(sy + (wy - sy) * t)
-        shift = round(sx + (wx - sx) * t) - 16
-        for x in range(14, 19):
-            color = source.getpixel((x, y))
+    top = 13 if character == "retri" else 14
+    # Keep the original chest, accents, and sash together as the torso bends.
+    for row in range(sy-1, wy+2):
+        t = (row - sy + 1) / (wy - sy + 2)
+        source_y = round(top + (21 - top) * t)
+        shift = round(sx + (wx - sx) * t) - 17
+        for x in range(14, 21):
+            color = source.getpixel((x, source_y))
             if color[3] > 127:
                 draw.point((x + shift, row), fill=color)
-    draw.line(((wx-3, wy), (wx+2, wy)), fill=dark, width=2)
-    draw.point((wx-1, wy), fill=trim)
-    draw.line(((sx+1, sy-1), (sx+3, sy+1)), fill=light)
-    if job in NEW_COSTUMES:
-        draw.point(insignia(job, (sx+wx)//2, (sy+wy)//2), fill=trim)
+    draw.point((sx+3, sy), fill=light)
+
+
+def draw_leg(draw, hip, knee, foot, cloth, boot):
+    kx, ky = knee
+    fx, fy = foot
+    cuff = (round((kx + fx) / 2), max(ky, fy - 2))
+    line(draw, (hip, knee, cuff), cloth, 2)
+    draw.line((cuff, foot), fill=INK, width=4)
+    draw.line((cuff, foot), fill=boot[1], width=2)
+    draw.point(cuff, fill=boot[2])
+    draw.rectangle((fx-3, fy-1, fx+1, fy), fill=INK)
+    draw.line(((fx-2, fy-1), (fx, fy-1)), fill=boot[0])
+    draw.point((fx-1, fy-1), fill=boot[2])
 
 
 def limb(draw, shoulder, arm, palette, front):
@@ -172,9 +213,10 @@ def grip(draw, point, skin, open_hand=False):
         draw.line(((x-2,y-1), (x,y)), fill=skin[1])
         draw.point((x-2,y-1), fill=skin[2])
     else:
-        draw.rectangle((x-1, y-1, x+2, y+2), fill=INK)
-        draw.point((x, y), fill=skin[2])
-        draw.line(((x+1,y), (x+1,y+1)), fill=skin[1])
+        draw.polygon(((x-1, y), (x, y-1), (x+1, y-1), (x+2, y), (x+2, y+1),
+                      (x+1, y+2), (x-1, y+1)), fill=INK)
+        draw.line(((x, y), (x+1, y)), fill=skin[2])
+        draw.line(((x, y+1), (x+1, y+1)), fill=skin[1])
 
 
 def bow(draw, hand, rear_hand, drawn):
@@ -286,10 +328,10 @@ def glimmer(draw, spot, size):
         draw.point((x+4, y+3), fill="#537da5")
 
 
-def actor_frame(source, head, character, job, pose, style, vector, column=0, spark=0):
+def actor_frame(source, head, character, palette, legs, pose, style, vector, column=0, spark=0):
     image = Image.new("RGBA", (CELL_W, CELL_H))
     draw = ImageDraw.Draw(image)
-    palette, skin = COSTUMES[(character, job)], SKIN[character]
+    skin = SKIN[character]
 
     def pad(point):
         return point[0] + PAD_X, point[1]
@@ -304,15 +346,11 @@ def actor_frame(source, head, character, job, pose, style, vector, column=0, spa
         back_hand = (round(hx - dx*ratio), round(hy - dy*ratio))
         pose = replace(pose, back_arm=(pose.back_arm[0], back_hand))
     wx, wy = pose.waist
-    for side, (knee, foot) in ((1, pose.back_leg), (-1, pose.lead_leg)):
-        line(draw, ((wx+side*2, wy+1), knee, foot), palette[:3], 3)
-        fx, fy = foot
-        draw.rectangle((fx-3, fy-1, fx+1, fy), fill=INK)
-        draw.line(((fx-2, fy-1), (fx, fy-1)), fill=BOOTS[0])
-        draw.point((fx-2, fy-1), fill=BOOTS[1])
+    draw_leg(draw, (wx+2, wy+1), *pose.back_leg, *legs[1])
+    draw_leg(draw, (wx-2, wy+1), *pose.lead_leg, *legs[0])
     back = limb(draw, pose.shoulder, pose.back_arm, palette, front=False)
+    armor(draw, source, pose, palette, character)
     grip(draw, back, skin)
-    armor(draw, source, pose, palette, job)
     hx, hy = pose.head
     image.alpha_composite(head, (8+PAD_X+hx, 4+hy))
     hand = limb(draw, pose.shoulder, pose.lead_arm, palette, front=True)
@@ -334,12 +372,14 @@ def make_battle_sheets(jobs=None):
     battle = ROOT / "battle"
     output = battle / "player-motion"
     output.mkdir(exist_ok=True)
-    for character, job in COSTUMES:
-        if jobs is not None and job not in jobs:
-            continue
+    outfits = ("unbound", *(job.lower() for job in OUTFIT_JOBS))
+    selected = outfits if jobs is None else tuple(job for job in outfits if job in jobs)
+    for character, job in ((name, outfit) for name in ("retri", "temur") for outfit in selected):
         path = (battle / f"{character}-v2.png" if job == "unbound"
                 else battle / "classes" / f"{character}-{job}.png")
         source = Image.open(path).convert("RGBA")
+        palette = sleeve_colors(source, character, job)
+        legs = leg_colors(source, character)
         head = source.crop((0, 0, 32, 14 if character == "temur" else 13))
         cut = ImageDraw.Draw(head)
         if character == "temur":
@@ -358,7 +398,7 @@ def make_battle_sheets(jobs=None):
                 poses = SWINGS[style]
             for col, (pose, vector) in enumerate(poses):
                 spark = (1, 3, 2, 0, 0)[col] if style in CAST_STYLES else 0
-                frame = actor_frame(source, head, character, job, pose, style, vector, col, spark)
+                frame = actor_frame(source, head, character, palette, legs, pose, style, vector, col, spark)
                 assert frame.getbbox()[0] > 0 and frame.getbbox()[2] < CELL_W, (character, style, col)
                 atlas.alpha_composite(frame, (col*CELL_W, row*CELL_H))
         atlas.save(output / f"{character}-{job}.png")

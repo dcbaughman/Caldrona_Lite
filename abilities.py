@@ -223,6 +223,7 @@ def lesson_variant(lesson, member):
     shared_art = {"weaver_black_thread": "seer_mist_ray", "weaver_silkbolt": "seer_mist_ray",
                   "tidecaller_tide_dart": "seer_gale",
                   "reliquary_retribution": "seer_farseal",
+                  "unbound_sleepers_ward": "unbound_cover",
                   **PLACEHOLDER_ART}.get(lesson.id, lesson.id)
     if shared_art in RESEARCH_FX:
         return _choose_variant(RESEARCH_FX[shared_art], member)

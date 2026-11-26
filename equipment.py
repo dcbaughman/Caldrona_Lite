@@ -65,6 +65,7 @@ class Equipment:
     hook_parts: tuple = ()
     lineup_id: str = ""
     crit_bonus: int = 0
+    fire_resistance: int = 0
 
     def __post_init__(self):
         if self.slot not in SLOTS:
@@ -82,6 +83,9 @@ CATALOG = {
                   icon="armor/leather_vest.png"),
         Equipment("quarry_coat", "Quarry Coat", "armor", {"defense": 2, "agility": -1}, "Sturdy protection for the caves.",
                   icon="armor/quarry_coat.png"),
+        Equipment("cinder_coat", "Cinder Coat", "armor", {"defense": 1},
+                  "Heat-lined miner's coat. Cuts incoming fire damage by 50%.",
+                  icon="armor/cinder_coat.png", fire_resistance=50),
         Equipment("training_sword", "Training Sword", "weapon", {"strength": 1}, "A reliable starter blade.",
                   basic_attack_fx="sword_strike", weapon_type="sword", icon="weapons/training_sword.png"),
         Equipment("miner_blade", "Miner's Blade", "weapon", {"strength": 2, "agility": -1}, "A heavier blade with a strong edge.",
@@ -100,6 +104,9 @@ CATALOG = {
         Equipment("broodguard_seal", "Broodguard Seal", "accessory", {"defense": 2, "max_hp": 10},
                   "A dark brood crest. Immune to Webbed and Poison.",
                   icon="goods/onyx.png", status_immunities=("webbed", "poison")),
+        Equipment("pit_lantern", "Pit Lantern", "accessory", {"accuracy": 3, "luck": 1},
+                  "Larvel's lamp. Its flame holds in any dark. Immune to Darkness.",
+                  icon="accessories/pit_lantern.png", status_immunities=("darkness",)),
         Equipment("embersteel_blade", "Embersteel Blade", "weapon", {"strength": 2},
                   "Its flame edge deals bonus damage to spiders.",
                   icon="weapons/sunsteel_blade.png", basic_attack_fx="sword_strike", element="fire", weapon_type="sword"),
@@ -154,6 +161,12 @@ def equipment_crit_bonus(member):
     return sum(item.crit_bonus + (WEAPON_CRIT_BONUS if item.slot == "weapon" else 0)
                for item_id in member.get("equipment", {}).values()
                if (item := item_for(item_id)) is not None)
+
+
+def resist_fire(member, damage):
+    resistance = sum(item.fire_resistance for item_id in member.get("equipment", {}).values()
+                     if (item := item_for(item_id)) is not None)
+    return damage * max(0, 100 - resistance) // 100
 
 
 def preview_value(member, slot, item_id, stat):

@@ -22,7 +22,7 @@ def rng_with(*rolls):
 class ResearchRulesTests(TestCase):
     def test_research_gates_and_lesson_execution(self):
         self.assertEqual({path: len(lessons_for({"job": path})) for path in LESSONS},
-                         {"Unbound": 15, "Seer": 7, "Sollers": 7, "Saint": 7, "Weaver": 7,
+                         {"Unbound": 16, "Seer": 7, "Sollers": 7, "Saint": 7, "Weaver": 7,
                           RIQIZAURKEIS: 7, "Tidecaller": 7})
         retri = member("Retri", RETRI)
         initialize_research(retri)

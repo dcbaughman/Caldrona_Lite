@@ -64,6 +64,9 @@ PROFILES = {
     "Shalehorn": LootProfile("Boss", 5,
         (("Shale Chip", 0.75), ("Ether", 0.25), ("Ember Feather", 0.12), ("Ember Talisman", 0.035)),
         ("Shale Chip", "Ether", "Ember Talisman"), ("shalehorn_crook",)),
+    "Ember Wyvern": LootProfile("Boss", 4,
+        (("Shale Chip", 0.75), ("Ether", 0.30), ("Remedy", 0.20), ("quarry_coat", 0.06)),
+        ("Shale Chip", "Ether", "Remedy")),
 }
 
 

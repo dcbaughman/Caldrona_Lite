@@ -9,6 +9,7 @@ import tempfile
 from crescendo import MAX_CHARGE, choices_for
 from classes import JOBS
 from depths import DEN_CHESTS
+from lower_workings import PAGES, RUBBINGS, STAGES
 
 VERSION = 1
 FIELDS = ('x','y','direction','hp','potions','gold','level','xp','party','supplies',
@@ -106,6 +107,16 @@ def validate(state):
         chests = story.get('depths_chests', [])
         if not isinstance(chests, list) or any(not isinstance(chest, str) or chest not in DEPTHS_CHEST_IDS for chest in chests):
             raise SaveError('Invalid Depths treasure progress.')
+        workings = story.get('workings')
+        if workings is not None:
+            if (not isinstance(workings, dict) or workings.get('stage') not in STAGES
+                    or any(type(workings.get(flag)) is not bool for flag in ('knocker', 'cache'))
+                    or any(type(workings.get(flag, False)) is not bool for flag in ('charcoal', 'cinder_coats'))):
+                raise SaveError('Invalid Old Workings progress.')
+            for key, known in (('pages', PAGES), ('rubbings', RUBBINGS)):
+                found = workings.get(key)
+                if not isinstance(found, list) or any(item not in known for item in found) or len(set(found)) != len(found):
+                    raise SaveError('Invalid Old Workings progress.')
         if (((story.get('black_stone_attuned') or story.get('black_stone_claimed')) and not story.get('den_cleared')) or
                 (story.get('den_cleared') and not story.get('den_unsealed'))):
             raise SaveError('Inconsistent den progress.')

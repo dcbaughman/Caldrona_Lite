@@ -12,6 +12,7 @@ class EnemySkill:
     magic: bool = False
     rank: int = 4
     palette: str = ""
+    element: str = ""
 
 
 SKILLS = {
@@ -22,7 +23,7 @@ SKILLS = {
     "Ashmane Wolf": (EnemySkill("Raking Lunge", "unbound_hard_edge", rank=3),),
     "Torshield Ram": (EnemySkill("Stone-Crown Charge", "unbound_quarry_echo", rank=5),),
     "Hollow Weaver": (EnemySkill("Silk Snare", "seer_mist_ray", "webbed", .45),),
-    "Emberwraith": (EnemySkill("Broodfire", "unbound_ember_arc", magic=True, palette="ember"),),
+    "Emberwraith": (EnemySkill("Broodfire", "unbound_ember_arc", magic=True, palette="ember", element="fire"),),
     "Silk Sarcophagus": (EnemySkill("Spiral Seal", "seer_farseal", "webbed", .30, magic=True),),
     "Brood Stalker": (EnemySkill("Blackfang", "sollers_venom_edge", "poison", .55),),
     "Den Mother": (

@@ -7,9 +7,69 @@ from unittest.mock import Mock, patch
 import Caldrona_Lite as game
 from battle import SHALEHORN, ShalehornBattle
 from display_settings import DisplayConfig
+from save_game import capture
 
 
 class ShalehornTests(unittest.TestCase):
+    def test_trail_search_gate_starts_solo_fight_and_does_not_replay_after_victory(self):
+        with patch.object(tk.Tk, "mainloop"), patch.object(game.CaldronaLite, "_init_controller",
+                lambda a: setattr(a, "pygame", None)), patch.object(game, "load_display", return_value=DisplayConfig()):
+            a = game.CaldronaLite()
+        self.addCleanup(a._close)
+        a.root.withdraw()
+        a._play_music = Mock()
+        a._play_sfx = Mock()
+        a.supplies = {}
+        a._start_cavern(from_trail=True)
+
+        def advance_dialogue():
+            while a.dialogue.active:
+                a._activate()
+
+        advance_dialogue()
+        a.mine_story.update_walk(a.mine_story.started + 2)
+        a.mine_story.update(a.mine_story.started + 2)
+        a.mine_story.update_walk(a.mine_story.started + 2)
+        advance_dialogue()
+        a.mine_story.update_walk(a.mine_story.started + 3)
+        self.assertEqual((a.screen, a.temur_story), ("game", "searching"))
+
+        door_x, door_y = a.outer_door
+        a.x, a.y, a.direction = (door_x + .5) * game.TILE, (door_y + 1.5) * game.TILE, "up"
+        a._activate()
+        self.assertTrue(a.in_chamber and a.boss_intro)
+        advance_dialogue()
+        self.assertEqual(a.screen, "battle_in")
+        a._update_battle_transition(time.monotonic() + 1)
+        a._play_music.assert_called_with(game.ASSETS / "audio" / "first-boss.mp3", restart=True)
+        model = a.battle.model
+        self.assertIsInstance(model, ShalehornBattle)
+        self.assertEqual([member["name"] for member in model.party], ["Retri"])
+        if a.battle.phase == "enemy_action":
+            a.battle.update(a.battle.phase_at + a.battle.shalehorn_fx.duration + .01)
+        model.enemy_hp = 1
+        a.battle.confirm(0)
+        a.battle.confirm(0)
+        a.battle.update(1)
+        for _ in range(6):
+            if a.screen != "battle":
+                break
+            a._activate()
+        self.assertEqual(a.screen, "battle_out")
+        a._update_battle_transition(time.monotonic() + 1)
+        self.assertTrue(a.boss_cleared)
+        self.assertEqual(a.canvas.itemcget(a.cave_objective, "text"), "Find Temur")
+
+        a._load_journey(capture(a))
+        a.x, a.y, a.direction = (door_x + .5) * game.TILE, (door_y + 1.5) * game.TILE, "up"
+        a.in_chamber = False
+        a._activate()
+        self.assertTrue(a.in_chamber and a.boss_cleared)
+        self.assertFalse(a.boss_intro or a.dialogue.active)
+        a.x, a.y, a.direction = 70.5 * game.TILE, 15.5 * game.TILE, "up"
+        a._activate()
+        self.assertEqual((a.screen, a.astral_scene.phase), ("astral", "reveal"))
+
     def test_charge_fracture_tremor_and_burrow(self):
         party = [dict(name=name, hp=600, max_hp=600) for name in ("Retri", "Temur")]
         battle = ShalehornBattle(SHALEHORN, party=party, rng=random.Random(1))
@@ -55,7 +115,8 @@ class ShalehornTests(unittest.TestCase):
             menu.navigate("down", 10+n)
         menu.activate()  # Activate Orin.
         menu.close()
-        a.x, a.y, a.direction = 49.5*game.TILE, 5.5*game.TILE, "up"
+        door_x, door_y = a.outer_door
+        a.x, a.y, a.direction = (door_x + .5) * game.TILE, (door_y + 1.5) * game.TILE, "up"
         a._activate()
         self.assertTrue(a.in_chamber and a.dialogue.active)
         while a.dialogue.active:
