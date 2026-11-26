@@ -110,13 +110,22 @@ def ramp(r, v):
     return r[max(0, min(len(r) - 1, int(v)))]
 
 
-def soft_outline(s, color=INK_SOFT):
+def soft_outline(s, color=INK_SOFT, lit_mix=.45):
+    """Dark ink only on the shadow side (right and below). The lit side gets a rim blended
+    from the edge colour, so the silhouette holds without a hard black ring."""
     w, h = s.get_size()
     solid = {(x, y) for y in range(h) for x in range(w) if s.get_at((x, y))[3] > 200}
+    rims = {}
     for x, y in solid:
-        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+        edge = s.get_at((x, y))[:3]
+        for nx, ny, shadow in ((x + 1, y, True), (x, y + 1, True), (x - 1, y, False), (x, y - 1, False)):
             if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in solid and not s.get_at((nx, ny))[3]:
-                s.set_at((nx, ny), color)
+                if shadow:
+                    rims[(nx, ny)] = color
+                elif (nx, ny) not in rims:
+                    rims[(nx, ny)] = mix(edge, color, lit_mix)
+    for spot, rim in rims.items():
+        s.set_at(spot, rim)
 
 
 # --- Selvar script, the stroke data from the Fjalora codex ------------------------------------
@@ -260,22 +269,17 @@ def ledger_post(with_page):
     for y in range(12, 20):
         s.set_at((9 - (y > 16), y), TIMBER[1])
     # Cap beam: a lit top edge, horizontal grain, darker end grain, shadow onto the post.
-    for y in range(2, 7):
+    for y in (5, 6):
         for x in range(0, 16):
-            base = {2: 6, 3: 4.6, 4: 4.0, 5: 3.4, 6: 2.4}[y]
-            v = base + sin(x * .7 + y * 1.9) * .45 * (y > 2) + (noise(x, y, 5) - .5) * .5
+            v = (5.4 if y == 5 else 3.0) + sin(x * .7) * .4 * (y == 6) + (noise(x, y, 5) - .5) * .5
             s.set_at((x, y), ramp(TIMBER, v))
-    for y in range(3, 7):
-        s.set_at((0, y), TIMBER[3] if y % 2 else TIMBER[2])
-        s.set_at((15, y), TIMBER[1] if y % 2 else TIMBER[2])
-    s.set_at((0, 2), TIMBER[4])
-    s.set_at((15, 2), TIMBER[4])
+    s.set_at((0, 6), TIMBER[2])
+    s.set_at((15, 6), TIMBER[1])
     for x in range(5, 11):
         s.set_at((x, 7), TIMBER[1])
     # Two iron spikes through the cap into the post.
     for x in (6, 9):
-        s.set_at((x, 4), IRON[3])
-        s.set_at((x, 5), IRON[1])
+        s.set_at((x, 6), IRON[3])
     if with_page:
         # Paper: lit left edge, shaded right edge, a curled lower corner showing the back.
         page = pygame.Rect(3, 9, 10, 13)
@@ -339,7 +343,7 @@ def _in_slab(x, y):
 
 
 def stele(word, rubbed):
-    """A slate marker: rounded shoulders, a right-hand side face, a fieldstone plinth, cracks,
+    """A flat, upright slate marker: rounded shoulders, a fieldstone plinth, cracks,
     lichen, and one Fjalora word cut down its face in Selvar."""
     s = surface(STELE_W, STELE_H)
     # Plinth: three rough blocks, lit tops, with rubble at the feet.
@@ -355,21 +359,14 @@ def stele(word, rubbed):
         s.set_at((x, y), STONE[3])
     for x in range(1, 23):
         s.set_at((x, 39), (14, 10, 22, 140))
-    # The slab, lit from the upper left, with a darker side face on the right.
+    # The slab: one flat upright face, lit from the upper left.
     for y in range(2, 35):
-        for x in range(3, 22):
-            if x >= 20 and y >= 5 and x <= 21 and y <= 34:
-                v = 1.2 - (x == 21) * .5 + (noise(x, y, 3) - .5) * .6
-                s.set_at((x, y), ramp(SLATE, v))
-                continue
+        for x in range(3, 23):
             if not _in_slab(x, y):
                 continue
             light = (20 - x) / 17 * .55 + (34 - y) / 32 * .45
-            v = 1.4 + light * 3 + (noise(x, y) - .5) * .9 + (noise(x // 3, y // 3, 6) - .5) * .6
+            v = 1.4 + light * 3 + (noise(x, y) - .5) * .6 + (noise(x // 3, y // 3, 6) - .5) * .4
             s.set_at((x, y), ramp(SLATE, v))
-    # Rounded top of the side face.
-    for x, y in ((20, 4), (21, 5), (20, 3)):
-        s.set_at((x, y), SLATE[1])
     # Bevel: a bright rim along the shoulders and left edge.
     for y in range(2, 34):
         for x in range(3, 20):
