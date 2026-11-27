@@ -153,4 +153,21 @@ Steps 1–4 are `ground_ops()` and step 5 is `things()`. The script bakes the fl
 - **Animation:** the sails step a sixteenth turn every 0.3 s. Each sheep-bird breathes on its own phase. The lamps flicker through their six flame frames on the trail lanterns' timing (110, 100, 90, 110, 120, 130 ms), each lamp three frames behind the one before.
 - **Safe ground:** no random encounters in town.
 - **Music:** the calm Sunrest theme plays until a track is added at `assets/audio/windehus.mp3`.
-- **Not yet:** doors don't open, there are no townsfolk, and there's no save point in town.
+- **Not yet:** only the inn, the three shops and the mill open; there are no townsfolk, and there's no save point in town.
+
+## Rooms (`windehus_rooms.py`, `prepare_town_rooms.py`)
+
+Walking up into the door of the inn, a shop or the mill goes inside. Stepping into the room's doorway goes back out onto the street, in front of the same door. The rooms are drawn the way the town is, from above and in front, lit from the top left:
+- **The back wall's face** fills the two rows under its coping, with its windows (daylight falls in a pale patch on the floor below each) and whatever hangs on it. The side walls show only their tops, and the doorway is a gap in the front wall with a mat and a stone sill.
+- **Each room matches its building outside:**
+  - **The inn** (`inn`): stone walls like its ground floor, a hearth under its chimney, a bar with shelves of bottles and a cask, four tables with stools, stairs up toward its upper floor, and three beds behind a partition.
+  - **The weaponsmith** (`shop-arms`, the sword sign): a flagstone floor, a brick forge under a stone hood at its chimney end, racks of swords and spears, crossed swords on the wall, an anvil, a grindstone, a barrel of blades and a counter.
+  - **The armourer** (`house-slate`, which now has a shield sign by its door): stands of mail and plate, a rack of shields, a shelf of helms, shields on the wall, a hearth at its chimney end, a chest and a counter.
+  - **General goods** (`shop-goods`, the flask sign): plaster and timber walls over a plank wainscot like its ground floor, shelves of jars and of potions, herbs drying on the wall, sacks, barrels, crates, gourds and a counter. It has no chimney, so no fire.
+  - **The mill** (`windmill`): a round room of rubble stone like the tower. The main shaft rises through the middle from its bearing on the floor, and the great spur wheel turns on it overhead. Its cogs meet the stone nut on the spindle of each pair of millstones. Each pair sits in a wooden tun under its hopper. There's a ladder up through the ceiling, the sack hoist's chain, flour sacks, a barrow and lanterns.
+- **Furniture** stands in sorted order round the party like the town's things. It is packed into `rooms/furniture.png` (index `rooms/furniture.json`). The barrels, crates, sacks and gourds are the town's own sprites.
+- **What blocks:** a piece stands on its bottom row, except beds, tables and millstones, which take two rows. The spur wheel stands only on its shaft's tile, so the party walks round the shaft and under the wheel.
+- **Animation:** hearth fires (`hearth-0..2`) and the forge's coals (`forge-0..2`) flicker. The spur wheel (`spurwheel-0..3`) turns a quarter cog a frame, in step with the sails outside.
+- **Room for people:** each room keeps open floor round its tables and in front of every counter. `npc_spots` marks where the innkeeper, the smith, the armourer, the shopkeeper and the miller will stand, for scenes to come.
+- **The camera:** a room narrower or shorter than the screen sits in the middle of it, in the dark of the canvas.
+- Each room's flat layer is baked into `rooms/<room>-ground.png`. A test re-renders them and fails if a room changes without a rebuild (`python prepare_town_rooms.py`).

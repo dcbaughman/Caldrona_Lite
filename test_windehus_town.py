@@ -7,6 +7,7 @@ from grassland import FROM_TOWN, KORWARD, TOWN_ROAD
 from stats import TEMUR, member
 import test_battle_ui
 import windehus
+import windehus_rooms
 from windehus_town import TAG
 
 
@@ -156,6 +157,96 @@ class WindehusTownTests(unittest.TestCase):
         with patch.object(a.encounters, "step", return_value=False) as roll:
             self.step("down")
             roll.assert_called_once()
+
+    def walk_in_at(self, room_name):
+        a = self.a
+        door = next(t for t, name in a.windehus.entrances.items() if name == room_name)
+        self.place(door[0], door[1] + 1, "up")
+        self.step("up")
+        return door
+
+    def test_walking_into_the_inn_door_goes_inside_and_out_again(self):
+        a = self.a
+        self.walk_in()
+        door = self.walk_in_at("inn")
+        inn = windehus_rooms.ROOMS["inn"]
+        self.assertIs(a.windehus.room, inn)
+        self.assertTrue(a.in_town)
+        self.assertEqual(a._world_tile(), windehus_rooms.arrival(inn))
+        self.assertEqual(a.direction, "up")
+        self.assertEqual(a.canvas.itemcget(a.location_label, "text"), "Windehus Inn")
+        # Narrower than the screen, the room sits in the middle of it.
+        self.assertLess(a._camera()[0], 0)
+        self.assertEqual(a._camera()[0], (inn.width * 16 - 320) / 2)
+        # Holding up walks on into the room; the tables stand in the way further up.
+        self.step("up")
+        self.step("up")
+        self.assertEqual(a._world_tile(), (windehus_rooms.arrival(inn)[0], windehus_rooms.arrival(inn)[1] - 2))
+        # Back down and out through the doorway, onto the street in front of the door.
+        self.step("down")
+        self.step("down")
+        self.step("down")
+        self.assertIsNone(a.windehus.room)
+        self.assertEqual(a._world_tile(), (door[0], door[1] + 1))
+        self.assertEqual(a.direction, "down")
+        self.assertEqual(a.canvas.itemcget(a.location_label, "text"), "Windehus")
+        self.assertTrue(a.canvas.find_withtag(TAG))
+
+    def test_every_shop_and_the_mill_can_be_entered(self):
+        a = self.a
+        self.walk_in()
+        for name, room in windehus_rooms.ROOMS.items():
+            door = self.walk_in_at(name)
+            self.assertIs(a.windehus.room, room, name)
+            self.assertEqual(a.canvas.itemcget(a.location_label, "text"), room.title)
+            self.step("down")
+            self.assertIsNone(a.windehus.room, name)
+            self.assertEqual(a._world_tile(), (door[0], door[1] + 1), name)
+
+    def test_the_other_houses_stay_shut(self):
+        a = self.a
+        self.walk_in()
+        self.place(5, 12, "up")      # the cottage's stoop, under its door
+        self.step("up")
+        self.assertIsNone(a.windehus.room)
+        self.assertEqual(a._world_tile(), (5, 12))
+
+    def test_the_fire_flickers_and_the_mill_wheel_turns(self):
+        a = self.a
+        self.walk_in()
+        self.walk_in_at("mill")
+        town = a.windehus
+        wheel = next(m for m in town.motions if m[1] == "spurwheel-")
+        seen = set()
+        for tick in range(40):
+            town.animate(tick * .1)
+            seen.add(a.canvas.itemcget(wheel[0], "image"))
+        self.assertEqual(len(seen), 4)
+        self.step("down")
+        self.walk_in_at("weapons")
+        forge = next(m for m in town.motions if m[1] == "forge-")
+        seen = set()
+        for tick in range(40):
+            town.animate(tick * .05)
+            seen.add(a.canvas.itemcget(forge[0], "image"))
+        self.assertEqual(len(seen), 3)
+
+    def test_the_party_walks_behind_and_in_front_of_furniture(self):
+        a = self.a
+        self.walk_in()
+        self.walk_in_at("inn")
+        tables = [i for i in a.canvas.find_withtag(TAG)
+                  if a.canvas.itemcget(i, "image") == str(a.windehus.sprite("table"))]
+        table = min(tables, key=lambda i: (a.canvas.coords(i)[1], a.canvas.coords(i)[0]))
+
+        def above_table(item):
+            order = a.canvas.find_all()
+            return order.index(item) > order.index(table)
+
+        self.place(5, 6, "down")     # behind the front-left table, which stands on row 8
+        self.assertFalse(above_table(a.player_item))
+        self.place(5, 9, "up")       # in front of it
+        self.assertTrue(above_table(a.player_item))
 
 
 if __name__ == "__main__":

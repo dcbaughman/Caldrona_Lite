@@ -25,9 +25,8 @@ from den_art import black_stone, cave_exit_threshold, den_gate, egg_sacs, white_
 from depths import (BROOD_CHAMBER, DEN_CHESTS, DEN_DOOR, DEN_APPROACH, DEN_ENTRY, DEN_FLOOR, DEN_HEIGHT, DEN_HEART_GATE,
                     DEN_NEST, DEN_NEST_FOOTPRINT, DEN_SHRINE, DEN_STONE, DEN_STONE_TILES, EGG_SACS,
                     WEB_PANELS, boss_footprint, den_danger, den_location)
-from grassland import (Cordon, GrasslandInstance, ENTRANCE as GRASS_ENTRY, FENCE, FROM_TOWN, GATE, KORWARD, RIDGE,
+from grassland import (Cordon, GrasslandInstance, ENTRANCE as GRASS_ENTRY, FENCE, GATE, KORWARD, RIDGE,
                        ROAD, SENBRANKA_TILE, TOWN_ROAD)
-from windehus import leaves_town
 from windehus_town import WindehusTown
 from save_menu import SaveMenu
 from save_game import FIELDS as SAVE_FIELDS, SaveError, validate as validate_save
@@ -2310,8 +2309,14 @@ class CaldronaLite:
                 else self.cave.height)
 
     def _center_camera(self, x, y) -> tuple[float, float]:
-        max_x = max(0, self.cave.width * TILE - VIEW_W)
-        max_y = max(0, self._world_height() * TILE - VIEW_H)
+        width, height = self.cave.width * TILE, self._world_height() * TILE
+        # A room smaller than the screen sits in the middle of it, in the dark.
+        if width < VIEW_W or height < VIEW_H:
+            cx = (width - VIEW_W) / 2 if width < VIEW_W else min(max(x - VIEW_W / 2, 0), width - VIEW_W)
+            cy = (height - VIEW_H) / 2 if height < VIEW_H else min(max(y - VIEW_H / 2, 0), height - VIEW_H)
+            return cx, cy
+        max_x = max(0, width - VIEW_W)
+        max_y = max(0, height - VIEW_H)
         return min(max(x - VIEW_W / 2, 0), max_x), min(max(y - VIEW_H / 2, 0), max_y)
 
     def _camera(self) -> tuple[float, float]:
@@ -2514,7 +2519,7 @@ class CaldronaLite:
         self.canvas.coords(self.white_stone_item, ((wx + .5) * TILE - cx) * SCALE,
                            ((wy + 1) * TILE - cy) * SCALE)
         self.canvas.itemconfigure(self.white_stone_item, state="normal" if in_fields else "hidden")
-        location = ("Windehus" if self.in_town else "Sunrest Grasslands" if self.outdoors
+        location = (self.windehus.location() if self.in_town else "Sunrest Grasslands" if self.outdoors
                     else den_location(self._world_tile()) if in_den
                     else self.lower_workings.location() if self.lower_workings.here()
                     else "Astral Hollow" if self.in_chamber else "Sunrest Excavation")
@@ -2828,9 +2833,9 @@ class CaldronaLite:
                     self.direction = active
                     nx, ny = self.x + dx * TILE, self.y + dy * TILE
                     next_tile = (int(nx // TILE), int(ny // TILE))
-                    if self.in_town and leaves_town(next_tile):
+                    if self.in_town and self.windehus.passage(next_tile):
                         if not self._area_step_latch:
-                            self.windehus.leave(FROM_TOWN)
+                            self.windehus.go(next_tile)
                     elif self.outdoors and not self.in_town and next_tile in TOWN_ROAD:
                         if not self._area_step_latch:
                             self.windehus.enter()

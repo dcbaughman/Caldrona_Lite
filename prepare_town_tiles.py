@@ -2442,8 +2442,10 @@ BUILDINGS = {
                 boxes=(1, 5), chimney=3, sign=(2, "bed"), ground="stone", wear=.4, seed=1),
     "house-red": dict(width=4, roof=ROOF_RED, gables=((0, 2),), doors=(2,), windows=(0,), upper=(0, 1, 3),
                       boxes=(0, 3), chimney=3, wear=.8, seed=2),
+    # The armourer's, with a shield hung beside its door.
     "house-slate": dict(width=5, roof=ROOF_SLATE, gables=((1, 3),), doors=(0,), windows=(2, 4), upper=(1, 3),
-                        boxes=(1,), shutter=(118, 58, 46), chimney=4, ground="stone", wear=.6, seed=3),
+                        boxes=(1,), shutter=(118, 58, 46), chimney=4, sign=(1, "shield"), ground="stone", wear=.6,
+                        seed=3),
     "cottage": dict(width=3, roof=ROOF_SLATE, gables=((0, 3),), doors=(1,), windows=(0, 2), upper=(0, 2),
                     boxes=(0, 2), shutter=(118, 58, 46), wear=.9, seed=4),
     "shop-arms": dict(width=4, roof=ROOF_RED, gables=((2, 2),), doors=(1,), windows=(2, 3), upper=(1, 3),
