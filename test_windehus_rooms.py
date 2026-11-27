@@ -109,7 +109,7 @@ class RoomLayoutTests(unittest.TestCase):
             self.assertEqual(keys, sorted(keys))
 
     def test_animated_pieces_have_every_frame(self):
-        for prefix, frames in (("hearth-", 3), ("forge-", 3), ("spurwheel-", 4)):
+        for prefix, frames in (("hearth-", 3), ("forge-", 3), ("spurwheel-", 4), ("lantern-", 6)):
             sizes = {self.sizes[f"{prefix}{frame}"] for frame in range(frames)}
             self.assertEqual(len(sizes), 1, prefix)
 

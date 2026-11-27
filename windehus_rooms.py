@@ -32,8 +32,8 @@ VOID, TOP, FACE, FLOOR, DOORWAY = " ", "#", "W", ".", "D"
 # stands on its bottom row only, and the rows above it are behind it (or, for the millstones'
 # spindles, overhead).
 DEEP = {"bed": 2, "millstones": 2, "table": 2}
-# Things the party walks under or past: they block nothing.
-OPEN = ("hoist",)
+# Things the party walks under or past, or that hang on the wall: they block nothing.
+OPEN = ("hoist", "lantern")
 # The mill's great spur wheel turns overhead on its shaft: only the shaft's tile blocks.
 SHAFT = "spurwheel"
 # The mill's floor: an oval in tiles (centre x, centre y, x radius, y radius).
@@ -87,9 +87,10 @@ ROOMS = {room.name: room for room in (
                  ("sacks", 1, 4), ("barrel", 1, 6), ("gourds", 2, 6), ("crates", 1, 8), ("barrel", 10, 8)),
          npc_spots={"shopkeeper": (8, 4), "customer": (7, 6)}),
     Room("mill", "The Mill", "windmill", 15, 14, door_x=7, floor="planks", wall="rubble",
-         windows=(3, 11), decor=(("lantern", 5), ("lantern", 10)),
+         windows=(3, 11),
          things=(("spurwheel-0", 3, 8), ("millstones", 1, 8), ("millstones-r", 11, 8), ("ladder", 9, 3),
-                 ("hoist", 4, 5), ("flour-sacks", 3, 11), ("wheelbarrow", 10, 11), ("barrel", 12, 10)),
+                 ("hoist", 4, 5), ("flour-sacks", 3, 11), ("wheelbarrow", 10, 11), ("barrel", 12, 10),
+                 ("lantern-0", 4, 2), ("lantern-0", 9, 2)),
          npc_spots={"miller": (9, 9), "by the stones": (4, 9)}),
 )}
 

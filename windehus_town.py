@@ -30,9 +30,9 @@ BIRD_PHASE_MS = 370            # so the birds don't breathe together
 LAMP_MS = (110, 100, 90, 110, 120, 130)
 LAMP_PHASE_MS = sum(LAMP_MS[:3])
 # Indoors: {sprite prefix: frame times in ms}. The spur wheel turns a quarter cog a frame, in
-# step with the sails outside.
+# step with the sails outside, and wall lanterns flicker like the lamps in the square.
 ROOM_MOTION = {"hearth-": (140, 120, 160), "forge-": (190, 170, 210),
-               "spurwheel-": (round(SAIL_SECONDS * 1000),) * 4}
+               "spurwheel-": (round(SAIL_SECONDS * 1000),) * 4, "lantern-": LAMP_MS}
 
 
 class TownMap:
@@ -152,7 +152,8 @@ class WindehusTown:
                         times = ROOM_MOTION[prefix]
                         for frame in range(len(times)):
                             self.sprite(f"{prefix}{frame}")
-                        self.motions.append([item, prefix, times, len(self.motions) * 230, 0])
+                        phase = len(self.motions) * (LAMP_PHASE_MS if prefix == "lantern-" else 230)
+                        self.motions.append([item, prefix, times, phase, 0])
                 elif name == windehus.MILL_SAILS:
                     self.sails = item
                 elif name.startswith("sheepbird-"):

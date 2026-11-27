@@ -1158,6 +1158,62 @@ def ladder():
     return s
 
 
+def wall_lantern(frame):
+    """A lantern hung from an iron bracket on the wall, its four-pane cage lit by a flame
+    behind the middle bar. The frames are the town lamps' and the trail lanterns' loop (rest,
+    lean left, peak, lean right, dip, ember), and its warm light spills well past the cage
+    onto the wall around it, brighter as the flame peaks. The cage's middle is 16 px across
+    and 14 down."""
+    lean, height, bright = T.LAMP_FLAMES[frame]
+    s = surface(32, 36)
+    fx, base = 16.0, 18
+    # The bracket: a plate on the wall and an arm out over the lantern.
+    for y in range(3, 9):
+        s.set_at((22, y), IRON[2] if y > 3 else IRON[3])
+        s.set_at((23, y), IRON[1])
+    for x in range(15, 23):
+        s.set_at((x, 4), IRON[3] if x < 18 else IRON[2])
+    s.set_at((16, 5), IRON[2])
+    # The cap.
+    for y, x0, x1 in ((6, 15, 17), (7, 13, 19), (8, 12, 20)):
+        for x in range(x0, x1):
+            s.set_at((x, y), IRON[3] if x < 16 else IRON[1])
+    # The cage and its panes.
+    for y in range(9, 20):
+        for x in range(12, 20):
+            if x in (12, 19) or y in (9, 19):
+                s.set_at((x, y), IRON[2] if x == 12 or y == 9 else IRON[0])
+                continue
+            d = sqrt((x + .5 - fx) ** 2 + ((y + .5 - (base - height / 2)) * .8) ** 2)
+            s.set_at((x, y), ramp(GLOW, (3.4 - d * .6) * bright))
+    for y in range(base - round(height) + 1, base + 1):
+        rise = (base - y) / height
+        half = (1 - rise) * 1.9 + .45
+        cx = fx + lean * rise
+        for x in range(13, 19):
+            off = abs(x + .5 - cx)
+            if off <= half:
+                core = off <= half * .45 and rise < .7
+                s.set_at((x, y), FIRE[3 if core and bright > 1 else 2 if core else 1 if off <= half * .8 else 0])
+    for y in range(10, 19):
+        s.set_at((16, y), mix(IRON[1], GLOW[2], .35 * bright))
+    for x in range(13, 19):
+        s.set_at((x, 20), IRON[1] if x < 17 else IRON[0])
+    s.set_at((15, 21), IRON[2])
+    s.set_at((16, 21), IRON[0])
+    soft_outline(s)
+    # Warm light on the wall round it, on the clear pixels only.
+    for y in range(36):
+        for x in range(32):
+            if s.get_at((x, y))[3]:
+                continue
+            d = sqrt((x + .5 - fx) ** 2 + ((y + .5 - 14) * 1.1) ** 2)
+            reach = 14 * bright
+            if d < reach:
+                s.set_at((x, y), (255, 184, 92, round(84 * bright * (1 - d / reach) ** 1.3)))
+    return s
+
+
 def hoist():
     """The sack hoist's chain hanging down through the trap, with a full sack on its hook."""
     s = surface(16, 48)
@@ -1247,6 +1303,8 @@ def furniture():
         out[f"forge-{frame}"] = forge(frame)
     for frame in range(4):
         out[f"spurwheel-{frame}"] = spurwheel(frame)
+    for frame in range(len(T.LAMP_FLAMES)):
+        out[f"lantern-{frame}"] = wall_lantern(frame)
     # A bed per quilt, so a row of beds isn't all one colour.
     for i in range(3):
         out[f"bed-{i}"] = bed(i)

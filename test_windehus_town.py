@@ -222,6 +222,16 @@ class WindehusTownTests(unittest.TestCase):
             town.animate(tick * .1)
             seen.add(a.canvas.itemcget(wheel[0], "image"))
         self.assertEqual(len(seen), 4)
+        # The wall lanterns flicker through all six flame frames, out of step with each other.
+        lanterns = [m for m in town.motions if m[1] == "lantern-"]
+        self.assertEqual(len(lanterns), 2)
+        seen = set()
+        for tick in range(120):
+            town.animate(tick * .033)
+            seen.add(a.canvas.itemcget(lanterns[0][0], "image"))
+        self.assertEqual(len(seen), 6)
+        town.animate(0)
+        self.assertNotEqual(lanterns[0][4], lanterns[1][4])
         self.step("down")
         self.walk_in_at("weapons")
         forge = next(m for m in town.motions if m[1] == "forge-")
