@@ -8,6 +8,9 @@ GATE = (32, 13)
 KORWARD = (33, 12)
 SENBRANKA_TILE = (8, 5)
 ROAD = {(32, y) for y in range(3, 18)} | {(x, 18) for x in range(7, 33)} | {(7, y) for y in range(3, 18)}
+# The west road runs on north through a cut in the cliffs. Stepping into the cut leads to Windehus.
+TOWN_ROAD = {(7, y) for y in range(3)}
+FROM_TOWN = (7, 3)
 FENCE = ({(x, 13) for x in range(23, 43)} |
          {(x, y) for x in (23, 42) for y in range(3, 13)}) - {GATE}
 RIDGE = {(x, y) for y in range(3, 15)
@@ -49,7 +52,7 @@ class Cordon:
         cx, cy = camera
         for (x, y), item in (*self.fences, (GATE, self.gate), (KORWARD, self.guard)):
             c.coords(item, ((x+.5)*16-cx)*self.scale, ((y+.5)*16-cy)*self.scale)
-            visible = a.outdoors and (item != self.gate or not a.cordon_open)
+            visible = a.outdoors and not getattr(a, "in_town", False) and (item != self.gate or not a.cordon_open)
             c.itemconfigure(item, state="normal" if visible else "hidden")
 
     def talk(self):

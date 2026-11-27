@@ -1,0 +1,122 @@
+{
+ "bakery": {
+  "doors": [
+   [
+    19,
+    71,
+    10,
+    20
+   ]
+  ],
+  "stoop": false,
+  "tiles": [
+   4,
+   6
+  ]
+ },
+ "cottage": {
+  "doors": [
+   [
+    19,
+    80,
+    10,
+    20
+   ]
+  ],
+  "stoop": true,
+  "tiles": [
+   3,
+   7
+  ]
+ },
+ "house-red": {
+  "doors": [
+   [
+    35,
+    71,
+    10,
+    20
+   ]
+  ],
+  "stoop": false,
+  "tiles": [
+   4,
+   6
+  ]
+ },
+ "house-slate": {
+  "doors": [
+   [
+    3,
+    80,
+    10,
+    20
+   ]
+  ],
+  "stoop": true,
+  "tiles": [
+   5,
+   7
+  ]
+ },
+ "inn": {
+  "doors": [
+   [
+    51,
+    71,
+    10,
+    20
+   ]
+  ],
+  "stoop": false,
+  "tiles": [
+   7,
+   6
+  ]
+ },
+ "shop-arms": {
+  "doors": [
+   [
+    19,
+    71,
+    10,
+    20
+   ]
+  ],
+  "stoop": false,
+  "tiles": [
+   4,
+   6
+  ]
+ },
+ "shop-goods": {
+  "doors": [
+   [
+    35,
+    64,
+    10,
+    20
+   ]
+  ],
+  "stoop": true,
+  "tiles": [
+   4,
+   6
+  ]
+ },
+ "windmill": {
+  "doors": [
+   [
+    67,
+    166,
+    10,
+    20
+   ]
+  ],
+  "stoop": false,
+  "tiles": [
+   9,
+   12
+  ]
+ }
+}

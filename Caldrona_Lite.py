@@ -25,7 +25,10 @@ from den_art import black_stone, cave_exit_threshold, den_gate, egg_sacs, white_
 from depths import (BROOD_CHAMBER, DEN_CHESTS, DEN_DOOR, DEN_APPROACH, DEN_ENTRY, DEN_FLOOR, DEN_HEIGHT, DEN_HEART_GATE,
                     DEN_NEST, DEN_NEST_FOOTPRINT, DEN_SHRINE, DEN_STONE, DEN_STONE_TILES, EGG_SACS,
                     WEB_PANELS, boss_footprint, den_danger, den_location)
-from grassland import Cordon, GrasslandInstance, ENTRANCE as GRASS_ENTRY, FENCE, GATE, KORWARD, RIDGE, ROAD, SENBRANKA_TILE
+from grassland import (Cordon, GrasslandInstance, ENTRANCE as GRASS_ENTRY, FENCE, FROM_TOWN, GATE, KORWARD, RIDGE,
+                       ROAD, SENBRANKA_TILE, TOWN_ROAD)
+from windehus import leaves_town
+from windehus_town import WindehusTown
 from save_menu import SaveMenu
 from save_game import FIELDS as SAVE_FIELDS, SaveError, validate as validate_save
 from abilities import attune, remember
@@ -73,6 +76,8 @@ BOSS_MUSIC = ASSETS / "audio" / "first-boss.mp3"
 # Drop these songs into assets/audio to give the Lower Workings and the Ember Wyvern their own
 # music. Until they exist, the workings use the cavern theme and the Wyvern the first boss theme.
 WORKINGS_MUSIC = ASSETS / "audio" / "lower-workings.mp3"
+# Windehus plays its own track when one is added here; until then, the calm Sunrest theme.
+WINDEHUS_MUSIC = ASSETS / "audio" / "windehus.mp3"
 WYVERN_MUSIC = ASSETS / "audio" / "ember-wyvern-battle.mp3"
 VICTORY_MUSIC = ASSETS / "audio" / "caldrona-level-up.mp3"
 GAME_OVER_MUSIC = ASSETS / "audio" / "caldrona-game-over.mp3"
@@ -987,7 +992,7 @@ class CaldronaLite:
                     self._open_tome()
             elif not self.game_menu.active:
                 self.canvas.itemconfigure(self.interaction_hint, state="hidden")
-                if not (self.lower_workings.interact() or self.mine_story.interact() or self.side_drift.interact() or self._interact_save_sphere() or self._interact_merren()
+                if not (self.in_town or self.lower_workings.interact() or self.mine_story.interact() or self.side_drift.interact() or self._interact_save_sphere() or self._interact_merren()
                         or self._interact_korward()
                         or self._interact_white_stone() or self._interact_quarry()
                         or self._interact_den() or self._interact_temur()):
@@ -1149,6 +1154,8 @@ class CaldronaLite:
         self._draw_menu()
 
     def _area_music(self) -> Path:
+        if getattr(self, "in_town", False):
+            return WINDEHUS_MUSIC if WINDEHUS_MUSIC.exists() else GRASSLAND_MUSIC
         if not getattr(self, "outdoors", False):
             if hasattr(self, "cave") and self._in_den():
                 return DEN_MUSIC
@@ -1365,6 +1372,8 @@ class CaldronaLite:
         self.cavern_map = self.cave
         self.grassland_map = GrasslandInstance()
         self.outdoors = False
+        # Windehus counts as outdoors, so the cave's props stay hidden; in_town tells it from the fields.
+        self.in_town = False
         self.cave_story = fresh_story()
         if from_trail:
             self.cave_story["trail_search"] = True
@@ -1546,6 +1555,7 @@ class CaldronaLite:
         self.mine_story = CaveStory(self, ASSETS, SCALE)
         self.side_drift = SideDrift(self, ASSETS, SCALE)
         self.lower_workings = LowerWorkings(self, ASSETS, SCALE)
+        self.windehus = WindehusTown(self, ASSETS, SCALE)
         # A visible speaker turns when its first dialogue page appears.
         self.dialogue_actors = {
             MINER_NAME.casefold(): (self.mine_story.items["miner"], MINER,
@@ -2319,6 +2329,9 @@ class CaldronaLite:
         return cx + dx, cy + dy
 
     def _build_chunk(self, key: tuple[int, int]) -> tk.PhotoImage:
+        if self.in_town:
+            self.chunk_cache[key] = self.windehus.chunk(key, CHUNK_TILES)
+            return self.chunk_cache[key]
         photo = tk.PhotoImage(master=self.root, width=CHUNK_SCREEN, height=CHUNK_SCREEN)
         gx, gy = key
         in_den = self._in_den()
@@ -2432,6 +2445,8 @@ class CaldronaLite:
         if tile == GRASS_ENTRY:
             return self.entrance_tile
         roll = (variation ^ (variation >> 13) ^ (variation >> 23)) & 255
+        if tile in TOWN_ROAD:
+            return self.path_tiles[int(roll >= 128)]
         if ty < 3 or tile in RIDGE:
             return self.mountain_tiles[int(roll >= 176)]
         road_variant = int(roll >= 128)
@@ -2492,13 +2507,15 @@ class CaldronaLite:
         self.canvas.itemconfigure(self.temur_item, state="normal" if not self.outdoors and self.temur_story in ("waiting", "offering") else "hidden")
         self.canvas.coords(self.merren_item, ((self.merren_tile[0]+0.5)*TILE-cx)*SCALE, ((self.merren_tile[1]+0.5)*TILE-cy)*SCALE)
         self.canvas.coords(self.merren_stall, ((self.merren_tile[0]+1.5)*TILE-cx)*SCALE, ((self.merren_tile[1]+0.5)*TILE-cy)*SCALE)
+        in_fields = self.outdoors and not self.in_town
         for item in (self.merren_item, self.merren_stall):
-            self.canvas.itemconfigure(item, state="normal" if self.outdoors else "hidden")
+            self.canvas.itemconfigure(item, state="normal" if in_fields else "hidden")
         wx, wy = SENBRANKA_TILE
         self.canvas.coords(self.white_stone_item, ((wx + .5) * TILE - cx) * SCALE,
                            ((wy + 1) * TILE - cy) * SCALE)
-        self.canvas.itemconfigure(self.white_stone_item, state="normal" if self.outdoors else "hidden")
-        location = ("Sunrest Grasslands" if self.outdoors else den_location(self._world_tile()) if in_den
+        self.canvas.itemconfigure(self.white_stone_item, state="normal" if in_fields else "hidden")
+        location = ("Windehus" if self.in_town else "Sunrest Grasslands" if self.outdoors
+                    else den_location(self._world_tile()) if in_den
                     else self.lower_workings.location() if self.lower_workings.here()
                     else "Astral Hollow" if self.in_chamber else "Sunrest Excavation")
         self.canvas.itemconfigure(self.location_label, text=location)
@@ -2513,6 +2530,7 @@ class CaldronaLite:
         self.mine_story.render()
         self.side_drift.render(camera)
         self.lower_workings.render(camera)
+        self.windehus.render(camera)
 
     def _position_overworld_boss(self, item, base, camera):
         x, y = base
@@ -2620,6 +2638,8 @@ class CaldronaLite:
         if not self.cave.walkable(x, y):
             return False
         tile = int(x // TILE), int(y // TILE)
+        if self.in_town:
+            return True
         if self.outdoors:
             return ((self.cordon_open or tile != GATE)
                     and tile not in (self.merren_tile, (self.merren_tile[0]+1, self.merren_tile[1])))
@@ -2643,7 +2663,7 @@ class CaldronaLite:
 
     def _update_interaction_hint(self):
         label = None
-        if not self.dialogue.active and not self.game_menu.active:
+        if not self.dialogue.active and not self.game_menu.active and not self.in_town:
             tile = self._facing_tile()
             if self.outdoors:
                 if tile == KORWARD or (tile == GATE and not self.cordon_open):
@@ -2677,7 +2697,7 @@ class CaldronaLite:
         self.canvas.itemconfigure(self.interaction_hint, text=f"{label} · ENTER / CROSS", state="normal")
 
     def _roll_field_encounter(self, tile):
-        if not self.random_encounters:
+        if not self.random_encounters or self.in_town:
             return False
         if self.outdoors:
             return (self.cordon_open and tile != GATE and not self.grassland_map.sheltered(tile)
@@ -2808,7 +2828,13 @@ class CaldronaLite:
                     self.direction = active
                     nx, ny = self.x + dx * TILE, self.y + dy * TILE
                     next_tile = (int(nx // TILE), int(ny // TILE))
-                    if self.outdoors and next_tile == GRASS_ENTRY:
+                    if self.in_town and leaves_town(next_tile):
+                        if not self._area_step_latch:
+                            self.windehus.leave(FROM_TOWN)
+                    elif self.outdoors and not self.in_town and next_tile in TOWN_ROAD:
+                        if not self._area_step_latch:
+                            self.windehus.enter()
+                    elif self.outdoors and not self.in_town and next_tile == GRASS_ENTRY:
                         if not self._area_step_latch:
                             self._change_area(False)
                     elif not self.outdoors and self.in_chamber and self.boss_cleared and next_tile == (70, 8):
@@ -2841,6 +2867,7 @@ class CaldronaLite:
             self._update_shalehorn_shake(now)
             self.canvas.itemconfigure("save_sphere", image=self.save_sphere_frames[int(now*2)%4])
             self.mine_story.animate_stair(now)
+            self.windehus.animate(now)
             if self.in_chamber and not self.outdoors:
                 pause = 8
                 frame = max(0, int(now * 6) % (pause + len(self.ondastela_frames)) - pause)
