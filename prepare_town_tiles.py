@@ -52,9 +52,21 @@ ROOF_SLATE = ((28, 34, 48), (42, 52, 72), (58, 72, 98), (78, 94, 124), (102, 118
 GLASS = ((24, 30, 44), (42, 56, 78), (84, 110, 138), (172, 198, 214))
 LEAF = ((28, 42, 24), (42, 60, 28), (60, 80, 34), (84, 102, 42), (110, 126, 52), (142, 150, 68))
 PINE = ((16, 30, 26), (26, 44, 34), (38, 60, 42), (54, 78, 50), (74, 98, 58), (98, 120, 68))
+# The town's one tree comes in three greens, so a stand of pines doesn't look stamped.
+PINES = {"deep": PINE,
+         "fir": ((14, 28, 34), (22, 42, 46), (32, 58, 58), (46, 76, 70), (64, 96, 84), (90, 120, 100)),
+         "moss": ((24, 34, 20), (36, 50, 26), (52, 68, 32), (72, 88, 40), (98, 110, 50), (130, 136, 66))}
+BARK = ((42, 24, 22), (68, 40, 30), (98, 60, 42), (128, 82, 56), (156, 108, 74))
+# Shrubs are a fresher green than the olive meadow, so they stand out of it.
+BUSH = ((22, 40, 22), (34, 60, 28), (50, 82, 34), (72, 108, 42), (100, 134, 52), (140, 164, 72))
+# Azaleas: glossy dark leaves under rose-pink or magenta blossom (dark, mid, light, glint).
+AZALEA_LEAF = ((20, 36, 24), (30, 52, 30), (42, 70, 36), (60, 90, 44), (82, 112, 54), (108, 134, 66))
+AZALEAS = (((150, 40, 78), (206, 72, 118), (238, 124, 160), (255, 196, 214)),
+           ((112, 30, 92), (166, 50, 134), (210, 96, 178), (246, 172, 222)))
 IRON = ((30, 30, 36), (54, 54, 62), (86, 86, 96), (128, 128, 138))
 FLAME = ((150, 72, 30), (232, 152, 62), (255, 222, 142))
 STRAW = ((96, 72, 30), (132, 102, 42), (170, 138, 60), (204, 174, 90), (230, 206, 128))
+TWINE = ((92, 50, 40), (132, 76, 58), (172, 108, 80), (204, 142, 108))
 CLOTH = ((150, 52, 44), (196, 76, 60), (220, 206, 176))
 BLOOMS = ((196, 66, 62), (226, 190, 82), (154, 104, 186), (232, 228, 214))
 # The clay bed under the square, where slabs have been lifted.
@@ -809,6 +821,25 @@ def stoop():
     return s
 
 
+def doorstep():
+    """Two low steps up to a street door, which sits on the 5 px footing. The top row is level
+    with the door sill and the flight stands 5 px out into the street: an upper tread and riser
+    against the footing, a wider lower tread and riser below. The door is x 3-12 here, as on the
+    stoop."""
+    s = surface(16, 11)
+    for y in range(10):
+        upper = y < 5
+        x0, x1 = (2, 14) if upper else (1, 15)
+        r = y % 5
+        for x in range(x0, x1):
+            wear = 1 - abs(x + .5 - 8) / 7
+            tone = (4.4, 3.9, 3.4)[r] + wear * .3 if r < 3 else (2.3, 1.6)[r - 3]
+            tone += (x == x0) * .5 - (x == x1 - 1) * 1.0
+            s.set_at((x, y), ramp(FLAG, tone + (noise(x, y, 126) - .5) * .5))
+    soft_outline(s)
+    return s
+
+
 def _storeys(s, x0, x1, top, bottom, width, doors, windows, upper, boxes, ground_style, shutter, seed, raised=0):
     foot_top = bottom - FOOT - raised
     gf_top = foot_top - GROUND
@@ -891,12 +922,7 @@ def _storeys(s, x0, x1, top, bottom, width, doors, windows, upper, boxes, ground
         _window(s, 16 * t + 4, gf_top + 6, 10, shutter)
     rects = []
     for t in doors:
-        rects.append(_door(s, 16 * t + 3, foot_top - DOOR_H))
-        if raised:
-            continue
-        for xx in range(16 * t + 1, 16 * t + 15):
-            s.set_at((xx, bottom - 2), FLAG[4])
-            s.set_at((xx, bottom - 1), FLAG[2])
+        rects.append(_door(s, windehus.door_px(t, width), foot_top - DOOR_H))
     return gf_top, rects
 
 
@@ -1114,58 +1140,147 @@ def sacks():
 
 
 def well():
+    """The square's well: a round drum of dressed stone seen from above, its courses curving
+    round it and its blocks narrowing toward the sides, a coping ring over dark water, and a
+    little tiled roof on two posts over the windlass, rope and bucket."""
     s = surface(32, 32)
-    ground_shadow(s, 22, 29, 10, 2.5)
-    cx, cy = 16, 20
-    for y in range(12, 31):
-        for x in range(3, 29):
-            outer = (x - cx) ** 2 / 144 + (y - cy) ** 2 / 36
-            if y > cy:
-                if 3 <= x <= 28 and y <= cy + 8 and abs(x - cx) <= 12.5:
-                    course = (y - cy) // 3
-                    joint = (y - cy) % 3 == 2 or (x + course * 3) % 6 == 5
-                    tone = 3.0 - (x - cx) / 12 * 1.2 - joint * 1.4
-                    s.set_at((x, y), ramp(WALL, tone))
-            if outer <= 1 and y <= cy:
-                inner = (x - cx) ** 2 / 81 + (y - cy) ** 2 / 16
-                s.set_at((x, y), GLASS[0] if inner <= 1 else ramp(WALL, 4.2 - (y > cy - 2) * 1.0))
+    cx, rim, rx, ry, drum = 16.0, 17.5, 11.5, 4.6, 8.5
+    inner_rx, inner_ry = 8.4, 3.0
+    ground_shadow(s, cx + 4, rim + drum + ry - .8, 12, 2.3)
+    # The drum: three courses that follow the curve of the wall, blocks set by angle so they
+    # foreshorten toward the edges, lit on the left.
+    for y in range(32):
+        for x in range(32):
+            dx = (x + .5 - cx) / rx
+            if abs(dx) >= 1:
+                continue
+            front = ry * sqrt(1 - dx * dx)
+            h = y + .5 - rim - front              # height down the wall from the coping's front edge
+            if not 0 <= h <= drum:
+                continue
+            course = int(h / 3)
+            angle = asin(dx) + course * .26
+            block = int((angle + pi) / .52)
+            joint = (h % 3) > 2.2 or ((angle + pi) % .52) < .09
+            tone = 3.0 - dx * 1.5 - h / drum * .5 + (noise(block, course, 190) - .5) * .9
+            if (h % 3) < .9:
+                tone += .5
+            s.set_at((x, y), ramp(FLAG, tone - 1.5) if joint else ramp(FLAG, tone))
+    # The coping ring, and the dark water inside it with the far inner wall above it.
+    for y in range(32):
+        for x in range(32):
+            ox, oy = (x + .5 - cx) / rx, (y + .5 - rim) / ry
+            if ox * ox + oy * oy > 1:
+                continue
+            ix, iy = (x + .5 - cx) / inner_rx, (y + .5 - rim) / inner_ry
+            if ix * ix + iy * iy <= 1:
+                wall_depth = (y + .5 - (rim - inner_ry * sqrt(max(0.0, 1 - ix * ix))))
+                color = ramp(WALL, 1.6 - wall_depth * .7) if wall_depth < 2.2 else ramp(GLASS, .6)
+                if 2.2 <= wall_depth < 3.2 and -.5 < ix < .1:
+                    color = GLASS[2]
+                s.set_at((x, y), color)
+                continue
+            angle = atan2(oy, ox)
+            joint = int((angle + pi) / .45) != int((angle + pi + .07) / .45)
+            tone = 4.4 - ox * 1.0 + (oy > 0) * -.4 + (noise(int((angle + pi) / .45), 0, 191) - .5) * .7
+            s.set_at((x, y), ramp(FLAG, tone - (1.4 if joint else 0)))
+    # Posts on the coping's left and right, a windlass between them, rope and bucket.
     for px in (5, 26):
-        for y in range(6, 22):
-            s.set_at((px, y), WOOD[4])
-            s.set_at((px + 1, y), WOOD[2])
-    for x in range(5, 28):
-        s.set_at((x, 9), WOOD[3])
-        s.set_at((x, 10), WOOD[1])
-    for y in range(0, 7):
-        for x in range(3 + (6 - y) // 2 - 2, 29 - (6 - y) // 2 + 2):
-            tone = 3.0 + (y < 2) * 1.0 - (y == 6) * 1.2 - ((x + y) % 4 == 0) * .6
-            s.set_at((x, y), ramp(ROOF_RED, tone))
-    for y in range(11, 15):
-        s.set_at((16, y), STRAW[1])
-    for y in range(15, 18):
+        for y in range(5, round(rim) + 1):
+            s.set_at((px, y), WOOD[4] if px == 5 else WOOD[3])
+            s.set_at((px + 1, y), WOOD[2] if px == 5 else WOOD[1])
+    for x in range(6, 26):
+        roll = 3.6 if x < 16 else 3.0
+        s.set_at((x, 8), ramp(WOOD, roll))
+        s.set_at((x, 9), ramp(WOOD, roll - 1.4))
+    for x in range(13, 20):
+        s.set_at((x, 8), STRAW[3] if x % 2 else STRAW[2])
+        s.set_at((x, 9), STRAW[1])
+    for x, y in ((27, 9), (28, 9), (28, 10), (28, 11)):
+        s.set_at((x, y), IRON[2])
+    for y in range(10, 13):
+        s.set_at((16, y), STRAW[2])
+    for y in range(13, 17):
         for x in range(14, 19):
-            s.set_at((x, y), WOOD[3] if y == 15 else WOOD[2])
+            band = y in (14, 16)
+            tone = 3.6 - (x - 14) * .5
+            s.set_at((x, y), IRON[2] if band and x < 17 else IRON[1] if band else ramp(WOOD, tone))
+    for x in range(15, 18):
+        s.set_at((x, 12), IRON[2] if x == 16 else CLEAR)
+    # A small tiled roof: a ridge beam, three courses of tiles, a shaded eave.
+    for y in range(0, 7):
+        inset = (6 - y) // 2
+        for x in range(1 + inset, 31 - inset):
+            course = y // 2
+            tone = 3.2 + (y == 0) * 1.2 - (y % 2) * .7 - ((x + course * 2) % 4 == 3) * .8 - (x > 21) * .5
+            s.set_at((x, y), ramp(ROOF_RED, tone))
+    for x in range(4, 28):
+        s.set_at((x, 7), mix(ROOF_RED[0], INK, .3))
     soft_outline(s)
     return s
 
 
-def lamp_post():
+# The lamp flame's loop, like the trail lanterns': rest, lean left, peak, lean right, dip,
+# ember. (lean in px at the tip, height in px, brightness)
+LAMP_FLAMES = ((0, 4, 1.0), (-1, 4, .95), (0, 5, 1.15), (1, 4, .95), (0, 3, .8), (0, 2.5, .7))
+GLOW = ((84, 44, 26), (134, 72, 34), (190, 114, 48), (232, 160, 70))
+FIRE = ((206, 96, 34), (250, 168, 66), (255, 226, 150), (255, 248, 220))
+
+
+def lamp_post(frame=0):
+    """A street lamp: a black iron post on a stepped foot, and a caged lantern of four
+    panes with its flame burning behind the middle bar. Each frame is one step of the
+    flame's flicker; the warm light spills a little past the cage."""
+    lean, height, bright = LAMP_FLAMES[frame]
     s = surface(16, 32)
-    ground_shadow(s, 11, 30, 4, 1.5)
-    for y in range(10, 30):
+    ground_shadow(s, 11, 30, 4.5, 1.5)
+    for y in range(13, 29):
         s.set_at((7, y), IRON[2])
         s.set_at((8, y), IRON[0])
+    for x, y, tone in ((6, 13, 2), (7, 13, 3), (8, 13, 1), (9, 13, 0), (6, 21, 2), (9, 21, 0)):
+        s.set_at((x, y), IRON[tone])
     for y in range(28, 32):
-        for x in range(5, 11):
-            s.set_at((x, y), IRON[2] if y == 28 else IRON[1])
-    for y in range(4, 11):
-        for x in range(5, 11):
-            edge = x in (5, 10) or y in (4, 10)
-            s.set_at((x, y), IRON[1] if edge else (FLAME[2] if y < 7 else FLAME[1]))
-    for i, y in enumerate(range(1, 4)):
-        for x in range(6 - i, 10 + i):
-            s.set_at((x, y), IRON[2] if x < 8 else IRON[1])
+        inset = 1 if y == 28 else 0
+        for x in range(5 + inset, 11 - inset):
+            s.set_at((x, y), IRON[3] if y == 28 or (y == 29 and x < 7) else IRON[1] if x < 9 else IRON[0])
+    # The cage: frame, middle bar, panes lit by the flame.
+    fx, base = 8.0, 10
+    for y in range(4, 12):
+        for x in range(4, 13):
+            if x in (4, 12) or y in (4, 11):
+                s.set_at((x, y), IRON[2] if x == 4 or y == 4 else IRON[0])
+                continue
+            d = sqrt((x + .5 - fx) ** 2 + ((y + .5 - (base - height / 2)) * .8) ** 2)
+            s.set_at((x, y), ramp(GLOW, (3.4 - d * .55) * bright))
+    for y in range(base - round(height) + 1, base + 1):
+        rise = (base - y) / height
+        half = (1 - rise) * 2.2 + .5
+        cx = fx + lean * rise
+        for x in range(5, 12):
+            off = abs(x + .5 - cx)
+            if off <= half:
+                core = off <= half * .45 and rise < .7
+                s.set_at((x, y), FIRE[3 if core and bright > 1 else 2 if core else 1 if off <= half * .8 else 0])
+    for y in range(5, 11):
+        s.set_at((8, y), mix(IRON[1], GLOW[2], .35 * bright))
+    for x in range(5, 12):
+        s.set_at((x, 12), IRON[1] if x < 10 else IRON[0])
+    for x in range(6, 11):
+        s.set_at((x, 13), IRON[2] if x < 8 else IRON[0])
+    # A pointed cap with a finial.
+    for y, x0, x1 in ((0, 8, 9), (1, 7, 10), (2, 6, 11), (3, 4, 13)):
+        for x in range(x0, x1):
+            s.set_at((x, y), IRON[3] if x < 8 else IRON[1] if y < 3 else IRON[2])
     soft_outline(s)
+    # Warm light spilling past the cage, on the clear pixels only.
+    for y in range(0, 18):
+        for x in range(16):
+            if s.get_at((x, y))[3]:
+                continue
+            d = sqrt((x + .5 - fx) ** 2 + (y + .5 - 7.5) ** 2)
+            reach = 6.5 * bright
+            if d < reach:
+                s.set_at((x, y), (255, 186, 96, round(70 * bright * (1 - d / reach))))
     return s
 
 
@@ -1206,112 +1321,132 @@ def flower_patch(color):
     return s
 
 
-def bush():
+def bush(blooms=None, seed=0):
+    """A round shrub built from overlapping leaf clusters, each lit on its upper left over a
+    dark heart. With blooms (an AZALEAS palette) it is an azalea in flower: darker, glossier
+    leaves under clusters of blossom."""
     s = surface(16, 16)
-    for y in range(3, 15):
+    leaves = AZALEA_LEAF if blooms else BUSH
+    rng = random.Random(seed + 140)
+    ground_shadow(s, 10.5, 14.3, 6, 1.6)
+
+    def inside(x, y, slack=0.0):
+        return (x + .5 - 8) ** 2 / 6.6 ** 2 + (y + .5 - 8.6) ** 2 / 6 ** 2 <= 1 + slack and y <= 14
+
+    for y in range(1, 15):
         for x in range(1, 15):
-            d = (x - 7.5) ** 2 / 42 + (y - 9.5) ** 2 / 30
-            lump = noise(x // 2, y // 2, 140) * .3
-            if d <= 1 - lump * .6:
-                tone = 3.4 - (x + y - 16) * .14 + (noise(x // 2, y // 2, 141) - .5) * 1.3
-                s.set_at((x, y), ramp(LEAF, tone))
+            if inside(x, y):
+                s.set_at((x, y), ramp(leaves, 1.0 - (x - 8) / 7 * .5))
+    clusters = [(cx + (row % 2) * 2 + rng.uniform(-.5, .5), cy + rng.uniform(-.3, .3))
+                for row, cy in enumerate((3.4, 6.2, 9.0, 11.6))
+                for cx in (1.5, 5.5, 9.5, 13.5) if inside(round(cx), round(cy), .1)]
+    for cx, cy in clusters:
+        base = 3.0 - (cx - 8) / 7 * 1.0 - (cy - 4) / 8 * .8 + rng.uniform(-.25, .25)
+        for j, row in enumerate(("..LL..", ".LLMM.", "LMMMMD", "MMMMDD", ".MDDD.")):
+            for i, ch in enumerate(row):
+                x, y = round(cx) + i - 3, round(cy) + j - 2
+                if ch != "." and inside(x, y, .3):
+                    put(s, x, y, ramp(leaves, base + {"L": 1.3, "M": 0, "D": -1.3}[ch]))
+    if blooms:
+        # Trusses of blossom, five or so, spread over the lit front of the shrub.
+        spots = []
+        for _ in range(60):
+            x, y = rng.randint(3, 12), rng.randint(3, 11)
+            if inside(x, y, -.2) and all(abs(x - a) > 3 or abs(y - b) > 2 for a, b in spots):
+                spots.append((x, y))
+            if len(spots) == 5:
+                break
+        for x, y in spots:
+            lit = x < 9
+            for j, row in enumerate((".LM.", "LGMD", ".MD.")):
+                for i, ch in enumerate(row):
+                    if ch != ".":
+                        tone = {"G": 3 if lit else 2, "L": 2, "M": 1, "D": 0}[ch]
+                        put(s, x + i - 1, y + j - 1, blooms[tone])
     soft_outline(s)
     return s
 
 
-def _clump(s, x, y, pal, tone):
-    """A hand-placed leaf cluster: lit crown, full body, dark underside."""
-    for j, row in enumerate((".LL.", "LMMM", "MMMD", ".DD.")):
-        for i, ch in enumerate(row):
-            if ch != ".":
-                put(s, x + i - 2, y + j - 2, ramp(pal, tone + {"L": 1.1, "M": 0, "D": -1.2}[ch]))
+def pine(tiers, greens, seed=0):
+    """Windehus's one tree, drawn whole so its boughs run into each other with no seam: a
+    cone of drooping bough layers, each lit on its upper left, with ragged needle tips along
+    its hem and a dark band where the layer above overhangs it. Below the lowest boughs the
+    trunk shows, flaring into roots that grip the ground, and the tree's shade falls to the
+    lower right. tiers is the height in tiles; the sprite's bottom edge is the ground line
+    under the trunk."""
+    W, H = 32, tiers * 16
+    s = surface(W, H)
+    rng = random.Random(tiers * 101 + seed)
+    cx = 16.0
+    ground = H - 3                  # where the roots meet the earth
+    skirt = ground - 7              # the lowest boughs' hem, over the trunk
+    apex = 1
+    widest = 13.0 if tiers <= 3 else 14.2
+    layers = tiers + 1
+    ground_shadow(s, cx + 5, ground + .6, 11, 2.2)
+    # The trunk, lit on the left, and its roots.
+    for y in range(skirt - 4, ground + 1):
+        for x, tone in ((15, 3.4), (16, 2.4), (17, 1.4)):
+            put(s, x, y, ramp(BARK, tone - (noise(x, y // 2, seed + 7) > .78) * .9))
+    for x, y, tone in ((14, ground - 1, 3.0), (18, ground - 1, 1.2), (13, ground, 2.6), (14, ground, 3.2),
+                       (18, ground, 1.6), (19, ground, 1.0), (12, ground + 1, 2.0), (20, ground + 1, .8)):
+        put(s, x, y, ramp(BARK, tone))
+    for x, y, tone in ((11, ground, 1), (10, ground + 1, 2), (21, ground, 1), (22, ground + 1, 0), (12, ground - 1, 2)):
+        put(s, x, y, TUFT[tone])
 
+    def cone(y):
+        return widest * max(0.0, (y - apex) / (skirt - apex)) ** .92
 
-def _skirt(s, cx, ground, half, seed):
-    """An irregular mound of brush around a trunk's foot, with its shade to the right."""
-    rng = random.Random(seed)
-    ground_shadow(s, cx + 6, ground - 1.5, half + 2, 2.6)
-    spots = []
-    for _ in range(24):
-        dx = rng.uniform(-half, half)
-        spots.append((cx + dx, ground - 1 - rng.uniform(0, 7) * (1 - abs(dx) / (half + 1))))
-    spots.sort(key=lambda p: p[1])
-    for x, y in spots:
-        tone = 3.4 - (x - cx) / half * .8 + rng.uniform(-.4, .4)
-        _clump(s, round(x), round(y), LEAF, tone)
+    hems = [apex + (skirt - apex) * ((i + 1) / layers) ** .88 for i in range(layers)]
+    shapes = []
+    for i, hem in enumerate(hems):
+        top = apex if i == 0 else hems[i - 1] - 4
+        half_hem = cone(hem) + 2.0 + rng.uniform(-.4, .4)
+        half_top = 0 if i == 0 else cone(top) * .4
+        shapes.append((top, hem, half_top, half_hem, rng.uniform(-.5, .5)))
 
+    def hem_at(shape, dx):
+        top, hem, _, half_hem, _ = shape
+        return hem - 2.0 + 3.8 * min(1.0, abs(dx) / half_hem) ** 2
 
-def tree_segment(part, seed=0):
-    """A broadleaf tree in 16 px tiers that stack: top, mid (repeat for height), bottom
-    (the shaded underside where the trunk shows) and base (trunk, roots, brush, shade).
-    Crown tiers hang 4 px over the tier below, so a stack reads as one canopy."""
-    s = surface(32, 20)
-    rng = random.Random(sum(map(ord, part)) * 31 + seed)
-    cx = 16
-    if part == "base":
-        for y in range(0, 15):
-            for x in range(13, 19):
-                bark = (x - 13) / 5
-                tone = 3.6 - bark * 2.2 - ((y + x * 3) % 7 == 0) * .8
-                s.set_at((x, y), ramp(WOOD, tone))
-        for x, y in ((11, 14), (12, 13), (19, 13), (20, 14), (12, 14), (19, 14)):
-            s.set_at((x, y), WOOD[2])
-        _skirt(s, cx, 16, 13, seed)
-        soft_outline(s)
-        return s
-    # A round crown: a dome on top, a swell through each middle tier, a rounded underside.
-    profile = {"top": lambda r: 14.5 * max(0, 1 - ((15 - r) / 15) ** 2) ** .5,
-               "mid": lambda r: 13 + 1.5 * sin(pi * r / 15),
-               "bottom": lambda r: 3 + 10 * max(0, 1 - (r / 16) ** 2) ** .5}[part]
-    rows = range(1, 16) if part == "top" else range(-1, 15)
-    if part == "bottom":
-        for y in range(9, 18):
-            for x in range(14, 18):
-                s.set_at((x, y), ramp(WOOD, 2.6 - (x - 14) * .5))
-    for y in rows:
-        half = profile(max(0, y))
-        for _ in range(4):
-            x = cx + rng.uniform(-half, half)
-            lean = (x - cx) / half
-            tone = 3.3 - lean * .9 - (part == "bottom") * (y / 16) * 1.6 + rng.uniform(-.3, .3)
-            _clump(s, round(x), y + 2, LEAF, tone)
-    soft_outline(s)
-    return s
+    def half_at(shape, y):
+        top, hem, half_top, half_hem, lean = shape
+        t = max(0.0, min(1.0, (y - top) / max(1.0, hem - top)))
+        return half_top + (half_hem - half_top) * t ** .9
 
-
-def pine_segment(part, seed=0):
-    """A pine in 16 px tiers that stack: top, mid-0/1/2 (narrow to wide, so a tall pine
-    tapers), and base (the widest tier, trunk, brush and shade). Each tier is three drooping
-    sprays of needles, lit on the left; sprays hang over the tier below."""
-    s = surface(32, 20)
-    cx = 16
-    widths = {"top": (1, 8), "mid-0": (6, 11), "mid-1": (8, 13), "mid-2": (10, 14.5), "base": (12, 15)}[part]
-    if part == "base":
-        for y in range(9, 15):
-            for x in range(15, 18):
-                s.set_at((x, y), ramp(WOOD, 3.0 - (x - 15)))
-        _skirt(s, cx, 16, 13, seed + 3)
-    sprays = 2 if part == "base" else 3
-    for i in range(sprays):
-        y0 = i * 5 + (1 if part == "top" else 0)
-        y1 = y0 + 7
-        w0 = widths[0] + (widths[1] - widths[0]) * i / 3
-        w1 = widths[0] + (widths[1] - widths[0]) * (i + 1) / 3
-        w0 = w0 * .7
-        for y in range(y0, y1):
-            t = (y - y0) / (y1 - y0 - 1)
-            half = w0 + (w1 - w0) * t
-            for x in range(32):
-                dx = x + .5 - cx
+    # The lowest layer first, so every layer's hem hangs over the one beneath it.
+    for i in reversed(range(layers)):
+        shape = shapes[i]
+        top, hem, _, half_hem, lean = shape
+        above = shapes[i - 1] if i else None
+        for y in range(int(top), int(hem) + 3):
+            half = half_at(shape, y + .5)
+            # A ragged edge: needles poke a pixel out here and there.
+            half += (noise(y, i, seed + 11) > .6) * .9 - (noise(y, i, seed + 12) > .8) * .8
+            for x in range(W):
+                dx = x + .5 - cx + lean * (y - top) / max(1.0, hem - top)
                 if abs(dx) > half:
                     continue
-                if y == y1 - 1 and (x % 3 == 1 or abs(dx) < half - 3):
+                edge = hem_at(shape, dx)
+                tip = y > edge and y <= edge + 1.6 and (x + i) % 2 == 0 and noise(x, y, seed + 13) > .35
+                if y > edge and not tip:
                     continue
-                tone = 3.1 - dx / max(half, 1) * 1.2 - t * 1.1 + ((x + y * 2) % 4 == 0) * .6
-                if y == y0 and abs(dx) < half:
-                    tone += .5
-                s.set_at((x, y), ramp(PINE, tone))
-    soft_outline(s)
+                t = max(0.0, min(1.0, (y - top) / max(1.0, edge - top)))
+                side = dx / max(half, 1.0)
+                # Each layer catches the light across its upper middle and falls off to its hem.
+                tone = 2.5 - side * 1.3 + (1.3 - abs(t - .38) * 2.6 if i else 1.0 - t * .8)
+                # Needle sprays droop down and outward, two pixels out for every one down.
+                spray = int(y - abs(dx) * .5) % 3
+                tone += (-.6, .3, 0)[spray] if side < .2 else (-.6, 0, 0)[spray]
+                tone += (noise(x // 2, y // 2, seed + i) - .5) * .6
+                if tip or y > edge - 1:
+                    tone += .7 if side < 0 else -.1
+                # The layer above overhangs this one and shades its top.
+                if above is not None and y <= hem_at(above, dx) + 2.6:
+                    tone = min(tone, 1.6 - side * .6) - .4
+                s.set_at((x, y), ramp(greens, tone))
+    put(s, 15, 0, greens[3])
+    soft_outline(s, mix(INK, greens[0], .35), .5)
     return s
 
 
@@ -1329,42 +1464,130 @@ def stump():
 
 
 def haystack():
+    """A round bale lying end on to the street, seen from above the way the whole town is:
+    the rolled top runs back from its round face, two twine bands go over it, and loose straw
+    lies at its foot. Symmetrical; only the light (from the top left) differs side to side."""
     s = surface(32, 32)
-    ground_shadow(s, 21, 29, 13, 2.5)
-    for y in range(6, 30):
-        for x in range(2, 30):
-            d = (x - 16) ** 2 / 196 + (y - 22) ** 2 / 256
-            if d <= 1 and y <= 29:
-                tone = 3.4 - (x - 10) * .06 - (y - 14) * .05 + (noise(x, y // 2, 170) - .5) * 1.4
+    cx, front, rx, ry, depth = 16.0, 20.4, 12.2, 9.8, 8.0
+    ground_shadow(s, cx + 3, front + ry - .4, 13, 2.4)
+    for y in range(32):
+        for x in range(32):
+            dx = x + .5 - cx
+            if abs(dx) > rx:
+                continue
+            arc = ry * sqrt(1 - (dx / rx) ** 2)
+            # k: how far back along the roll this pixel's ring lies (0 = the front face's rim).
+            k = front - arc - (y + .5)
+            in_face = ((y + .5 - front) / ry) ** 2 + (dx / rx) ** 2 <= 1
+            if not in_face and not 0 <= k <= depth:
+                continue
+            side = dx / rx
+            if in_face:
+                # The round face: a step darker than the top, lit at its upper left, the
+                # straw curling over at its rim.
+                rr = sqrt((dx / rx) ** 2 + ((y + .5 - front) / ry) ** 2)
+                tone = 2.3 - side * .7 - (y + .5 - front) / ry * .6 - max(0.0, rr - .8) * 2.5
+                if rr > .8 and y + .5 < front and side < .3:
+                    tone += .9
+                tone += (noise(x, y, 171) - .5) * .8 + (noise(x // 2, y // 3, 172) - .5) * .5
+            else:
+                # The rolled top: straw wound round the bale, brightest along its crown.
+                roll = abs(side) ** 2.2
+                tone = 4.2 - roll * 2.0 - side * .5 - k / depth * .4
+                tone += (noise(int(k * 1.5), x // 2, 173) - .5) * .8
+                if (x + int(k * 2)) % 5 == 0:
+                    tone -= .5
+                for band in (2.0, 5.6):
+                    if abs(k - band) < .75:
+                        tone = None
+                        s.set_at((x, y), ramp(TWINE, 3.0 - roll * 2.2 - side * .6 - (k > band) * .9))
+                        break
+            if tone is not None:
                 s.set_at((x, y), ramp(STRAW, tone))
+    # Loose straw at the foot.
+    for x, y, tone in ((4, 27, 3), (5, 28, 2), (3, 29, 3), (27, 27, 1), (28, 28, 2), (26, 29, 1), (9, 30, 2), (23, 30, 1)):
+        put(s, x, y, STRAW[tone])
     soft_outline(s)
     return s
 
 
-def market_stall(stripe):
+# Market goods, each a little 3 px sprite: rows of (dx, dy, palette index) with 0 the darkest.
+GOODS = {
+    "apple": (((160, 30, 34), (204, 52, 46), (236, 104, 84)), ((0, 0, 1), (1, 0, 2), (2, 0, 1), (0, 1, 0), (1, 1, 1), (2, 1, 0))),
+    "pear": (((120, 120, 30), (174, 170, 54), (220, 214, 110)), ((1, -1, 0), (0, 0, 2), (1, 0, 1), (2, 0, 1), (0, 1, 1), (1, 1, 0), (2, 1, 0))),
+    "cabbage": (((44, 84, 34), (82, 132, 50), (150, 190, 92)), ((0, 0, 1), (1, 0, 2), (2, 0, 1), (0, 1, 0), (1, 1, 1), (2, 1, 0))),
+    "carrot": (((168, 72, 24), (218, 112, 40), (246, 162, 84)), ((0, 0, 2), (1, 0, 1), (2, 0, 1), (1, 1, 0), (2, 1, 0))),
+    "loaf": (((126, 76, 34), (178, 118, 56), (222, 172, 102)), ((0, 0, 1), (1, 0, 2), (2, 0, 2), (3, 0, 1), (0, 1, 0), (1, 1, 1), (2, 1, 1), (3, 1, 0))),
+    "cheese": (((170, 128, 36), (220, 178, 62), (246, 220, 128)), ((0, 0, 2), (1, 0, 2), (2, 0, 1), (0, 1, 1), (1, 1, 1), (2, 1, 0))),
+    "jar": (((40, 70, 76), (70, 118, 120), (150, 196, 190)), ((1, -1, 0), (0, 0, 2), (1, 0, 1), (2, 0, 1), (0, 1, 1), (1, 1, 1), (2, 1, 0))),
+}
+STALLS = {
+    # Awning stripe ramp (dark to light), then what the stall sells.
+    "red": (((104, 28, 30), (146, 42, 40), (184, 60, 50), (214, 90, 70), (236, 128, 102)),
+            ("apple", "pear", "cabbage", "carrot")),
+    "blue": (((34, 44, 86), (50, 66, 120), (68, 92, 152), (96, 124, 182), (136, 160, 206)),
+             ("loaf", "cheese", "jar", "loaf")),
+}
+CANVAS = ((132, 120, 96), (172, 160, 132), (204, 194, 166), (230, 222, 198), (246, 242, 224))
+
+
+def market_stall(kind):
+    """A market stall under a striped awning. The awning's sloped top is lit and each stripe
+    rounds like a fold of canvas; its scalloped valance hangs in shade, and so does the back
+    of the stall. Baskets of the stall's goods sit on a plank counter with a lit top."""
+    stripe, goods = STALLS[kind]
     s = surface(32, 32)
-    ground_shadow(s, 20, 30, 13, 2)
-    for px in (3, 27):
-        for y in range(8, 30):
-            s.set_at((px, y), WOOD[4])
-            s.set_at((px + 1, y), WOOD[2])
-    for y in range(18, 30):
-        for x in range(2, 30):
-            s.set_at((x, y), ramp(WOOD, (4.4 if y == 18 else 3.0 if y < 21 else 2.2) - (x % 6 == 0) * .6))
-    goods = (BLOOMS[0], BLOOMS[1], (120, 150, 60), STRAW[3])
-    for i, x in enumerate(range(5, 27, 4)):
-        for dx in range(3):
-            for dy in range(2):
-                s.set_at((x + dx, 16 + dy), goods[i % 4] if dy == 0 else mix(goods[i % 4], INK, .3))
-    for y in range(2, 12):
+    ground_shadow(s, 19, 30.2, 14, 2)
+    # Shade under the awning at the back of the stall, a hanging string of goods, the posts.
+    for y in range(11, 18):
+        for x in range(3, 29):
+            s.set_at((x, y), mix(WOOD[1], INK, .35 - (y - 11) * .03))
+    for x in (8, 23):
+        for y in range(11, 15):
+            s.set_at((x, y), STRAW[1] if y < 13 else GOODS[goods[0]][0][1 + (y == 13)])
+    for px in (2, 28):
+        for y in range(9, 30):
+            s.set_at((px, y), WOOD[4] if y > 11 else WOOD[2])
+            s.set_at((px + 1, y), WOOD[2] if y > 11 else WOOD[1])
+    # The counter: a lit top edge, then a front of upright planks.
+    for x in range(3, 29):
+        s.set_at((x, 18), WOOD[5] if x < 16 else WOOD[4])
+        s.set_at((x, 19), WOOD[3])
+        for y in range(20, 30):
+            plank = (x - 3) % 5
+            tone = 3.0 - (plank == 4) * 1.4 + (plank == 0) * .5 - (y - 20) * .08 - (x > 20) * .4
+            if y == 29:
+                tone -= 1.0
+            s.set_at((x, y), ramp(WOOD, tone + (noise(x // 5, y // 3, 196) - .5) * .5))
+    # Baskets along the counter, heaped with goods.
+    for i, bx in enumerate((4, 10, 16, 22)):
+        for x in range(bx, bx + 6):
+            s.set_at((x, 17), ramp(STRAW, 2.6 - (x - bx) * .25 - (x % 2) * .5))
+            s.set_at((x, 18), ramp(STRAW, 1.8 - (x - bx) * .2 - (x % 2) * .5))
+        palette, pixels = GOODS[goods[i]]
+        for gx, gy in ((bx, 15), (bx + 3, 15), (bx + 1, 14)) if goods[i] != "loaf" else ((bx + 1, 15), (bx, 14)):
+            for dx, dy, tone in pixels:
+                put(s, gx + dx, gy + dy, palette[tone])
+    # The awning: a sloped top in rounded stripes of canvas and colour, lit toward the back.
+    for y in range(2, 10):
         for x in range(1, 31):
-            band = (x // 4) % 2
-            color = CLOTH[2] if band else stripe
-            s.set_at((x, y), mix(color, INK, .28) if y > 8 else color)
-        if y == 11:
-            for x in range(1, 31):
-                if x % 4 in (1, 2):
-                    s.set_at((x, y + 1), mix(CLOTH[2] if (x // 4) % 2 else stripe, INK, .35))
+            k = (x - 1) % 4
+            colored = ((x - 1) // 4) % 2 == 0
+            ramp_ = stripe if colored else CANVAS
+            tone = 3.0 + (.8, .3, -.2, -.8)[k] - (y - 2) * .12 - (x > 24) * .3
+            if y == 2:
+                tone += .6
+            s.set_at((x, y), ramp(ramp_, tone))
+    # The valance: one scallop per stripe, hanging in the awning's own shade.
+    for x in range(1, 31):
+        k = (x - 1) % 4
+        ramp_ = stripe if ((x - 1) // 4) % 2 == 0 else CANVAS
+        for y in range(10, 13):
+            if y == 12 and k in (0, 3):
+                continue
+            tone = 1.9 + (k in (1, 2)) * .4 - (y == 12) * .6 - (x > 24) * .3
+            s.set_at((x, y), ramp(ramp_, tone))
+        s.set_at((x, 10), ramp(ramp_, 3.6 - (x > 24) * .4))
     soft_outline(s)
     return s
 
@@ -1978,8 +2201,6 @@ BUILDINGS = {
     "bakery": dict(width=4, roof=ROOF_RED, doors=(1,), windows=(0, 3), upper=(0, 2), boxes=(2,), chimney=3,
                    sign=(2, "loaf"), seed=7),
 }
-PINE_PARTS = ("top", "mid-0", "mid-1", "mid-2", "base")
-TREE_PARTS = ("top", "mid", "bottom", "base")
 
 
 def pieces():
@@ -2000,22 +2221,25 @@ def pieces():
     out["fence-v"], out["fence-gate"] = fence_v(), fence_gate()
     for name, spec in BUILDINGS.items():
         stooped = name in windehus.STOOPS
-        if stooped:
-            assert spec["doors"] == (windehus.STOOPS[name],), name
+        steps = windehus.STOOPS if stooped else windehus.DOORSTEPS
+        assert spec["doors"] == (steps[name],), name
         out[name], doors[name] = building(stoop=stooped, **spec)
     out["stoop"] = stoop()
     if not FLAG_PLAN:
         flag_texture()
     for i, (name, x, y, tw, th, count) in enumerate(windehus.SQUARE_GAPS):
         out[name] = square_gap(x % 4, y % 4, tw, th, count, 300 + i)
-    for part in PINE_PARTS:
-        out[f"pine-{part}"] = pine_segment(part)
-    for part in TREE_PARTS:
-        out[f"tree-{part}"] = tree_segment(part)
-    out.update({"barrel": barrel(), "crate": crate(), "sacks": sacks(), "well": well(), "lamp": lamp_post(),
-                "bench": bench(), "bush": bush(), "stump": stump(),
-                "haystack": haystack(), "stall-red": market_stall(CLOTH[1]),
-                "stall-blue": market_stall((70, 96, 150)), "signpost": signpost(),
+    for name in windehus.pines():
+        _, tiers, greens = name.split("-")
+        out[name] = pine(int(tiers), PINES[greens], seed=int(tiers) + len(greens))
+    for frame in range(len(LAMP_FLAMES)):
+        out[f"lamp-{frame}"] = lamp_post(frame)
+    out["doorstep"] = doorstep()
+    out.update({"barrel": barrel(), "crate": crate(), "sacks": sacks(), "well": well(),
+                "bench": bench(), "bush": bush(seed=3), "azalea-0": bush(AZALEAS[0], 2),
+                "azalea-1": bush(AZALEAS[1], 1), "stump": stump(),
+                "haystack": haystack(), "stall-red": market_stall("red"),
+                "stall-blue": market_stall("blue"), "signpost": signpost(),
                 "town-stone": town_stone("windehus"), "windmill": windmill()})
     for frame in range(SAIL_FRAMES):
         out[f"windmill-sails-{frame}"] = windmill_sails(frame)

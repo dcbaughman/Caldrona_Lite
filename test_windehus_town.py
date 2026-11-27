@@ -103,19 +103,25 @@ class WindehusTownTests(unittest.TestCase):
         self.assertGreater(order.index(a.interaction_hint), order.index(house))
         self.assertGreater(order.index(a.location_label), order.index(house))
 
-    def test_the_sails_turn_and_the_sheep_birds_breathe(self):
+    def test_the_sails_turn_the_sheep_birds_breathe_and_the_lamps_flicker(self):
         a = self.a
         self.walk_in()
         town = a.windehus
         self.assertIsNotNone(town.sails)
         self.assertEqual(len(town.birds), 3)
-        seen_sails, seen_birds = set(), set()
-        for tick in range(40):
-            town.animate(tick * .1)
+        self.assertEqual(len(town.lamps), 4)
+        seen_sails, seen_birds, seen_flames = set(), set(), set()
+        for tick in range(120):
+            town.animate(tick * .033)
             seen_sails.add(a.canvas.itemcget(town.sails, "image"))
             seen_birds.add(a.canvas.itemcget(town.birds[0][0], "image"))
+            seen_flames.add(a.canvas.itemcget(town.lamps[0][0], "image"))
         self.assertEqual(len(seen_sails), 4)
         self.assertEqual(len(seen_birds), 3)
+        self.assertEqual(len(seen_flames), 6)
+        # Neighbouring lamps don't flicker in step.
+        town.animate(0)
+        self.assertNotEqual(town.lamps[0][2], town.lamps[1][2])
 
     def test_town_tiles_never_answer_for_the_fields(self):
         a = self.a

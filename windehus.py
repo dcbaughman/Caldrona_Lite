@@ -19,10 +19,15 @@ PAVINGS = ("dirt", "cobble", "brick", "flag")   # later pavings lie over earlier
 CODES = {"dirt": "d", "cobble": "c", "brick": "b", "flag": "f"}   # the letters used in the ground map
 WALLISH = ("W", "S")
 BUILDINGS = ("inn", "house-red", "house-slate", "cottage", "shop-arms", "shop-goods", "bakery")
-PINE_MIDS = ("mid-0", "mid-1", "mid-2")
 # Houses raised on a cellar plinth, with the tile column of their door. A stoop of steps
 # stands out from the door onto the row below the house.
 STOOPS = {"cottage": 1, "house-slate": 0, "shop-goods": 2}
+# Houses on the street, with the tile column of their door: the door sits on the footing,
+# 5 px up, with a two-step doorstep out onto the row below.
+DOORSTEPS = {"inn": 3, "house-red": 2, "shop-arms": 1, "bakery": 1}
+# The town's one tree, in three greens. Most pines are the deep green; now and then one is
+# bluer or mossier.
+PINE_GREENS = ("deep", "deep", "fir", "deep", "moss")
 # Slabs lifted from the market square: (decal, left tile, top tile, width, height in tiles,
 # slabs gone). The decal is drawn for the paving texture under those exact tiles.
 SQUARE_GAPS = (("square-gap-0", 15, 18, 3, 2, 2), ("square-gap-1", 24, 22, 3, 2, 3))
@@ -87,28 +92,28 @@ def _layout():
 GROUND, STRUCT = _layout()
 
 # Objects: (sprite, left tile, bottom row[, tiers]). Sprites narrower than their tiles are
-# centred. Trees ("pine" / "tree") are stacked from 16 px tiers; the fourth value is their
-# height in tiles.
+# centred. A pine is two tiles wide; the fourth value is its height in tiles. A lamp names
+# its first flame frame; the renderer flickers it through the rest.
 OBJECTS = (
     # Ridge: a wood along the top, the houses on the lane, the mill at the east end.
     ("pine", 0, 3, 4), ("pine", 2, 6, 5), ("pine", 13, 3, 4), ("pine", 20, 4, 4), ("pine", 24, 3, 4),
-    ("tree", 7, 4, 4), ("bush", 18, 4), ("flowers-2", 11, 5),
+    ("pine", 7, 4, 4), ("bush", 18, 4), ("flowers-2", 11, 5),
     ("windmill", 27, 11), ("cottage", 4, 11), ("house-slate", 9, 11), ("house-red", 15, 11),
-    ("haystack", 24, 11), ("pine", 0, 12, 4), ("pine", 1, 13, 3), ("pine", 22, 10, 5), ("tree", 36, 11, 4),
-    ("pine", 38, 8, 4), ("pine", 38, 13, 3), ("bush", 24, 13), ("bush", 2, 13), ("barrel", 8, 11), ("crate", 14, 11),
-    ("flowers-0", 21, 11), ("flowers-2", 25, 7), ("stump", 35, 13),
+    ("haystack", 24, 11), ("pine", 0, 12, 4), ("pine", 1, 13, 3), ("pine", 22, 10, 5), ("pine", 36, 11, 4),
+    ("pine", 38, 8, 4), ("pine", 38, 13, 3), ("azalea-0", 24, 13), ("bush", 2, 13), ("barrel", 8, 11),
+    ("crate", 14, 11), ("flowers-0", 21, 11), ("flowers-2", 25, 7), ("stump", 35, 13),
     # Inn square.
     ("inn", 2, 21), ("shop-arms", 30, 21), ("shop-goods", 34, 21), ("well", 19, 21),
-    ("stall-red", 13, 20), ("stall-blue", 24, 20), ("lamp", 11, 21), ("lamp", 28, 21), ("lamp", 11, 24),
-    ("lamp", 28, 24), ("bench", 15, 24), ("bench", 23, 24), ("barrel", 9, 21), ("barrel", 10, 21),
+    ("stall-red", 13, 20), ("stall-blue", 24, 20), ("lamp-0", 11, 21), ("lamp-0", 28, 21), ("lamp-0", 11, 24),
+    ("lamp-0", 28, 24), ("bench", 15, 24), ("bench", 23, 24), ("barrel", 9, 21), ("barrel", 10, 21),
     ("crate", 29, 21), ("sacks", 15, 20), ("planter-0", 31, 23), ("planter-1", 32, 23), ("planter-2", 33, 23),
-    ("planter-0", 34, 23), ("tree", 0, 25, 3), ("bush", 38, 25), ("flowers-1", 1, 17), ("flowers-0", 39, 18),
+    ("planter-0", 34, 23), ("pine", 0, 25, 3), ("azalea-1", 38, 25), ("flowers-1", 1, 17), ("flowers-0", 39, 18),
     # Road field.
     ("bakery", 3, 34), ("town-stone", 23, 32), ("signpost", 16, 32), ("haystack", 30, 33), ("stump", 35, 33),
     # Sheep-birds in the hay pen: one at the hay, two idling. Each is a 32 x 32 idle frame;
     # the renderer cycles frames 0-1-2 of the same facing.
     ("sheepbird-left-0", 32, 33), ("sheepbird-down-1", 28, 31), ("sheepbird-right-2", 34, 31),
-    ("tree", 12, 32, 4), ("pine", 0, 35, 4), ("pine", 38, 31, 4), ("bush", 24, 35), ("bush", 15, 35),
+    ("pine", 12, 32, 4), ("pine", 0, 35, 4), ("pine", 38, 31, 4), ("bush", 24, 35), ("azalea-0", 15, 35),
     ("flowers-2", 10, 32), ("flowers-1", 13, 31), ("barrel", 8, 34), ("sacks", 1, 34),
 )
 
@@ -177,13 +182,21 @@ def foot_shadow(x, y):
     return "shade-stair-foot" if structure_piece(x, y - 1).endswith(("-l", "-solo")) else None
 
 
-def tree_parts(kind, tiers):
-    """Tier sprites for a stacked tree, bottom first. A pine tapers: narrow tiers up top."""
-    if kind == "pine":
-        mids = tiers - 2
-        names = [PINE_MIDS[round(i * 2 / (mids - 1)) if mids > 1 else 1] for i in range(mids)]
-        return ["pine-base"] + [f"pine-{n}" for n in reversed(names)] + ["pine-top"]
-    return ["tree-base", "tree-bottom"] + ["tree-mid"] * (tiers - 3) + ["tree-top"]
+def pine_sprite(tx, bottom, tiers):
+    """The sprite for the pine standing at (tx, bottom): its height and its green."""
+    return f"pine-{tiers}-{PINE_GREENS[(tx * 7 + bottom * 3) % len(PINE_GREENS)]}"
+
+
+def pines():
+    """Every pine sprite the town uses."""
+    return sorted({pine_sprite(tx, bottom, rest[0]) for name, tx, bottom, *rest in OBJECTS if name == "pine"})
+
+
+def door_px(column, tiles):
+    """The x of a house's door inside its sprite, given the door's tile column and the house's
+    width in tiles. A door in an end column keeps two pixels in from the corner, so its frame
+    and lintel sit on the wall."""
+    return 16 * column + 3 + (2 if column == 0 else -2 if column == tiles - 1 else 0)
 
 
 def building_shade(sizes):
@@ -242,11 +255,8 @@ def things(sizes):
             if piece and STRUCT[y][x] not in WALLISH + ("<", ">"):
                 things.append(((y + 1) * TILE, x * TILE, [(piece, x * TILE, y * TILE)]))
     for name, tx, bottom, *rest in OBJECTS:
-        if name in ("pine", "tree"):
-            # Bottom tier first, so each tier's hanging tips lie over the one below.
-            steps = [(part, tx * TILE, (bottom - i) * TILE) for i, part in enumerate(tree_parts(name, rest[0]))]
-            things.append(((bottom + 1) * TILE, tx * TILE, steps))
-            continue
+        if name == "pine":
+            name = pine_sprite(tx, bottom, rest[0])
         w, h = sizes[name]
         span = -(-w // TILE) * TILE
         px = tx * TILE + (span - w) // 2
@@ -255,9 +265,14 @@ def things(sizes):
         if name == "windmill":
             steps.append((MILL_SAILS, px, py))
         things.append(((bottom + 1) * TILE, px, steps))
+        # A stoop stands out 12 px into the row below, a doorstep 5 px, so each sorts just
+        # after its house. Both line up under the door.
         if name in STOOPS:
-            # The stoop stands out 12 px into the row below, so it sorts just after the house.
-            things.append(((bottom + 1) * TILE + 12, px, [("stoop", (tx + STOOPS[name]) * TILE, (bottom + 1) * TILE - 12)]))
+            x = tx * TILE + door_px(STOOPS[name], w // TILE) - 3
+            things.append(((bottom + 1) * TILE + 12, px, [("stoop", x, (bottom + 1) * TILE - 12)]))
+        if name in DOORSTEPS:
+            x = tx * TILE + door_px(DOORSTEPS[name], w // TILE) - 3
+            things.append(((bottom + 1) * TILE + 5, px, [("doorstep", x, (bottom + 1) * TILE - 5)]))
     return sorted(things, key=lambda t: t[:2])
 
 
@@ -270,7 +285,7 @@ def blocked(sizes):
     """Tiles the party cannot stand on (see DEEP_PROPS for the rules)."""
     tiles = {(x, y) for y in range(HEIGHT) for x in range(WIDTH) if STRUCT[y][x] not in (None, "S")}
     for name, tx, bottom, *_ in OBJECTS:
-        if name in ("pine", "tree"):
+        if name == "pine":
             tiles |= {(tx, bottom), (tx + 1, bottom)}
             continue
         if name.startswith("flowers"):

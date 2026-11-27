@@ -19,10 +19,10 @@ class TownTilesetTests(unittest.TestCase):
             self.assertTrue((TOWN / f"ground-{paving}.png").exists(), paving)
         for name in ("wall-top-m-0", "wall-base-l-1", "wall-solo-r-2", "stairs-top-solo", "edge-l", "edge-r",
                      "wall-shadow", "fence-m", "fence-v", "fence-gate", "lowwall-m", "inn", "cottage", "well",
-                     "windmill", "windmill-sails-0", "windmill-sails-3", "town-stone", "lamp", "shade-strip",
-                     "shade-strip-top", "shade-strip-end", "shade-full", "shade-stair-foot", "stoop",
-                     "square-gap-0", "square-gap-1", "pine-top", "pine-mid-0", "pine-mid-2", "pine-base",
-                     "tree-top", "tree-mid", "tree-bottom", "tree-base"):
+                     "windmill", "windmill-sails-0", "windmill-sails-3", "town-stone", "shade-strip",
+                     "shade-strip-top", "shade-strip-end", "shade-full", "shade-stair-foot", "stoop", "doorstep",
+                     "square-gap-0", "square-gap-1", "bush", "azalea-0", "azalea-1", "haystack", "stall-red",
+                     "stall-blue", *w.pines(), *(f"lamp-{frame}" for frame in range(6))):
             self.assertIn(name, self.spots)
 
     def test_tiles_sit_on_the_16_px_grid(self):
@@ -33,10 +33,12 @@ class TownTilesetTests(unittest.TestCase):
         for name, entry in info.items():
             tw, th = entry["tiles"]
             self.assertEqual(self.sizes[name], (tw * 16, th * 16), name)
-        # Tree tiers are 16 px steps that stack, with 4 px of hanging tips below.
+        # A pine is drawn whole, two tiles wide and its height in tiles tall.
         for name in self.sizes:
-            if name.startswith(("pine-", "tree-")):
-                self.assertEqual(self.sizes[name], (32, 20), name)
+            if name.startswith("pine-"):
+                self.assertEqual(self.sizes[name], (32, int(name.split("-")[1]) * 16), name)
+        # The lamp's flame frames all share one size, so the flicker never shifts it.
+        self.assertEqual({self.sizes[f"lamp-{frame}"] for frame in range(6)}, {(16, 32)})
 
     def test_every_door_in_town_is_the_same_size_as_the_cave_gates(self):
         info = json.loads((TOWN / "buildings.json").read_text(encoding="utf-8"))
@@ -52,9 +54,17 @@ class TownTilesetTests(unittest.TestCase):
             self.assertEqual(rise, 12 if name in w.STOOPS else 5, name)
             self.assertEqual(info[name]["stoop"], name in w.STOOPS)
         self.assertGreaterEqual(len(w.STOOPS), 3)
-        for name, column in w.STOOPS.items():
+        # Every house has steps up to its door: a stoop on a plinth, else a doorstep.
+        self.assertEqual(set(w.STOOPS) | set(w.DOORSTEPS), set(w.BUILDINGS))
+        self.assertFalse(set(w.STOOPS) & set(w.DOORSTEPS))
+        for name, column in {**w.STOOPS, **w.DOORSTEPS}.items():
             x, y, dw, dh = info[name]["doors"][0]
             self.assertEqual((x + dw // 2) // 16, column, name)
+            self.assertEqual(x, w.door_px(column, info[name]["tiles"][0]), name)
+            # The door's frame and lintel (2 px either side) stay on the wall, which runs
+            # from x = 3 to 3 px short of the house's right edge.
+            self.assertGreaterEqual(x - 2, 3, name)
+            self.assertLessEqual(x + dw + 2, info[name]["tiles"][0] * 16 - 3, name)
 
     def test_the_mill_towers_over_its_door(self):
         info = json.loads((TOWN / "buildings.json").read_text(encoding="utf-8"))
@@ -80,17 +90,21 @@ class TownTilesetTests(unittest.TestCase):
         self.assertTrue(all(name == "shade-strip" for name, _, _ in inn[1:-1]))
         self.assertFalse(any(w.STRUCT[y][x] in w.WALLISH for _, x, y in shade))
 
-    def test_stoops_stand_out_from_the_raised_doors(self):
+    def test_steps_stand_out_under_every_door(self):
         ops = [op for op in w.draw_ops(self.sizes) if op[0] == "sprite"]
         for name, tx, bottom, *_ in w.OBJECTS:
-            if name not in w.STOOPS:
+            if name not in w.BUILDINGS:
                 continue
-            spot = ("sprite", "stoop", (tx + w.STOOPS[name]) * 16, (bottom + 1) * 16 - 12)
+            piece, rise, column = (("stoop", 12, w.STOOPS[name]) if name in w.STOOPS
+                                   else ("doorstep", 5, w.DOORSTEPS[name]))
+            # Both step pieces draw the door's span at x 3-12, so they line up under it.
+            x = tx * 16 + w.door_px(column, self.sizes[name][0] // 16) - 3
+            spot = ("sprite", piece, x, (bottom + 1) * 16 - rise)
             self.assertIn(spot, ops, name)
             house = next(i for i, op in enumerate(ops) if op[1] == name)
             self.assertGreater(ops.index(spot), house)
             # The steps come down onto open ground, not into a wall.
-            self.assertNotIn(w.STRUCT[bottom + 1][tx + w.STOOPS[name]], w.WALLISH)
+            self.assertNotIn(w.STRUCT[bottom + 1][tx + column], w.WALLISH)
 
     def test_lifted_slabs_lie_on_whole_square_tiles(self):
         ops = w.draw_ops(self.sizes)
@@ -122,9 +136,20 @@ class TownTilesetTests(unittest.TestCase):
                     self.assertIsNone(w.STRUCT[ty][tx], (name, tx, ty))
                     self.assertTrue(27 <= tx <= 36 and 30 <= ty <= 33, (name, tx, ty))
 
-    def test_trees_stack_from_their_tiers(self):
-        self.assertEqual(w.tree_parts("pine", 4), ["pine-base", "pine-mid-2", "pine-mid-0", "pine-top"])
-        self.assertEqual(w.tree_parts("tree", 4), ["tree-base", "tree-bottom", "tree-mid", "tree-top"])
+    def test_the_town_has_one_tree_in_a_few_greens(self):
+        names = [name for name, *_ in w.OBJECTS]
+        self.assertNotIn("tree", names)
+        greens = [w.pine_sprite(tx, bottom, rest[0]).split("-")[2]
+                  for name, tx, bottom, *rest in w.OBJECTS if name == "pine"]
+        self.assertGreaterEqual(len(set(greens)), 3)
+        # Mostly the deep green, with the odd bluer or mossier pine.
+        self.assertGreater(greens.count("deep"), len(greens) / 2)
+        # Each pine is one sprite standing on its tile, its trunk between its two tiles.
+        ops = w.draw_ops(self.sizes)
+        for name, tx, bottom, *rest in w.OBJECTS:
+            if name == "pine":
+                sprite = w.pine_sprite(tx, bottom, rest[0])
+                self.assertIn(("sprite", sprite, tx * 16, (bottom + 1 - rest[0]) * 16), ops)
 
     def test_the_test_town_draws_only_known_pieces_inside_the_map(self):
         ops = w.draw_ops(self.sizes)
@@ -140,7 +165,7 @@ class TownTilesetTests(unittest.TestCase):
                 sw, sh = self.sizes[name]
                 self.assertGreaterEqual(px, 0)
                 self.assertLessEqual(px + sw, w.WIDTH * 16)
-                self.assertLessEqual(py + sh, w.HEIGHT * 16 + (4 if name.startswith(("pine-", "tree-")) else 0))
+                self.assertLessEqual(py + sh, w.HEIGHT * 16)
 
     def test_paving_edges_reach_into_neighbouring_grass(self):
         # A cobbled street tile is fully paved; the grass beside it gets a ragged partial edge.
@@ -200,12 +225,13 @@ class TownWalkTests(unittest.TestCase):
                 houses |= {(x, y) for y in range(bottom - th + 1, bottom + 1) for x in range(tx, tx + tw)}
         self.assertTrue(houses.isdisjoint(self.floor))
         for name, tx, bottom, *_ in w.OBJECTS:
-            if name in ("pine", "tree"):
+            if name == "pine":
                 self.assertFalse({(tx, bottom), (tx + 1, bottom)} & self.floor, (name, tx, bottom))
             elif name.startswith("flowers") and (tx, bottom) not in houses:
                 self.assertTrue((tx, bottom) in self.floor, (name, tx, bottom))
-            if name in w.STOOPS:
-                self.assertTrue((tx + w.STOOPS[name], bottom + 1) in self.floor, name)
+            steps = {**w.STOOPS, **w.DOORSTEPS}
+            if name in steps:
+                self.assertTrue((tx + steps[name], bottom + 1) in self.floor, name)
         # A tree's canopy hangs over open ground the party can walk behind.
         self.assertTrue((12, 31) in self.floor and (12, 30) in self.floor)
         # The mill stands on its tower and the gear at its foot; the lane before it is open.

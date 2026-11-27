@@ -67,18 +67,18 @@ How edges work:
   - a jettied beam with joist ends and a band of shade under the overhang;
   - a close-studded half-timbered upper floor with braces;
   - a tiled roof (red clay or blue slate) with cross gables and a chimney.
-- **Doors:** every door in town, the windmill's included, is the same 10 × 20 px opening as the cave gates. A door stands either on the 5 px footing or up a stoop, so doors line up across a street at one of two heights.
+- **Doors:** every door in town, the windmill's included, is the same 10 × 20 px opening as the cave gates. A door stands either on the 5 px footing or up a stoop, so doors line up across a street at one of two heights. A door in a house's end column keeps 2 px in from the corner (`windehus.door_px()`), so its frame and lintel sit on the wall.
+- **Doorsteps:** the houses in `windehus.DOORSTEPS` stand on the street. The `doorstep` piece (16 × 11) is two low stone steps up to the 5 px sill, standing 5 px out onto the row below the house.
 - **Stoops:** the houses in `windehus.STOOPS` stand on a cellar plinth (a lit coping over big dressed blocks, with barred cellar vents), so their door sits 12 px up. The `stoop` piece (20 × 24) is four 3 px steps between stone cheeks. It stands out from the door 12 px onto the row below the house, its west cheek shades the steps, and it casts a little shade east.
 - `buildings.json` lists each building's size in tiles, its door rectangles, and whether it has a stoop.
 - The current set: `inn` (7 wide), `house-red`, `house-slate`, `cottage`, `shop-arms`, `shop-goods` and `bakery`.
 - The `building()` function makes new ones. It takes a width, a roof palette, gables, doors, ground and upper windows, flower boxes, a chimney, a sign icon (`bed`, `mug`, `sword`, `shield`, `flask` or `loaf`) and a ground-floor style.
 
 **Trees**
-- Trees are built from 16 px tiers that stack, 1990s style, so one set of parts makes trees of any height.
-- **Pines:** `pine-top`, `pine-mid-0/1/2` (narrow to wide, so tall pines taper) and `pine-base` (the widest tier and the trunk).
-- **Broadleaf trees:** `tree-top`, `tree-mid` (repeat it to add height), `tree-bottom` (the shaded underside where the trunk shows) and `tree-base`.
-- Each tier sprite is 32 × 20. The extra 4 px are the hanging tips, which lie over the tier below. Draw the bottom tier first.
-- Both bases have an irregular mound of brush around the foot of the trunk, with its shade falling to the right.
+- Windehus has one tree, the pine: `pine-<tiers>-<green>`, 32 px wide and its height in tiles tall (3, 4 or 5).
+- Each pine is drawn whole, so its boughs run into each other with no seam. It is a cone of drooping bough layers. Each layer is lit across its upper left, has ragged needle tips along its hem, and sits in a dark-green band where the layer above overhangs it.
+- Below the lowest boughs the trunk shows, flaring into roots, with the tree's shade falling to the lower right. The sprite's bottom edge is the ground line.
+- Three greens: `deep` (most of the town's pines), `fir` (bluer) and `moss` (warmer). `windehus.pine_sprite()` picks each pine's green from where it stands, and the script draws only the pines the town uses.
 
 **Shade**
 - `shade-strip`, `shade-strip-top`, `shade-strip-end` and `shade-full` are flat, crisp, cool shade tiles.
@@ -106,7 +106,12 @@ How edges work:
   - Three of them idle in the hay pen: one at the hay bale, two by the fence.
 
 **Props**
-- `barrel`, `crate`, `sacks`, `well`, `lamp`, `bench`, `planter-0..2`, `flowers-0..2`, `bush`, `stump`, `haystack`, `stall-red`, `stall-blue`, `signpost`.
+- `barrel`, `crate`, `sacks`, `bench`, `planter-0..2`, `flowers-0..2`, `stump`, `signpost`.
+- `bush`: a round shrub of overlapping leaf clusters, a fresher green than the meadow. `azalea-0` (rose pink) and `azalea-1` (magenta) are the same shrub with glossier, darker leaves and trusses of blossom.
+- `haystack`: a round bale lying end on, symmetrical. The rolled top runs back from its round face with two twine bands over it, and loose straw lies at its foot.
+- `well`: a round drum of dressed stone. Its courses curve round it and its blocks narrow toward the sides. A coping ring circles dark water, and a small tiled roof stands on two posts over the windlass, rope and bucket.
+- `stall-red`, `stall-blue`: a striped awning whose stripes round like folds of canvas, over a scalloped valance in shade. Baskets of goods sit on a plank counter: apples, pears, cabbages and carrots at the red stall, bread, cheese and jars at the blue.
+- `lamp-0..5`: an iron street lamp with a four-pane cage. The six frames are the flame's loop, like the trail lanterns': rest, lean left, peak, lean right, dip, ember. A faint warm glow spills past the cage.
 
 ## The town
 
@@ -122,7 +127,7 @@ It has three terraces:
 2. pavings, using their corner masks, then the lifted-slab decals;
 3. walls, stairs, terrace edges, wall shadows and stair-foot shade;
 4. building shade;
-5. everything else, sorted by its bottom edge. Trees draw their tiers from the bottom up, the mill draws its sails over the tower, and a stoop sorts just after its house.
+5. everything else, sorted by its bottom edge. The mill draws its sails over the tower, and a stoop or doorstep sorts just after its house.
 
 Steps 1–4 are `ground_ops()` and step 5 is `things()`. The script bakes the flat layer into `windehus-ground.png` (640 × 576, opaque), so the game loads it in one go. A test re-renders it and fails if the layout changed without a rebuild.
 
@@ -136,8 +141,8 @@ Steps 1–4 are `ground_ops()` and step 5 is `things()`. The script bakes the fl
   - the well, the stalls and the hay mounds;
   - the bottom row of other props and of trees;
   - the mill tower's five middle columns, plus its capstan wheel and millstones.
-- **What doesn't:** stairs, stoops, flowers and the lifted slabs are walkable. The hay pen's gate stays shut.
-- **Animation:** the sails step a sixteenth turn every 0.3 s. Each sheep-bird breathes on its own phase.
+- **What doesn't:** stairs, stoops, doorsteps, flowers and the lifted slabs are walkable. The hay pen's gate stays shut.
+- **Animation:** the sails step a sixteenth turn every 0.3 s. Each sheep-bird breathes on its own phase. The lamps flicker through their six flame frames on the trail lanterns' timing (110, 100, 90, 110, 120, 130 ms), each lamp three frames behind the one before.
 - **Safe ground:** no random encounters in town.
 - **Music:** the calm Sunrest theme plays until a track is added at `assets/audio/windehus.mp3`.
 - **Not yet:** doors don't open, there are no townsfolk, and there's no save point in town.

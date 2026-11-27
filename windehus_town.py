@@ -3,8 +3,8 @@
 The town's flat layer (grass, paving, walls, stairs and shade) comes baked into one image by
 prepare_town_tiles.py, and the world chunks are cut from it. Every house, tree, fence and prop is its own canvas
 image, stacked back to front, and the party is slotted in among them by the row it stands on,
-so it walks behind a house or in front of it. The mill's sails turn and the sheep-birds in the
-hay pen breathe.
+so it walks behind a house or in front of it. The mill's sails turn, the sheep-birds in the
+hay pen breathe and the square's lamps flicker.
 """
 from bisect import bisect_right
 import json
@@ -18,6 +18,10 @@ GROUND = "windehus-ground.png"
 SAIL_SECONDS = .3              # each frame is a sixteenth turn of the sails
 BIRD_MS = (650, 250, 150)      # the sheep-bird idle cycle, as the mount manifest times it
 BIRD_PHASE_MS = 370            # so the birds don't breathe together
+# The lamp flame's loop, timed like the trail lanterns: rest, left, peak, right, dip, ember.
+# Each lamp runs three frames behind the one before, so they never flicker together.
+LAMP_MS = (110, 100, 90, 110, 120, 130)
+LAMP_PHASE_MS = sum(LAMP_MS[:3])
 
 
 class TownMap:
@@ -46,6 +50,7 @@ class WindehusTown:
         self.sails = None
         self.sail_frame = 0
         self.birds = []            # [item, facing, phase ms, frame]
+        self.lamps = []            # [item, phase ms, frame]
         self.drawn_camera = (0.0, 0.0)
 
     def here(self):
@@ -84,6 +89,7 @@ class WindehusTown:
         c.delete(TAG)
         self.layers.clear()
         self.birds.clear()
+        self.lamps.clear()
         self.sails = None
         for index, (key, _, steps) in enumerate(windehus.things(self.sizes)):
             first = None
@@ -97,6 +103,10 @@ class WindehusTown:
                     for frame in range(len(BIRD_MS)):
                         self.sprite(f"sheepbird-{facing}-{frame}")
                     self.birds.append([item, facing, len(self.birds) * BIRD_PHASE_MS, int(name[-1])])
+                elif name.startswith("lamp-"):
+                    for frame in range(len(LAMP_MS)):
+                        self.sprite(f"lamp-{frame}")
+                    self.lamps.append([item, len(self.lamps) * LAMP_PHASE_MS, int(name[-1])])
             self.layers.append((key, first))
         self.keys = [key for key, _ in self.layers]
         self.last_item = c.find_withtag(TAG)[-1]
@@ -127,6 +137,7 @@ class WindehusTown:
         a.canvas.delete(TAG)
         self.layers.clear()
         self.birds.clear()
+        self.lamps.clear()
         self.sails = None
         a.cave = a.grassland_map
         a.x, a.y = (tile[0] + .5) * TILE, (tile[1] + .5) * TILE
@@ -174,13 +185,24 @@ class WindehusTown:
         if self.sails is not None and frame != self.sail_frame:
             self.sail_frame = frame
             c.itemconfigure(self.sails, image=self.sprite(f"windmill-sails-{frame}"))
-        cycle = sum(BIRD_MS)
         for bird in self.birds:
             item, facing, phase, shown = bird
-            t, frame = (now * 1000 + phase) % cycle, 0
-            while t >= BIRD_MS[frame]:
-                t -= BIRD_MS[frame]
-                frame += 1
+            frame = _frame_at((now * 1000 + phase) % sum(BIRD_MS), BIRD_MS)
             if frame != shown:
                 bird[3] = frame
                 c.itemconfigure(item, image=self.sprite(f"sheepbird-{facing}-{frame}"))
+        for lamp in self.lamps:
+            item, phase, shown = lamp
+            frame = _frame_at((now * 1000 + phase) % sum(LAMP_MS), LAMP_MS)
+            if frame != shown:
+                lamp[2] = frame
+                c.itemconfigure(item, image=self.sprite(f"lamp-{frame}"))
+
+
+def _frame_at(t, durations):
+    """Which frame of a loop with these durations (ms) is showing t ms into it."""
+    frame = 0
+    while t >= durations[frame]:
+        t -= durations[frame]
+        frame += 1
+    return frame
