@@ -1,12 +1,12 @@
 {
  "azalea-0": [
-  301,
+  351,
   484,
   16,
   16
  ],
  "azalea-1": [
-  318,
+  368,
   484,
   16,
   16
@@ -18,19 +18,19 @@
   96
  ],
  "barrel": [
-  335,
+  385,
   484,
   16,
   16
  ],
  "bench": [
-  352,
+  402,
   484,
   32,
   16
  ],
  "bush": [
-  385,
+  435,
   484,
   16,
   16
@@ -42,85 +42,97 @@
   112
  ],
  "crate": [
-  402,
+  334,
   484,
   16,
-  16
+  22
+ ],
+ "crates": [
+  25,
+  435,
+  32,
+  32
  ],
  "doorstep": [
-  221,
+  272,
   551,
   16,
   11
  ],
  "edge-l": [
-  419,
+  452,
   484,
   16,
   16
  ],
  "edge-r": [
-  436,
+  469,
   484,
   16,
   16
  ],
  "fence-gate": [
-  453,
+  486,
   484,
   16,
   16
  ],
  "fence-l": [
-  470,
-  484,
-  16,
-  16
- ],
- "fence-m": [
-  487,
-  484,
-  16,
-  16
- ],
- "fence-r": [
   0,
   517,
   16,
   16
  ],
- "fence-solo": [
+ "fence-m": [
   17,
   517,
   16,
   16
  ],
- "fence-v": [
+ "fence-r": [
   34,
   517,
   16,
   16
  ],
- "flowers-0": [
+ "fence-solo": [
   51,
   517,
   16,
   16
  ],
- "flowers-1": [
+ "fence-v": [
   68,
   517,
   16,
   16
  ],
- "flowers-2": [
+ "flowers-0": [
   85,
   517,
   16,
   16
  ],
+ "flowers-1": [
+  102,
+  517,
+  16,
+  16
+ ],
+ "flowers-2": [
+  119,
+  517,
+  16,
+  16
+ ],
+ "gourds": [
+  136,
+  517,
+  16,
+  16
+ ],
  "haystack": [
-  25,
+  58,
   435,
   32,
   32
@@ -144,61 +156,61 @@
   96
  ],
  "lamp-0": [
-  58,
+  91,
   435,
   16,
   32
  ],
  "lamp-1": [
-  75,
+  108,
   435,
   16,
   32
  ],
  "lamp-2": [
-  92,
+  125,
   435,
   16,
   32
  ],
  "lamp-3": [
-  109,
+  142,
   435,
   16,
   32
  ],
  "lamp-4": [
-  126,
+  159,
   435,
   16,
   32
  ],
  "lamp-5": [
-  143,
+  176,
   435,
   16,
   32
  ],
  "lowwall-l": [
-  102,
+  153,
   517,
   16,
   16
  ],
  "lowwall-m": [
-  119,
+  170,
   517,
   16,
   16
  ],
  "lowwall-r": [
-  136,
+  187,
   517,
   16,
   16
  ],
  "lowwall-solo": [
-  153,
+  204,
   517,
   16,
   16
@@ -240,127 +252,127 @@
   80
  ],
  "planter-0": [
-  170,
-  517,
-  16,
-  16
- ],
- "planter-1": [
-  187,
-  517,
-  16,
-  16
- ],
- "planter-2": [
-  204,
-  517,
-  16,
-  16
- ],
- "sacks": [
   221,
   517,
   16,
   16
  ],
- "shade-full": [
+ "planter-1": [
   238,
   517,
   16,
   16
  ],
- "shade-stair-foot": [
+ "planter-2": [
   255,
   517,
   16,
   16
  ],
- "shade-strip": [
+ "sacks": [
   272,
   517,
   16,
   16
  ],
- "shade-strip-end": [
+ "shade-full": [
   289,
   517,
   16,
   16
  ],
- "shade-strip-top": [
+ "shade-stair-foot": [
   306,
   517,
   16,
   16
  ],
- "sheepbird-down-0": [
-  160,
-  435,
-  32,
-  32
+ "shade-strip": [
+  323,
+  517,
+  16,
+  16
  ],
- "sheepbird-down-1": [
+ "shade-strip-end": [
+  340,
+  517,
+  16,
+  16
+ ],
+ "shade-strip-top": [
+  357,
+  517,
+  16,
+  16
+ ],
+ "sheepbird-down-0": [
   193,
   435,
   32,
   32
  ],
- "sheepbird-down-2": [
+ "sheepbird-down-1": [
   226,
   435,
   32,
   32
  ],
- "sheepbird-left-0": [
+ "sheepbird-down-2": [
   259,
   435,
   32,
   32
  ],
- "sheepbird-left-1": [
+ "sheepbird-left-0": [
   292,
   435,
   32,
   32
  ],
- "sheepbird-left-2": [
+ "sheepbird-left-1": [
   325,
   435,
   32,
   32
  ],
- "sheepbird-right-0": [
+ "sheepbird-left-2": [
   358,
   435,
   32,
   32
  ],
- "sheepbird-right-1": [
+ "sheepbird-right-0": [
   391,
   435,
   32,
   32
  ],
- "sheepbird-right-2": [
+ "sheepbird-right-1": [
   424,
   435,
   32,
   32
  ],
- "sheepbird-up-0": [
+ "sheepbird-right-2": [
   457,
   435,
   32,
   32
  ],
- "sheepbird-up-1": [
+ "sheepbird-up-0": [
   0,
   484,
   32,
   32
  ],
- "sheepbird-up-2": [
+ "sheepbird-up-1": [
   33,
+  484,
+  32,
+  32
+ ],
+ "sheepbird-up-2": [
+  66,
   484,
   32,
   32
@@ -378,139 +390,139 @@
   96
  ],
  "signpost": [
-  66,
+  99,
   484,
   16,
   32
  ],
  "square-gap-0": [
-  83,
+  116,
   484,
   48,
   32
  ],
  "square-gap-1": [
-  132,
+  165,
   484,
   48,
   32
  ],
  "stairs-base-l": [
-  323,
-  517,
-  16,
-  16
- ],
- "stairs-base-m": [
-  340,
-  517,
-  16,
-  16
- ],
- "stairs-base-r": [
-  357,
-  517,
-  16,
-  16
- ],
- "stairs-base-solo": [
   374,
   517,
   16,
   16
  ],
- "stairs-mid-l": [
+ "stairs-base-m": [
   391,
   517,
   16,
   16
  ],
- "stairs-mid-m": [
+ "stairs-base-r": [
   408,
   517,
   16,
   16
  ],
- "stairs-mid-r": [
+ "stairs-base-solo": [
   425,
   517,
   16,
   16
  ],
- "stairs-mid-solo": [
+ "stairs-mid-l": [
   442,
   517,
   16,
   16
  ],
- "stairs-solo-l": [
+ "stairs-mid-m": [
   459,
   517,
   16,
   16
  ],
- "stairs-solo-m": [
+ "stairs-mid-r": [
   476,
   517,
   16,
   16
  ],
- "stairs-solo-r": [
+ "stairs-mid-solo": [
   493,
   517,
   16,
   16
  ],
- "stairs-solo-solo": [
+ "stairs-solo-l": [
   0,
   534,
   16,
   16
  ],
- "stairs-top-l": [
+ "stairs-solo-m": [
   17,
   534,
   16,
   16
  ],
- "stairs-top-m": [
+ "stairs-solo-r": [
   34,
   534,
   16,
   16
  ],
- "stairs-top-r": [
+ "stairs-solo-solo": [
   51,
   534,
   16,
   16
  ],
- "stairs-top-solo": [
+ "stairs-top-l": [
   68,
   534,
   16,
   16
  ],
- "stall-blue": [
-  181,
-  484,
-  32,
-  32
+ "stairs-top-m": [
+  85,
+  534,
+  16,
+  16
  ],
- "stall-red": [
+ "stairs-top-r": [
+  102,
+  534,
+  16,
+  16
+ ],
+ "stairs-top-solo": [
+  119,
+  534,
+  16,
+  16
+ ],
+ "stall-blue": [
   214,
   484,
   32,
   32
  ],
+ "stall-red": [
+  247,
+  484,
+  32,
+  32
+ ],
  "stoop": [
-  280,
+  313,
   484,
   20,
   24
  ],
  "stump": [
-  85,
+  136,
   534,
   16,
   16
@@ -522,229 +534,229 @@
   48
  ],
  "wall-base-l-0": [
-  102,
+  153,
   534,
   16,
   16
  ],
  "wall-base-l-1": [
-  119,
+  170,
   534,
   16,
   16
  ],
  "wall-base-l-2": [
-  136,
+  187,
   534,
   16,
   16
  ],
  "wall-base-m-0": [
-  153,
+  204,
   534,
   16,
   16
  ],
  "wall-base-m-1": [
-  170,
-  534,
-  16,
-  16
- ],
- "wall-base-m-2": [
-  187,
-  534,
-  16,
-  16
- ],
- "wall-base-r-0": [
-  204,
-  534,
-  16,
-  16
- ],
- "wall-base-r-1": [
   221,
   534,
   16,
   16
  ],
- "wall-base-r-2": [
+ "wall-base-m-2": [
   238,
   534,
   16,
   16
  ],
- "wall-mid-l-0": [
+ "wall-base-r-0": [
   255,
   534,
   16,
   16
  ],
- "wall-mid-l-1": [
+ "wall-base-r-1": [
   272,
   534,
   16,
   16
  ],
- "wall-mid-l-2": [
+ "wall-base-r-2": [
   289,
   534,
   16,
   16
  ],
- "wall-mid-m-0": [
+ "wall-mid-l-0": [
   306,
   534,
   16,
   16
  ],
- "wall-mid-m-1": [
+ "wall-mid-l-1": [
   323,
   534,
   16,
   16
  ],
- "wall-mid-m-2": [
+ "wall-mid-l-2": [
   340,
   534,
   16,
   16
  ],
- "wall-mid-r-0": [
+ "wall-mid-m-0": [
   357,
   534,
   16,
   16
  ],
- "wall-mid-r-1": [
+ "wall-mid-m-1": [
   374,
   534,
   16,
   16
  ],
- "wall-mid-r-2": [
+ "wall-mid-m-2": [
   391,
   534,
   16,
   16
  ],
- "wall-shadow": [
+ "wall-mid-r-0": [
   408,
   534,
   16,
   16
  ],
- "wall-solo-l-0": [
+ "wall-mid-r-1": [
   425,
   534,
   16,
   16
  ],
- "wall-solo-l-1": [
+ "wall-mid-r-2": [
   442,
   534,
   16,
   16
  ],
- "wall-solo-l-2": [
+ "wall-shadow": [
   459,
   534,
   16,
   16
  ],
- "wall-solo-m-0": [
+ "wall-solo-l-0": [
   476,
   534,
   16,
   16
  ],
- "wall-solo-m-1": [
+ "wall-solo-l-1": [
   493,
   534,
   16,
   16
  ],
- "wall-solo-m-2": [
+ "wall-solo-l-2": [
   0,
   551,
   16,
   16
  ],
- "wall-solo-r-0": [
+ "wall-solo-m-0": [
   17,
   551,
   16,
   16
  ],
- "wall-solo-r-1": [
+ "wall-solo-m-1": [
   34,
   551,
   16,
   16
  ],
- "wall-solo-r-2": [
+ "wall-solo-m-2": [
   51,
   551,
   16,
   16
  ],
- "wall-top-l-0": [
+ "wall-solo-r-0": [
   68,
   551,
   16,
   16
  ],
- "wall-top-l-1": [
+ "wall-solo-r-1": [
   85,
   551,
   16,
   16
  ],
- "wall-top-l-2": [
+ "wall-solo-r-2": [
   102,
   551,
   16,
   16
  ],
- "wall-top-m-0": [
+ "wall-top-l-0": [
   119,
   551,
   16,
   16
  ],
- "wall-top-m-1": [
+ "wall-top-l-1": [
   136,
   551,
   16,
   16
  ],
- "wall-top-m-2": [
+ "wall-top-l-2": [
   153,
   551,
   16,
   16
  ],
- "wall-top-r-0": [
+ "wall-top-m-0": [
   170,
   551,
   16,
   16
  ],
- "wall-top-r-1": [
+ "wall-top-m-1": [
   187,
   551,
   16,
   16
  ],
- "wall-top-r-2": [
+ "wall-top-m-2": [
   204,
   551,
   16,
   16
  ],
+ "wall-top-r-0": [
+  221,
+  551,
+  16,
+  16
+ ],
+ "wall-top-r-1": [
+  238,
+  551,
+  16,
+  16
+ ],
+ "wall-top-r-2": [
+  255,
+  551,
+  16,
+  16
+ ],
  "well": [
-  247,
+  280,
   484,
   32,
   32

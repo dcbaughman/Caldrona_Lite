@@ -70,6 +70,7 @@ How edges work:
 - **Doors:** every door in town, the windmill's included, is the same 10 × 20 px opening as the cave gates. A door stands either on the 5 px footing or up a stoop, so doors line up across a street at one of two heights. A door in a house's end column keeps 2 px in from the corner (`windehus.door_px()`), so its frame and lintel sit on the wall.
 - **Doorsteps:** the houses in `windehus.DOORSTEPS` stand on the street. The `doorstep` piece (16 × 11) is two low stone steps up to the 5 px sill, standing 5 px out onto the row below the house.
 - **Stoops:** the houses in `windehus.STOOPS` stand on a cellar plinth (a lit coping over big dressed blocks, with barred cellar vents), so their door sits 12 px up. The `stoop` piece (20 × 24) is four 3 px steps between stone cheeks. It stands out from the door 12 px onto the row below the house, its west cheek shades the steps, and it casts a little shade east.
+- **Weathering:** each house's limewashed plaster is aged to its `wear` (0-1). Flakes are chipped off down to the daub, with a shaded upper edge and a lit lower lip. Grey streaks wash down from the sills and beams, with the odd grimy one, and there are chalky faded patches. Shutter paint is worn to the wood in places. The bakery is the most weathered and the inn the least.
 - `buildings.json` lists each building's size in tiles, its door rectangles, and whether it has a stoop.
 - The current set: `inn` (7 wide), `house-red`, `house-slate`, `cottage`, `shop-arms`, `shop-goods` and `bakery`.
 - The `building()` function makes new ones. It takes a width, a roof palette, gables, doors, ground and upper windows, flower boxes, a chimney, a sign icon (`bed`, `mug`, `sword`, `shield`, `flask` or `loaf`) and a ground-floor style.
@@ -106,7 +107,14 @@ How edges work:
   - Three of them idle in the hay pen: one at the hay bale, two by the fence.
 
 **Props**
-- `barrel`, `crate`, `sacks`, `bench`, `planter-0..2`, `flowers-0..2`, `stump`, `signpost`.
+- `flowers-0..2`: loose blooms in the grass.
+- `barrel`: fits one tile. An oval lid sits in its chime ring over a body that swells at the middle, with staves that narrow toward the sides and three iron hoops that curve round it.
+- `crate` (16 × 22) and `crates` (32 × 32): crates show their lid of boards from above, over a framed plank front with a diagonal brace. `crates` is a stack: a big crate with a small one on its lid, and another in front.
+- `planter-0..2`: a flower box with a lit rim, an inner lip in shade, a board front between corner posts, and its planting lit on the upper left with a bloom spilling over the front.
+- `gourds`: a heap of three ribbed yellow gourds by the red stall. `sacks`: two burlap flour sacks by the bakery, one tied at the neck.
+- `bench`: a back of two rails, a seat whose boards catch the light over a shaded edge, and four legs.
+- `signpost`: a squared post with a pointed cap and two arrow boards with real thickness, casting shade on the post.
+- `stump`: an oval cut face with rings inside a bark rim, a furrowed round body, flaring roots and a little moss.
 - `bush`: a round shrub of overlapping leaf clusters, a fresher green than the meadow. `azalea-0` (rose pink) and `azalea-1` (magenta) are the same shrub with glossier, darker leaves and trusses of blossom.
 - `haystack`: a round bale lying end on, symmetrical. The rolled top runs back from its round face with two twine bands over it, and loose straw lies at its foot.
 - `well`: a round drum of dressed stone. Its courses curve round it and its blocks narrow toward the sides. A coping ring circles dark water, and a small tiled roof stands on two posts over the windlass, rope and bucket.

@@ -721,6 +721,8 @@ def _window(s, x, y, h, shutter):
             slat = (yy - y) % 3 == 2
             s.set_at((sx, yy), mix(shutter, (255, 255, 255), .14) if lit and not slat else
                      mix(shutter, INK, .4) if slat else shutter)
+            if not slat and noise(sx, yy, 77) > .86:
+                s.set_at((sx, yy), WOOD[3] if lit else WOOD[2])      # paint worn to the wood
     for xx in range(x - 1, x + 9):
         s.set_at((xx, y + h), WOOD[4])
         s.set_at((xx, y + h + 1), WOOD[1])
@@ -1040,8 +1042,57 @@ def _icon(s, x, y, icon):
         put(s, x + 1, y + 1, hi)
 
 
+# The daub and lath under a house's plaster, where it has chipped away.
+UNDERCOAT = ((78, 56, 42), (108, 82, 60), (134, 106, 78))
+WASH = (178, 180, 172)       # the warm limewash weathered down to a cool chalky grey
+GRIME = (104, 96, 78)
+
+
+def _weather(s, seed, wear):
+    """Old paint on a house's plaster, more of it the higher wear (0-1) is: flakes chipped
+    off down to the daub (a shaded upper edge, a lit lower lip), pale streaks washed down
+    from the sills and beams where rain runs off, the odd grimy one, and faded patches."""
+    w, h = s.get_size()
+    plaster = set(PLASTER)
+    mask = {(x, y) for y in range(h) for x in range(w) if s.get_at((x, y))[:3] in plaster}
+    rng = random.Random(seed * 31 + 5)
+    # Faded patches, where the limewash has gone chalky.
+    spots = sorted(mask)
+    for _ in range(round(1 + wear * 4)):
+        px, py = rng.choice(spots)
+        rx, ry = rng.uniform(4, 9), rng.uniform(3, 6)
+        for y in range(int(py - ry), int(py + ry) + 1):
+            for x in range(int(px - rx), int(px + rx) + 1):
+                d = ((x - px) / rx) ** 2 + ((y - py) / ry) ** 2
+                if (x, y) in mask and d <= 1 - noise(x, y, seed) * .4:
+                    s.set_at((x, y), mix(s.get_at((x, y))[:3], WASH, .42 - d * .18))
+    # Streaks running down from whatever overhangs the plaster: sills, beams, the jetty.
+    for x, y in spots:
+        if (x, y - 1) in mask or rng.random() > wear * .3:
+            continue
+        grimy = rng.random() < .35
+        length = rng.randint(3, 5 + round(wear * 7))
+        for i in range(length):
+            if (x, y + i) not in mask:
+                break
+            fade = (1 - i / length) * (.45 if grimy else .55)
+            s.set_at((x, y + i), mix(s.get_at((x, y + i))[:3], GRIME if grimy else WASH, fade))
+    # Chips, flaked off down to the daub.
+    for _ in range(round(len(mask) * wear / 100)):
+        cx, cy = rng.choice(spots)
+        cw, ch = rng.randint(2, 4), rng.randint(1, 3)
+        hole = {(cx + i, cy + j) for j in range(ch) for i in range(cw)
+                if (cx + i, cy + j) in mask and noise(cx + i, cy + j, seed + 9) > .2}
+        for x, y in hole:
+            top = (x, y - 1) not in hole
+            s.set_at((x, y), UNDERCOAT[0] if top else UNDERCOAT[1 + (noise(x, y, seed + 3) > .6)])
+        for x, y in hole:
+            if (x, y + 1) in mask and (x, y + 1) not in hole:
+                s.set_at((x, y + 1), PLASTER[3])
+
+
 def building(width, roof, gables=(), doors=(), windows=(), upper=(), boxes=(), chimney=None, sign=None,
-             ground="plaster", shutter=(78, 96, 72), stoop=False, seed=0):
+             ground="plaster", shutter=(78, 96, 72), stoop=False, wear=.5, seed=0):
     """A two-storey timber house: a stone or plaster ground floor with the town's one door,
     a jettied half-timbered upper floor, a tiled roof with cross gables, an optional chimney
     and trade sign. With stoop, it stands on a cellar plinth and its door is up a flight of
@@ -1064,6 +1115,7 @@ def building(width, roof, gables=(), doors=(), windows=(), upper=(), boxes=(), c
     if sign is not None:
         t, icon = sign
         _sign(s, 16 * t + 3, gf_top + 3, icon)
+    _weather(s, seed, wear)
     soft_outline(s)
     return s, doors_at
 
@@ -1093,48 +1145,166 @@ def ground_shadow(s, cx, cy, rx, ry):
 
 # --- props --------------------------------------------------------------------------------------------
 def barrel():
+    """A barrel standing in one tile, seen from above: an oval lid inside a darker chime ring,
+    a body that swells at the middle, staves that narrow toward its sides, and three iron
+    hoops that curve round it. Lit on the left like everything in town."""
     s = surface(16, 16)
-    ground_shadow(s, 10, 14.5, 5, 1.5)
-    for y in range(3, 15):
-        bulge = 1 if 5 <= y <= 12 else 0
-        for x in range(3 - bulge, 13 + bulge):
-            tone = 3.8 - (x - 2) / 11 * 2.4 - ((x - 3) % 3 == 0) * .5
-            s.set_at((x, y), ramp(WOOD, tone))
-        if y in (5, 12):
-            for x in range(3 - bulge, 13 + bulge):
-                s.set_at((x, y), IRON[3] if x < 6 else IRON[1])
-    for y in range(1, 4):
-        for x in range(4, 12):
-            if (x - 7.5) ** 2 / 16 + (y - 2.5) ** 2 / 2.2 <= 1:
-                s.set_at((x, y), WOOD[4] if y < 3 else WOOD[3])
+    cx, top, bottom, ry = 8.0, 3.2, 13.2, 2.1
+    ground_shadow(s, 10.5, 14.4, 5.5, 1.5)
+
+    def half(y):
+        return 5.0 + 1.3 * sin(pi * max(0.0, min(1.0, (y - top) / (bottom - top))))
+
+    for y in range(16):
+        for x in range(16):
+            yy = y + .5
+            h = half(yy)
+            dx = (x + .5 - cx) / h
+            if abs(dx) >= 1:
+                continue
+            arc = ry * sqrt(1 - dx * dx)
+            if not top - arc <= yy <= bottom + arc:
+                continue
+            if yy < top + arc:
+                continue            # the lid, drawn below
+            # Height down the side, measured along the curve so hoops and stave ends bow.
+            down = (yy - top - arc) / (bottom - top)
+            angle = asin(dx)
+            tone = 3.3 - dx * 1.6 + (dx < -.35 and dx > -.75) * .6
+            if int((angle + pi / 2) / .42) != int((angle + pi / 2 + .09) / .42):
+                tone -= .9                                   # a stave joint
+            hoop = any(abs(down - band) < .06 for band in (.12, .5, .88))
+            if hoop:
+                s.set_at((x, y), IRON[3] if dx < -.3 else IRON[2] if dx < .3 else IRON[1])
+            else:
+                s.set_at((x, y), ramp(WOOD, tone + (noise(x, y, 160) - .5) * .4))
+    # The lid: a chime ring round a disc of planks, the far side of the ring lit.
+    for y in range(16):
+        for x in range(16):
+            ox, oy = (x + .5 - cx) / half(top), (y + .5 - top) / ry
+            if ox * ox + oy * oy > 1:
+                continue
+            inner = (ox / .8) ** 2 + (oy / .7) ** 2 <= 1
+            if inner:
+                tone = 4.0 - ox * .8 - ((x - 3) % 4 == 0) * .7
+                s.set_at((x, y), ramp(WOOD, tone))
+            else:
+                s.set_at((x, y), ramp(WOOD, 4.6 if oy < 0 else 2.0) if ox < .5 else WOOD[1])
+    put(s, 9, 3, IRON[1])
     soft_outline(s)
     return s
 
 
+def _crate(s, x0, front, w, h, depth, seed):
+    """One crate in the town's view: a lid of boards seen from above, then a front of
+    planks inside a frame with a diagonal brace. front is the y of the lid's front edge."""
+    for y in range(front - depth, front):
+        r = y - (front - depth)
+        for x in range(x0, x0 + w):
+            rim = x in (x0, x0 + w - 1) or r == 0
+            board = (r - 1) % 3 == 2
+            tone = 4.3 - (x - x0) / w * .8 - rim * .5 - board * .9 + (r == depth - 1) * .3
+            s.set_at((x, y), ramp(WOOD, tone + (noise(x // 3, y, seed) - .5) * .4))
+    for y in range(front, front + h):
+        r = y - front
+        for x in range(x0, x0 + w):
+            frame = x in (x0, x0 + 1, x0 + w - 2, x0 + w - 1) or r in (0, 1, h - 2, h - 1)
+            if frame:
+                tone = 3.4 if (x <= x0 + 1 or r <= 1) else 2.2
+                if r == 0:
+                    tone += .8
+            else:
+                plank = (r - 2) % 3
+                tone = (2.9, 2.6, 1.6)[plank]
+            s.set_at((x, y), ramp(WOOD, tone - (x - x0) / w * .5 + (noise(x, y // 3, seed + 1) - .5) * .3))
+    # The diagonal brace, lit along its top edge.
+    for i in range(w - 4):
+        y = front + h - 3 - round(i * (h - 5) / max(1, w - 5))
+        put(s, x0 + 2 + i, y, WOOD[4])
+        put(s, x0 + 2 + i, y + 1, WOOD[1])
+    for x, y in ((x0 + 1, front + 1), (x0 + w - 2, front + 1), (x0 + 1, front + h - 2), (x0 + w - 2, front + h - 2)):
+        put(s, x, y, IRON[2])
+
+
 def crate():
+    """A single crate, one tile wide and a little taller than one, its lid showing."""
+    s = surface(16, 22)
+    ground_shadow(s, 10.5, 20.6, 6, 1.6)
+    _crate(s, 2, 7, 12, 13, 5, 150)
+    soft_outline(s)
+    return s
+
+
+def crates():
+    """A stack of crates two tiles wide: a big one with a small one on its lid, and another
+    on the ground in front of it to the right."""
+    s = surface(32, 32)
+    ground_shadow(s, 19, 30.4, 14, 2)
+    _crate(s, 2, 14, 18, 15, 6, 151)
+    _crate(s, 5, 6, 12, 8, 5, 152)
+    _crate(s, 18, 21, 12, 9, 5, 153)
+    soft_outline(s)
+    return s
+
+
+GOURD = ((116, 78, 22), (164, 116, 30), (210, 160, 52), (238, 202, 96), (252, 232, 160))
+BURLAP = ((88, 66, 42), (122, 94, 60), (156, 124, 82), (188, 158, 110), (214, 188, 140))
+
+
+def gourds():
+    """A heap of yellow gourds by the market stall: two on the ground and one resting on
+    them, each round and ribbed, lit on its upper left, with a curled stalk."""
     s = surface(16, 16)
-    for y in range(3, 15):
-        for x in range(2, 14):
-            top = y < 6
-            frame = x in (2, 13) or y in (6, 14)
-            tone = (4.4 if top else 3.0) - frame * .8 - (x > 10) * .6 - (not top and (y - 6) % 3 == 0) * .7
-            s.set_at((x, y), ramp(WOOD, tone))
-    for i in range(7):
-        put(s, 3 + round(i * 10 / 6), 13 - i, WOOD[1])
+    ground_shadow(s, 9.5, 14.3, 7, 1.6)
+    for cx, cy, r in ((8.0, 6.6, 3.6), (4.6, 10.4, 4.1), (11.2, 10.8, 4.0)):
+        for y in range(16):
+            for x in range(16):
+                dx, dy = (x + .5 - cx) / r, (y + .5 - cy) / (r * .86)
+                if dx * dx + dy * dy > 1:
+                    continue
+                tone = 2.9 - dx * 1.1 - dy * .9
+                if abs(dx) > .1 and int(abs(asin(max(-1.0, min(1.0, dx)))) / .5) != int((abs(asin(max(-1.0, min(1.0, dx)))) + .08) / .5):
+                    tone -= .9                               # a rib
+                if (dx + .35) ** 2 + (dy + .4) ** 2 < .06:
+                    tone += 1.4                              # the shine
+                s.set_at((x, y), ramp(GOURD, tone))
+        sx, sy = round(cx - .5), round(cy - r * .86 - .5)
+        put(s, sx, sy, (84, 96, 40))
+        put(s, sx + 1, sy - 1, (62, 74, 32))
     soft_outline(s)
     return s
 
 
 def sacks():
+    """Two burlap flour sacks by the bakery: one standing with its neck tied off, one
+    slumped against it. The weave shows, and the cloth sags into folds."""
     s = surface(16, 16)
-    for cx, cy in ((5, 10), (11, 11)):
-        for y in range(cy - 5, cy + 5):
-            for x in range(cx - 4, cx + 5):
-                if (x - cx) ** 2 / 18 + (y - cy) ** 2 / 22 <= 1:
-                    tone = 3.2 - (x - cx + y - cy) * .25
-                    s.set_at((x, y), ramp(STRAW, tone - .8))
-        put(s, cx, cy - 6, STRAW[1])
-        put(s, cx, cy - 5, STRAW[0])
+    ground_shadow(s, 10, 14.3, 6.5, 1.6)
+    # (centre x, top of the body, foot, half width, tied neck)
+    for cx, top, base, half, tied in ((6.0, 4, 14, 4.6, True), (11.4, 8, 14, 4.0, False)):
+        for y in range(top, base + 1):
+            t = (y - top) / (base - top)
+            # A full sack: rounded shoulders, then straight sides that bag out at the foot.
+            w = half * (sqrt(max(0.0, min(1.0, t * 3.2))) * .85 + .15 * t) if tied else half * (.75 + .25 * sqrt(t))
+            for x in range(16):
+                dx = (x + .5 - cx) / max(w, .5)
+                if abs(dx) > 1:
+                    continue
+                tone = 3.0 - dx * 1.3 - t * .5 + ((x + y) % 2) * .25
+                if tied and -.35 < dx < -.15 and .35 < t < .85:
+                    tone -= .8                               # a fold down the front
+                if y == base:
+                    tone -= 1.0
+                s.set_at((x, y), ramp(BURLAP, tone))
+        if tied:
+            # The gathered neck above a twine tie, its ends flopping to the right.
+            for x, y, tone in ((5, 1, 3), (6, 1, 2), (5, 2, 3), (6, 2, 2), (7, 2, 1), (4, 2, 2)):
+                put(s, x, y, BURLAP[tone])
+            for x, y in ((5, 3), (6, 3), (7, 3)):
+                put(s, x, y, BURLAP[0])
+        else:
+            for x in range(9, 15):
+                put(s, x, 8, BURLAP[4] if x < 12 else BURLAP[3])
     soft_outline(s)
     return s
 
@@ -1285,28 +1455,71 @@ def lamp_post(frame=0):
 
 
 def bench():
+    """A slatted bench seen from above and in front: a back of two rails between posts,
+    a seat of three boards whose tops catch the light over a shaded front edge, and four
+    legs, the back pair shorter and in the seat's shade."""
     s = surface(32, 16)
+    ground_shadow(s, 17, 14.6, 14, 1.4)
+    for px in (5, 25):                                   # back legs, under the seat
+        for y in range(11, 14):
+            s.set_at((px, y), WOOD[1])
+    for px in (3, 27):                                   # back posts
+        for y in range(1, 9):
+            s.set_at((px, y), WOOD[4] if px == 3 else WOOD[3])
+            s.set_at((px + 1, y), WOOD[2] if px == 3 else WOOD[1])
+    for x in range(3, 29):
+        for y, tone in ((2, 4.5), (3, 3.2), (5, 4.3), (6, 2.9)):
+            s.set_at((x, y), ramp(WOOD, tone - (x > 22) * .4))
     for x in range(2, 30):
-        for y, tone in ((3, 4.4), (4, 3.0), (8, 4.6), (9, 3.4), (10, 2.0)):
-            s.set_at((x, y), ramp(WOOD, tone))
-    for px in (4, 26):
-        for y in range(3, 15):
-            s.set_at((px, y), WOOD[2])
+        for y, tone in ((8, 4.6), (9, 3.6), (10, 4.4), (11, 2.0)):
+            s.set_at((x, y), ramp(WOOD, tone - (x > 23) * .4 - (x % 7 == 0 and y < 11) * .6))
+    for px in (2, 28):                                   # front legs
+        for y in range(12, 15):
+            s.set_at((px, y), WOOD[3] if px == 2 else WOOD[2])
             s.set_at((px + 1, y), WOOD[1])
     soft_outline(s)
     return s
 
 
 def planter(color):
+    """A flower box: a lit rim around the soil, a front of two boards between corner posts,
+    and a heap of leaves and blooms that spills over the front edge."""
     s = surface(16, 16)
-    for y in range(9, 15):
+    rng = random.Random(120 + color)
+    ground_shadow(s, 9.5, 14.6, 7, 1.3)
+    for y in range(8, 15):
         for x in range(2, 14):
-            s.set_at((x, y), ramp(WOOD, (4.4 if y == 9 else 3.0) - (x > 11) * .7 - (y % 3 == 0) * .6))
-    for y in range(3, 10):
+            if y == 8:
+                tone = 4.6 - (x > 10) * .6                   # the rim's top
+            elif y == 9:
+                tone = 2.2                                   # its inner lip, in shade
+            else:
+                board = (y - 10) % 3
+                tone = (3.6, 3.0, 1.9)[board] - (x - 2) / 12 * .6
+                if x in (2, 13):
+                    tone = 3.9 if x == 2 else 1.6            # corner posts
+                if y == 14:
+                    tone -= .8
+            s.set_at((x, y), ramp(WOOD, tone + (noise(x // 3, y, 121) - .5) * .3))
+    for x in (4, 11):
+        s.set_at((x, 11), IRON[2])
+    # The planting: the same speckle of leaf and bloom as before, now lit on its upper left
+    # and sinking into shade where it meets the box.
+    bloom = BLOOMS[color]
+    light, dark = mix(bloom, (255, 255, 255), .3), mix(bloom, INK, .3)
+    for y in range(2, 10):
         for x in range(2, 14):
             n = noise(x, y, 120 + color)
-            if (x - 8) ** 2 / 36 + (y - 8) ** 2 / 25 <= 1 and n > .25:
-                s.set_at((x, y), BLOOMS[color] if n > .62 else LEAF[3 if x < 8 else 2])
+            if (x - 8) ** 2 / 36 + (y - 7.6) ** 2 / 25 > 1 or n <= .25:
+                continue
+            lean = (x - 8) / 6 + (y - 5) / 6
+            if n > .62:
+                s.set_at((x, y), light if lean < -.3 else dark if lean > .7 else bloom)
+            else:
+                s.set_at((x, y), ramp(LEAF, 3.3 - lean * 1.3 - (y >= 8) * .8))
+    # One bloom tumbles over the front boards.
+    for x, y, c in ((3, 9, LEAF[3]), (3, 10, bloom), (4, 10, dark)):
+        put(s, x, y, c)
     soft_outline(s)
     return s
 
@@ -1451,14 +1664,40 @@ def pine(tiers, greens, seed=0):
 
 
 def stump():
+    """A felled pine's stump: an oval cut face with growth rings and a dark heart inside a
+    rim of bark, a round body of furrowed bark lit on the left, roots flaring into the
+    ground, and a little moss on its shaded side."""
     s = surface(16, 16)
-    for y in range(7, 14):
-        for x in range(4, 12):
-            s.set_at((x, y), ramp(WOOD, 3.2 - (x - 4) * .3))
-    for y in range(5, 9):
-        for x in range(4, 12):
-            if (x - 7.5) ** 2 / 14 + (y - 7) ** 2 / 3 <= 1:
-                s.set_at((x, y), WOOD[5] if (x - 7.5) ** 2 + (y - 7) ** 2 > 3 else WOOD[4])
+    cx, cut, base, rx, ry = 8.0, 5.6, 11.6, 4.6, 2.0
+    ground_shadow(s, 10.5, 13.8, 6, 1.5)
+    # Roots first, so the trunk sits over them.
+    for x, y, tone in ((2, 13, 2.6), (3, 12, 3.2), (3, 13, 2.8), (4, 12, 3.0), (12, 12, 1.4), (13, 13, 1.0),
+                       (12, 13, 1.2), (11, 13, 1.6), (6, 13, 2.8), (7, 14, 2.2), (9, 14, 1.6)):
+        put(s, x, y, ramp(BARK, tone))
+    for y in range(16):
+        for x in range(16):
+            dx = (x + .5 - cx) / rx
+            if abs(dx) >= 1:
+                continue
+            arc = ry * sqrt(1 - dx * dx)
+            if not cut <= y + .5 <= base + arc:
+                continue
+            furrow = int((asin(dx) + pi / 2) / .38) != int((asin(dx) + pi / 2 + .1) / .38)
+            tone = 3.0 - dx * 1.6 - furrow * .9 + (noise(x, y // 2, 161) - .5) * .5
+            s.set_at((x, y), ramp(BARK, tone))
+            if dx > .45 and y + .5 > base - 1 and noise(x, y, 162) > .4:
+                s.set_at((x, y), MOSS[1])
+    for y in range(16):
+        for x in range(16):
+            ox, oy = (x + .5 - cx) / rx, (y + .5 - cut) / ry
+            r = sqrt(ox * ox + oy * oy)
+            if r > 1:
+                continue
+            if r > .82:
+                s.set_at((x, y), BARK[3] if oy < 0 and ox < .4 else BARK[1])
+            else:
+                ring = int(r * 4.2) % 2
+                s.set_at((x, y), WOOD[2] if r < .22 else ramp(WOOD, 4.6 - ring * .9 - ox * .5))
     soft_outline(s)
     return s
 
@@ -1593,19 +1832,32 @@ def market_stall(kind):
 
 
 def signpost():
+    """A fingerpost: a squared post with a lit face and a shaded side, a pointed cap, and two
+    arrow boards with thickness (a lit top edge, a face with carved marks, a dark underside)
+    that cast a little shade on the post below them. A tuft of grass grows at its foot."""
     s = surface(16, 32)
-    for y in range(4, 31):
-        s.set_at((7, y), WOOD[4])
+    ground_shadow(s, 10, 30.6, 4, 1.2)
+    for y in range(3, 31):
+        s.set_at((7, y), WOOD[4] if y > 3 else WOOD[5])
         s.set_at((8, y), WOOD[2])
-    for y0, direction in ((6, 1), (12, -1)):
-        for y in range(y0, y0 + 4):
-            for i in range(11):
-                x = 8 + i * direction if direction > 0 else 7 - i
-                tip = i >= 9 and (y in (y0, y0 + 3) or i == 10 and y in (y0, y0 + 3))
-                if tip:
+        s.set_at((9, y), WOOD[1])
+    for x, y in ((7, 2), (8, 2), (8, 1)):
+        s.set_at((x, y), WOOD[5] if x == 7 else WOOD[3])
+    for y0, direction in ((6, 1), (13, -1)):
+        for i in range(12):
+            x = 10 + i if direction > 0 else 6 - i
+            point = i - 9                                   # the arrow tapers over its last 3 px
+            for r in range(5):
+                if point > 0 and (r < point or r > 4 - point):
                     continue
-                s.set_at((x if direction > 0 else x, y), ramp(WOOD, 4.2 if y == y0 else 3.0))
-        s.set_at((8 + 3 * direction if direction > 0 else 4, y0 + 2), (60, 44, 34))
+                tone = 4.6 if r == 0 else 1.4 if r == 4 else 3.3 - (r == 3) * .4
+                if r in (1, 2, 3) and 2 <= i <= 7 and noise(i, r, 165 + y0) > .62:
+                    tone = 1.8                              # carved letters
+                put(s, x, y0 + r, ramp(WOOD, tone))
+        for x in (7, 8, 9):
+            s.set_at((x, y0 + 5), mix(s.get_at((x, y0 + 5))[:3], INK, .45))
+    for x, y, tone in ((5, 30, 1), (6, 29, 2), (6, 30, 1), (10, 30, 0), (10, 29, 1)):
+        put(s, x, y, TUFT[tone])
     soft_outline(s)
     return s
 
@@ -2187,19 +2439,19 @@ def _bird_frames():
 # --- pieces and packing -----------------------------------------------------------------------------
 BUILDINGS = {
     "inn": dict(width=7, roof=ROOF_RED, gables=((0, 2), (5, 2)), doors=(3,), windows=(1, 5), upper=(1, 2, 4, 5),
-                boxes=(1, 5), chimney=3, sign=(2, "bed"), ground="stone", seed=1),
+                boxes=(1, 5), chimney=3, sign=(2, "bed"), ground="stone", wear=.4, seed=1),
     "house-red": dict(width=4, roof=ROOF_RED, gables=((0, 2),), doors=(2,), windows=(0,), upper=(0, 1, 3),
-                      boxes=(0, 3), chimney=3, seed=2),
+                      boxes=(0, 3), chimney=3, wear=.8, seed=2),
     "house-slate": dict(width=5, roof=ROOF_SLATE, gables=((1, 3),), doors=(0,), windows=(2, 4), upper=(1, 3),
-                        boxes=(1,), shutter=(118, 58, 46), chimney=4, ground="stone", seed=3),
+                        boxes=(1,), shutter=(118, 58, 46), chimney=4, ground="stone", wear=.6, seed=3),
     "cottage": dict(width=3, roof=ROOF_SLATE, gables=((0, 3),), doors=(1,), windows=(0, 2), upper=(0, 2),
-                    boxes=(0, 2), shutter=(118, 58, 46), seed=4),
+                    boxes=(0, 2), shutter=(118, 58, 46), wear=.9, seed=4),
     "shop-arms": dict(width=4, roof=ROOF_RED, gables=((2, 2),), doors=(1,), windows=(2, 3), upper=(1, 3),
-                      sign=(0, "sword"), chimney=0, ground="stone", seed=5),
+                      sign=(0, "sword"), chimney=0, ground="stone", wear=.5, seed=5),
     "shop-goods": dict(width=4, roof=ROOF_SLATE, gables=((0, 2),), doors=(2,), windows=(0, 1), upper=(0, 2),
-                       boxes=(0,), sign=(3, "flask"), shutter=(118, 58, 46), seed=6),
+                       boxes=(0,), sign=(3, "flask"), shutter=(118, 58, 46), wear=.7, seed=6),
     "bakery": dict(width=4, roof=ROOF_RED, doors=(1,), windows=(0, 3), upper=(0, 2), boxes=(2,), chimney=3,
-                   sign=(2, "loaf"), seed=7),
+                   sign=(2, "loaf"), wear=1.0, seed=7),
 }
 
 
@@ -2235,7 +2487,8 @@ def pieces():
     for frame in range(len(LAMP_FLAMES)):
         out[f"lamp-{frame}"] = lamp_post(frame)
     out["doorstep"] = doorstep()
-    out.update({"barrel": barrel(), "crate": crate(), "sacks": sacks(), "well": well(),
+    out.update({"barrel": barrel(), "crate": crate(), "crates": crates(), "sacks": sacks(), "gourds": gourds(),
+                "well": well(),
                 "bench": bench(), "bush": bush(seed=3), "azalea-0": bush(AZALEAS[0], 2),
                 "azalea-1": bush(AZALEAS[1], 1), "stump": stump(),
                 "haystack": haystack(), "stall-red": market_stall("red"),

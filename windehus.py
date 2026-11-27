@@ -97,16 +97,16 @@ GROUND, STRUCT = _layout()
 OBJECTS = (
     # Ridge: a wood along the top, the houses on the lane, the mill at the east end.
     ("pine", 0, 3, 4), ("pine", 2, 6, 5), ("pine", 13, 3, 4), ("pine", 20, 4, 4), ("pine", 24, 3, 4),
-    ("pine", 7, 4, 4), ("bush", 18, 4), ("flowers-2", 11, 5),
+    ("pine", 7, 4, 4), ("bush", 18, 4), ("flowers-2", 11, 5), ("stump", 16, 3),
     ("windmill", 27, 11), ("cottage", 4, 11), ("house-slate", 9, 11), ("house-red", 15, 11),
     ("haystack", 24, 11), ("pine", 0, 12, 4), ("pine", 1, 13, 3), ("pine", 22, 10, 5), ("pine", 36, 11, 4),
     ("pine", 38, 8, 4), ("pine", 38, 13, 3), ("azalea-0", 24, 13), ("bush", 2, 13), ("barrel", 8, 11),
-    ("crate", 14, 11), ("flowers-0", 21, 11), ("flowers-2", 25, 7), ("stump", 35, 13),
+    ("crate", 14, 11), ("flowers-0", 21, 11), ("flowers-2", 25, 7),
     # Inn square.
     ("inn", 2, 21), ("shop-arms", 30, 21), ("shop-goods", 34, 21), ("well", 19, 21),
     ("stall-red", 13, 20), ("stall-blue", 24, 20), ("lamp-0", 11, 21), ("lamp-0", 28, 21), ("lamp-0", 11, 24),
     ("lamp-0", 28, 24), ("bench", 15, 24), ("bench", 23, 24), ("barrel", 9, 21), ("barrel", 10, 21),
-    ("crate", 29, 21), ("sacks", 15, 20), ("planter-0", 31, 23), ("planter-1", 32, 23), ("planter-2", 33, 23),
+    ("crate", 29, 21), ("gourds", 15, 20), ("crates", 12, 18), ("planter-0", 31, 23), ("planter-1", 32, 23), ("planter-2", 33, 23),
     ("planter-0", 34, 23), ("pine", 0, 25, 3), ("azalea-1", 38, 25), ("flowers-1", 1, 17), ("flowers-0", 39, 18),
     # Road field.
     ("bakery", 3, 34), ("town-stone", 23, 32), ("signpost", 16, 32), ("haystack", 30, 33), ("stump", 35, 33),
